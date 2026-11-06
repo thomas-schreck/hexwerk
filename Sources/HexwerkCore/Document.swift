@@ -384,13 +384,40 @@ public final class Document {
         acceptedMissing = false
     }
 
-    /// Writes the document to a temp file next to `target` and renames it
-    /// over `target`. A symlink is followed, so the link stays a link and its
-    /// target gets the new content. Extended attributes (including the
-    /// quarantine flag), ACLs, permission bits and, where allowed, owner and
-    /// group of the replaced file are carried over.
+    /// Writes the document like `Document.write(_:to:)`, in 1 MiB chunks.
     private func writeReplacement(at link: URL) throws {
-        let target = Self.resolvingSymlinks(link)
+        try Self.replaceFile(at: link) { fd, path in
+            let chunk: UInt64 = 1 << 20
+            var pos: UInt64 = 0
+            while pos < count {
+                let data = read(pos ..< min(pos + chunk, count))
+                try Self.writeAll(fd, data, path: path)
+                pos += UInt64(data.count)
+            }
+        }
+    }
+
+    /// Writes `data` to `url` the way documents are saved (Intel HEX /
+    /// S-Record write-back): via a temp file, keeping symlinks, hard links,
+    /// extended attributes, ACLs, mode and owner of the replaced file.
+    public static func write(_ data: Data, to url: URL) throws {
+        try replaceFile(at: url) { fd, path in try writeAll(fd, data, path: path) }
+    }
+
+    /// Lets `content` write the new file to a temp file next to `target` and
+    /// renames it over `target`. A symlink is followed, so the link stays a
+    /// link and its target gets the new content. Extended attributes
+    /// (including the quarantine flag), ACLs, permission bits and, where
+    /// allowed, owner and group of the replaced file are carried over.
+    ///
+    /// A file with more than one hard link is not replaced: a rename would
+    /// give this path a new inode and leave the other links with the old
+    /// content. Its new content is copied into the file instead, after the
+    /// temp file is complete and synced. That keeps inode and metadata but
+    /// is not atomic: if copying fails, the temp file is kept and named in
+    /// the error, so the content is not lost.
+    static func replaceFile(at link: URL, content: (_ fd: Int32, _ path: String) throws -> Void) throws {
+        let target = resolvingSymlinks(link)
         let dir = target.deletingLastPathComponent()
         let tmp = dir.appendingPathComponent(".\(target.lastPathComponent).hexwerk-\(UUID().uuidString.prefix(8))")
         var old = stat()
@@ -398,19 +425,18 @@ public final class Document {
 
         // A new file gets the usual 0666 minus umask; a replacement starts
         // private and gets the old mode below.
-        let fd = open(tmp.path, O_WRONLY | O_CREAT | O_EXCL, replacing ? 0o600 : 0o666)
+        let fd = open(tmp.path, O_RDWR | O_CREAT | O_EXCL, replacing ? 0o600 : 0o666)
         guard fd >= 0 else { throw DocumentError.write(tmp.path, errno) }
-        var ok = false
+        var keepTmp = false
         defer {
             close(fd)
-            if !ok { unlink(tmp.path) }
+            if !keepTmp { unlink(tmp.path) }
         }
-        let chunk: UInt64 = 1 << 20
-        var pos: UInt64 = 0
-        while pos < count {
-            let data = read(pos ..< min(pos + chunk, count))
-            try writeAll(fd, data, path: tmp.path)
-            pos += UInt64(data.count)
+        try content(fd, tmp.path)
+        if replacing, old.st_nlink > 1, (old.st_mode & S_IFMT) == S_IFREG {
+            guard fsync(fd) == 0 else { throw DocumentError.write(tmp.path, errno) }
+            try copyInPlace(from: fd, tmpPath: tmp.path, to: target.path, keepTmp: &keepTmp)
+            return
         }
         if replacing {
             // A failure here must not silently strip e.g. com.apple.quarantine
@@ -427,12 +453,39 @@ public final class Document {
         }
         guard fsync(fd) == 0 else { throw DocumentError.write(tmp.path, errno) }
         guard rename(tmp.path, target.path) == 0 else { throw DocumentError.write(target.path, errno) }
-        ok = true
+        keepTmp = true      // renamed, nothing left to remove
         // Make the rename itself durable.
         let dfd = open(dir.path, O_RDONLY)
         if dfd >= 0 {
             fsync(dfd)
             close(dfd)
+        }
+    }
+
+    /// Copies the complete temp file into `target` (same inode). Fails
+    /// before touching `target` if it cannot be opened for writing.
+    private static func copyInPlace(from src: Int32, tmpPath: String, to target: String, keepTmp: inout Bool) throws {
+        var st = stat()
+        guard fstat(src, &st) == 0 else { throw DocumentError.write(tmpPath, errno) }
+        let size = UInt64(st.st_size)
+        let out = open(target, O_WRONLY)
+        guard out >= 0 else { throw DocumentError.write(target, errno) }
+        defer { close(out) }
+        do {
+            var buf = Data(count: 1 << 20)
+            var pos: UInt64 = 0
+            while pos < size {
+                let n = buf.withUnsafeMutableBytes { pread(src, $0.baseAddress, $0.count, off_t(pos)) }
+                if n < 0, errno == EINTR { continue }
+                guard n > 0 else { throw DocumentError.write(tmpPath, n < 0 ? errno : EIO) }
+                guard lseek(out, off_t(pos), SEEK_SET) >= 0 else { throw DocumentError.write(target, errno) }
+                try writeAll(out, buf.prefix(n), path: target)
+                pos += UInt64(n)
+            }
+            guard ftruncate(out, off_t(size)) == 0, fsync(out) == 0 else { throw DocumentError.write(target, errno) }
+        } catch {
+            keepTmp = true
+            throw DocumentError.incompleteInPlace(target, tmpPath, String(describing: error))
         }
     }
 
@@ -461,12 +514,12 @@ public final class Document {
         for r in modifiedRanges {
             let data = read(r)
             guard lseek(fd, off_t(r.lowerBound), SEEK_SET) >= 0 else { throw DocumentError.write(url.path, errno) }
-            try writeAll(fd, data, path: url.path)
+            try Self.writeAll(fd, data, path: url.path)
         }
         guard fsync(fd) == 0 else { throw DocumentError.write(url.path, errno) }
     }
 
-    private func writeAll(_ fd: Int32, _ data: Data, path: String) throws {
+    private static func writeAll(_ fd: Int32, _ data: Data, path: String) throws {
         try data.withUnsafeBytes { buf in
             var done = 0
             while done < buf.count {
@@ -603,6 +656,9 @@ public enum DocumentError: Error, CustomStringConvertible {
     case changedMeanwhile
     case changedOnDisk
     case write(String, Int32)
+    /// Writing a hard-linked file in place failed; the full new content is
+    /// in the temp file.
+    case incompleteInPlace(String, String, String)
 
     public var description: String {
         switch self {
@@ -613,6 +669,8 @@ public enum DocumentError: Error, CustomStringConvertible {
         case .changedMeanwhile: L("Document was changed in the meantime")
         case .changedOnDisk: L("The file was changed by another program; reload it before saving")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
+        case .incompleteInPlace(let target, let tmp, let reason):
+            L("%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.", target, reason, tmp)
         }
     }
 }
