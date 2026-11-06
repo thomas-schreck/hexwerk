@@ -4,11 +4,15 @@ import HexwerkCore
 
 /// File type description via libmagic, like `file` (SPEC FR-10.2).
 public enum Magic {
-    /// Database search order: $HEXWERK_MAGIC, the app bundle, Homebrew.
+    /// Database search order: $HEXWERK_MAGIC, the app bundle, next to the executable, Homebrew.
     public static var databasePath: String? {
         var candidates: [String] = []
         if let env = ProcessInfo.processInfo.environment["HEXWERK_MAGIC"] { candidates.append(env) }
         if let res = Bundle.main.resourcePath { candidates.append(res + "/magic.mgc") }
+        // CLI from the release tarball: magic.mgc sits next to the binary.
+        if let exe = Bundle.main.executableURL?.resolvingSymlinksInPath() {
+            candidates.append(exe.deletingLastPathComponent().appendingPathComponent("magic.mgc").path)
+        }
         candidates.append("/Applications/hexwerk.app/Contents/Resources/magic.mgc")
         candidates += ["/opt/homebrew/share/misc/magic.mgc", "/usr/local/share/misc/magic.mgc"]
         return candidates.first { FileManager.default.fileExists(atPath: $0) }

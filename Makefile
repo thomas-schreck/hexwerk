@@ -4,8 +4,11 @@ PREFIX ?= $(HOME)/.local
 HOMEBREW_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
 export HOMEBREW_PREFIX
 APP    := dist/hexwerk.app
+# Release version and build number; the release workflow passes them from the tag.
+VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
+BUILD   ?= 1
 
-.PHONY: test build cli app install-app clean formats icon
+.PHONY: test build cli app install-app dist clean formats icon
 
 test:
 	swift test
@@ -26,6 +29,8 @@ app: build
 	mkdir -p $(APP)/Contents/Resources/en.lproj $(APP)/Contents/Resources/de.lproj
 	printf '"Any File" = "Beliebige Datei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
+		-c "Set :CFBundleVersion $(BUILD)" $(APP)/Contents/Info.plist
 	cp .build/release/HexwerkApp $(APP)/Contents/MacOS/HexwerkApp
 	cp $(HOMEBREW_PREFIX)/share/misc/magic.mgc $(APP)/Contents/Resources/magic.mgc
 	cp THIRD_PARTY_NOTICES.md LICENSE $(APP)/Contents/Resources/
@@ -39,6 +44,19 @@ install-app: app
 		osascript -e 'tell application "Finder" to delete POSIX file "/Applications/hexwerk.app"' >/dev/null; fi
 	cp -R $(APP) /Applications/hexwerk.app
 	@echo "→ /Applications/hexwerk.app"
+
+# Release artifacts: app as DMG and ZIP, CLI as tarball, SHA256SUMS.
+dist: app
+	rm -rf .build/dist && mkdir -p .build/dist/dmg .build/dist/cli/hexwerk-cli-$(VERSION)
+	rm -f dist/hexwerk-*.dmg dist/hexwerk-*.zip dist/hexwerk-cli-*.tar.gz dist/SHA256SUMS
+	ditto -c -k --keepParent $(APP) dist/hexwerk-$(VERSION).zip
+	cp -R $(APP) .build/dist/dmg/ && ln -s /Applications .build/dist/dmg/Applications
+	hdiutil create -quiet -volname "hexwerk $(VERSION)" -srcfolder .build/dist/dmg -ov -format UDZO dist/hexwerk-$(VERSION).dmg
+	cp .build/release/hexwerk $(HOMEBREW_PREFIX)/share/misc/magic.mgc LICENSE THIRD_PARTY_NOTICES.md \
+		.build/dist/cli/hexwerk-cli-$(VERSION)/
+	tar -C .build/dist/cli -czf dist/hexwerk-cli-$(VERSION)-arm64.tar.gz hexwerk-cli-$(VERSION)
+	cd dist && shasum -a 256 hexwerk-$(VERSION).dmg hexwerk-$(VERSION).zip hexwerk-cli-$(VERSION)-arm64.tar.gz > SHA256SUMS
+	@cat dist/SHA256SUMS
 
 clean:
 	swift package clean

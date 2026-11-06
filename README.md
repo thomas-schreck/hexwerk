@@ -40,6 +40,13 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Swift 6 toolchain (Command Line Tools)
 - Homebrew packages `yara-x` and `libmagic` (linked statically)
 
+## Download
+
+Prebuilt app and CLI for Apple silicon are on the
+[releases page](https://github.com/thomas-schreck/hexwerk/releases). The app is
+not notarized: on first start allow it under *System Settings → Privacy &
+Security → Open Anyway*.
+
 ## Build and install
 
 ```sh
