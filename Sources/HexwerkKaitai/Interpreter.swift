@@ -72,6 +72,21 @@ public struct ParseResult: Sendable {
     /// First error that stopped parsing (the tree up to there is kept).
     public let error: KaitaiError?
     public let nodeCount: Int
+    /// Elements of lazy arrays (FR-6.13). Not in `nodeCount`: they only
+    /// become nodes when shown, so the node count alone looks tiny.
+    public let lazyElementCount: Int
+
+    init(root: ParseNode, error: KaitaiError?, nodeCount: Int) {
+        self.root = root
+        self.error = error
+        self.nodeCount = nodeCount
+        lazyElementCount = Self.lazyElements(in: root)
+    }
+
+    // Recursion is bounded by ParseLimits.maxDepth.
+    private static func lazyElements(in n: ParseNode) -> Int {
+        n.children.reduce(n.lazy?.count ?? 0) { $0 + lazyElements(in: $1) }
+    }
 }
 
 public struct ParseLimits: Sendable {

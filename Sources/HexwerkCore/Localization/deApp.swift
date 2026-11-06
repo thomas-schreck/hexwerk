@@ -196,6 +196,7 @@ extension L10n {
         "Parse Again": "Neu zerlegen",
         "Go There": "Zur Stelle",
         "%ld nodes": "%ld Knoten",
+        "%1$ld nodes, %2$ld array elements": "%1$ld Knoten, %2$ld Array-Elemente",
         "Matching the Extension": "Passend zur Endung",
         "No formats – in Terminal: make formats": "Keine Formate – im Terminal: make formats",
         "Open Own .ksy…": "Eigene .ksy öffnen …",
