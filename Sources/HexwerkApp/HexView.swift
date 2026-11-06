@@ -640,8 +640,7 @@ final class HexView: NSView, NSMenuItemValidation {
     /// Fills the selection with a repeated byte pattern (one undo step).
     func fillSelection(with pattern: Data) {
         guard let sel = selection, !pattern.isEmpty else { NSSound.beep(); return }
-        var bytes = Data(capacity: sel.count)
-        while bytes.count < sel.count { bytes.append(pattern.prefix(sel.count - bytes.count)) }
+        let bytes = FillPattern.bytes(pattern, count: sel.count)
         edit { try document.replace(sel, with: bytes) }
         changed(content: true)
     }

@@ -353,13 +353,33 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     @objc func fillSelection(_ sender: Any?) {
-        guard hexView.selection != nil else { NSSound.beep(); return }
+        guard let sel = hexView.selection else { NSSound.beep(); return }
+        guard confirmFillSize(UInt64(sel.count)) else { return }
         prompt(title: L("Fill Selection"), message: L("Hex pattern, repeated over the selection."),
                placeholder: L("00 or DE AD BE EF"), text: "00",
                validate: { Self.fixedBytes($0) != nil }) { [self] text in
             guard let text, let bytes = Self.fixedBytes(text) else { return }
             hexView.fillSelection(with: bytes)
         }
+    }
+
+    /// A fill keeps all new bytes in memory until saving: ask for large
+    /// selections, refuse ones that would exhaust memory.
+    private func confirmFillSize(_ n: UInt64) -> Bool {
+        let size = ByteCountFormatter.string(fromByteCount: Int64(clamping: n), countStyle: .binary)
+        let a = NSAlert()
+        if n > FillPattern.maximum {
+            a.messageText = L("Selection too large to fill (%@).", size)
+            a.informativeText = L("Filling keeps the new bytes in memory until saving; this would exceed the available memory.")
+            a.runModal()
+            return false
+        }
+        guard n > FillPattern.confirmAbove else { return true }
+        a.messageText = L("Fill %@?", size)
+        a.informativeText = L("The new bytes are kept in memory until the file is saved.")
+        a.addButton(withTitle: L("Fill"))
+        a.addButton(withTitle: L("Cancel"))
+        return a.runModal() == .alertFirstButtonReturn
     }
 
     static func fixedBytes(_ text: String) -> Data? {
