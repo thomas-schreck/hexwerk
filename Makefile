@@ -10,7 +10,7 @@ XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
 VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
 BUILD   ?= 1
 
-.PHONY: test build cli app install-app dist clean formats icon coverage bench format lint
+.PHONY: test build sign-cli cli app install-app dist clean formats icon coverage bench format lint
 
 test:
 	swift test
@@ -38,8 +38,13 @@ format:
 lint:
 	$(SWIFT_FORMAT) lint --strict --recursive --parallel $(FORMAT_PATHS)
 
+# CLI signed with the Hardened Runtime; it runs YARA-X and JavaScriptCore
+# in-process and therefore needs the two JIT entitlements in cli.entitlements.
+sign-cli: build
+	codesign --force --sign - --options runtime --entitlements Resources/cli.entitlements .build/release/hexwerk
+
 # CLI nach ~/.local/bin (Konvention aus ~/src/Makefile)
-cli: build
+cli: sign-cli
 	mkdir -p $(PREFIX)/bin
 	install -m 755 .build/release/hexwerk $(PREFIX)/bin/hexwerk
 
@@ -65,7 +70,9 @@ app: build
 		-c "Set :CFBundleVersion $(BUILD)" $(XPC)/Contents/Info.plist
 	cp .build/release/HexwerkParser $(XPC)/Contents/MacOS/HexwerkParser
 	codesign --force --sign - --options runtime --entitlements Resources/Parser.entitlements $(XPC)
-	codesign --force --sign - $(APP)
+	# The app itself runs no JIT any more (parsers, YARA and scripts live in
+	# the XPC service), so it gets the Hardened Runtime without exceptions.
+	codesign --force --sign - --options runtime $(APP)
 	@echo "→ $(APP)"
 
 # Ersetzt /Applications/hexwerk.app (alte Version in den Papierkorb).
@@ -76,7 +83,7 @@ install-app: app
 	@echo "→ /Applications/hexwerk.app"
 
 # Release artifacts: app as DMG and ZIP, CLI as tarball, SHA256SUMS.
-dist: app
+dist: app sign-cli
 	rm -rf .build/dist && mkdir -p .build/dist/dmg .build/dist/cli/hexwerk-cli-$(VERSION)
 	rm -f dist/hexwerk-*.dmg dist/hexwerk-*.zip dist/hexwerk-cli-*.tar.gz dist/SHA256SUMS
 	ditto -c -k --keepParent $(APP) dist/hexwerk-$(VERSION).zip

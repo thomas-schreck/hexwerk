@@ -39,6 +39,11 @@ tracked in public issues labeled `type: security`.
 - **RustSec audit:** `scripts/audit-yara-x.py` checks the crates YARA-X links
   into hexwerk weekly and before every release. Accepted advisories are
   listed with their reason in `security/audit-ignore.txt`.
+- **Hardened Runtime:** the app is signed with the Hardened Runtime without
+  exceptions; the parser helper adds only its sandbox and JIT entitlements;
+  the CLI, which runs YARA-X and JavaScriptCore in-process, gets exactly the
+  two JIT entitlements in `Resources/cli.entitlements`. Builds run on a fixed
+  runner (`macos-26`) so the minimum macOS version cannot change silently.
 - **Releases:** only the maintainer can create `v*` tags (repository
   ruleset). Release artifacts carry build provenance attestations:
 
