@@ -207,11 +207,27 @@ public enum HexRecords {
         return out
     }
 
-    public static func intelHex(_ data: Data, base: UInt64 = 0, start: UInt64? = nil, recordSize: Int = 16) -> String {
-        intelHex([Segment(address: base, data: data)], start: start, recordSize: recordSize)
+    /// Both formats address at most 32 bits. Checked up front, with
+    /// overflow-checked ends, instead of silently cutting addresses off.
+    static func checkAddresses(_ segments: [Segment], start: UInt64?, _ format: Format) throws {
+        for s in segments where !s.data.isEmpty {
+            let (end, overflow) = s.address.addingReportingOverflow(UInt64(s.data.count))
+            guard !overflow, end <= 1 << 32 else {
+                throw HexRecordError(line: 0, message: L("Data at 0x%llX reaches past 0xFFFFFFFF, the limit of %@", s.address, format.rawValue))
+            }
+        }
+        if let start, start > 0xFFFF_FFFF {
+            throw HexRecordError(line: 0, message: L("Start address 0x%llX does not fit in 32 bits", start))
+        }
     }
 
-    public static func intelHex(_ segments: [Segment], start: UInt64? = nil, recordSize: Int = 16) -> String {
+    public static func intelHex(_ data: Data, base: UInt64 = 0, start: UInt64? = nil, recordSize: Int = 16) throws -> String {
+        try intelHex([Segment(address: base, data: data)], start: start, recordSize: recordSize)
+    }
+
+    public static func intelHex(_ segments: [Segment], start: UInt64? = nil, recordSize: Int = 16) throws -> String {
+        try checkAddresses(segments, start: start, .intelHex)
+        let recordSize = min(max(recordSize, 1), 0xFF)    // length is one byte
         var lines: [String] = []
         func record(_ type: UInt8, _ addr: UInt16, _ payload: [UInt8]) {
             var b: [UInt8] = [UInt8(payload.count), UInt8(addr >> 8), UInt8(addr & 0xFF), type] + payload
@@ -241,14 +257,17 @@ public enum HexRecords {
     }
 
     public static func srec(_ data: Data, base: UInt64 = 0, start: UInt64? = nil, header: String = "hexwerk",
-                            recordSize: Int = 16) -> String {
-        srec([Segment(address: base, data: data)], start: start, header: header, recordSize: recordSize)
+                            recordSize: Int = 16) throws -> String {
+        try srec([Segment(address: base, data: data)], start: start, header: header, recordSize: recordSize)
     }
 
     public static func srec(_ segments: [Segment], start: UInt64? = nil, header: String = "hexwerk",
-                            recordSize: Int = 16) -> String {
+                            recordSize: Int = 16) throws -> String {
+        try checkAddresses(segments, start: start, .srec)
         let top = segments.map(\.end).max() ?? 0
         let addrLen = max(top, start ?? 0) > 0xFF_FFFF ? 4 : max(top, start ?? 0) > 0xFFFF ? 3 : 2
+        // The length byte counts address, data and checksum.
+        let recordSize = min(max(recordSize, 1), 0xFF - addrLen - 1)
         var lines: [String] = []
         func record(_ type: Int, _ addr: UInt64, _ alen: Int, _ payload: [UInt8]) {
             var b: [UInt8] = [UInt8(alen + payload.count + 1)]
@@ -269,7 +288,8 @@ public enum HexRecords {
                 count += 1
             }
         }
-        if count <= 0xFFFF { record(5, UInt64(count), 2, []) } else { record(6, UInt64(count), 3, []) }
+        // The count record is optional; S6 holds at most 24 bits.
+        if count <= 0xFFFF { record(5, UInt64(count), 2, []) } else if count <= 0xFF_FFFF { record(6, UInt64(count), 3, []) }
         record(11 - addrLen, start ?? 0, addrLen, [])        // S9 / S8 / S7
         return lines.joined(separator: "\n") + "\n"
     }

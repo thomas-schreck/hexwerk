@@ -58,6 +58,8 @@ extension L10n {
         // Intel HEX / S-Record
         "Address range too large (%@ bytes)": "Adressbereich zu groß (%@ Byte)",
         "Line %ld: %@": "Zeile %ld: %@",
+        "Data at 0x%llX reaches past 0xFFFFFFFF, the limit of %@": "Daten ab 0x%llX reichen über 0xFFFFFFFF hinaus, die Grenze von %@",
+        "Start address 0x%llX does not fit in 32 bits": "Startadresse 0x%llX passt nicht in 32 Bit",
         "neither Intel HEX nor S-Record": "weder Intel HEX noch S-Record",
         "odd number of hex digits": "ungerade Anzahl Hex-Ziffern",
         "invalid character": "ungültiges Zeichen",

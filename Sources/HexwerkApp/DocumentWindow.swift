@@ -603,8 +603,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let data = file.read(0 ..< file.count)
         let segs = HexRecords.segments(data, base: model.offsetBase, gaps: i.gaps)
         let text = i.format == .intelHex
-            ? HexRecords.intelHex(segs, start: i.start)
-            : HexRecords.srec(segs, start: i.start, header: i.header ?? "hexwerk")
+            ? try HexRecords.intelHex(segs, start: i.start)
+            : try HexRecords.srec(segs, start: i.start, header: i.header ?? "hexwerk")
         try text.write(to: i.source, atomically: true, encoding: .ascii)
     }
 
@@ -618,8 +618,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             let data = file.read(r), base = model.offsetBase + r.lowerBound
-            let text = format == .intelHex ? HexRecords.intelHex(data, base: base) : HexRecords.srec(data, base: base)
-            do { try text.write(to: url, atomically: true, encoding: .ascii) } catch { showError(error) }
+            do {
+                let text = format == .intelHex ? try HexRecords.intelHex(data, base: base) : try HexRecords.srec(data, base: base)
+                try text.write(to: url, atomically: true, encoding: .ascii)
+            } catch { showError(error) }
         }
     }
 
