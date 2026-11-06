@@ -39,8 +39,11 @@ See the README for details and known build limitations.
 - Keep the UI responsive: long work runs off the main thread and can be
   cancelled.
 - Code comments explain *why*, not *what*.
-- User-facing texts in the app and CLI are currently German; keep new texts
-  consistent with the surrounding UI.
+- User-facing texts are English source literals wrapped in `L("…")`, with the
+  German translation in `Sources/HexwerkCore/Localization/de*.swift`. Use
+  format specifiers instead of interpolation (`L("%ld hits", n)`).
+  `LocalizationTests` fails for missing or unused translations and for German
+  literals left in code.
 
 ## Licensing
 
