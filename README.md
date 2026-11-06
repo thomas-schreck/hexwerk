@@ -22,6 +22,9 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 **Analysis**
 - **Kaitai Struct**: parses files with `.ksy` schemas, structure tree linked to colored byte ranges, lazy arrays for millions of elements; format auto-detection
 - **YARA-X** rule scanning with hits in the hex view
+- In the app, Kaitai parsing, YARA-X scans and scripts run in a sandboxed helper process
+  (no network, no file access): a malformed sample that crashes a parser takes down the
+  helper, not the app with your unsaved edits
 - File type detection (libmagic + signatures) and embedded-file search
 - Entropy profile and byte histogram, image view (9 pixel formats)
 - Strings finder (ASCII, UTF-8, UTF-16), regex search
