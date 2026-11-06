@@ -146,7 +146,7 @@ final class StructureModel: ObservableObject {
 
     // MARK: Tree rows
 
-    /// Above this many children a node shows pages of this size (FR-6.13).
+    /// Above this many children a node shows pages of this size.
     static let pageSize = 1000
 
     /// Synthetic page rows: id → (array node, first index, end index).
@@ -214,7 +214,7 @@ final class StructureModel: ObservableObject {
     }
 
     /// Selects the deepest node containing `offset` and opens its path
-    /// (cursor → tree, SPEC FR-6.8). Returns true if the selection changed.
+    /// (cursor → tree). Returns true if the selection changed.
     @discardableResult
     func follow(cursor offset: UInt64) -> Bool {
         lastCursor = offset

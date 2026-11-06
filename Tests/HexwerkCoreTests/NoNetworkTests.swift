@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-/// NFR-2.3: hexwerk makes no network connections (issue #38).
+/// hexwerk makes no network connections (issue #38).
 ///
 /// Checked statically on the build output with `nm`/`otool`, so the test
 /// needs `swift build` first (like the CLI tests):

@@ -440,7 +440,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.beginSheet(sheet)
     }
 
-    // MARK: Export (FR-9.4)
+    // MARK: Export
 
     /// Selection, or the whole file if nothing is selected.
     private var exportRange: Range<UInt64> { hexView.selection ?? 0 ..< file.count }
@@ -717,7 +717,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { confirmClose() }
 
-    // MARK: Project state (FR-10.7)
+    // MARK: Project state
 
     func projectState() -> ProjectState {
         var s = ProjectState(filePath: displayURL.standardizedFileURL.path, fileSize: file.count)

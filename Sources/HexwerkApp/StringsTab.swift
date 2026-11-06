@@ -3,7 +3,7 @@ import Combine
 import HexwerkCore
 import SwiftUI
 
-/// Strings finder (SPEC FR-10.4).
+/// Strings finder.
 @MainActor
 final class StringsModel: ObservableObject {
     @Published var minLength = Settings.shared.object(forKey: "stringsMin") as? Int ?? 5 {

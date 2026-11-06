@@ -2,13 +2,13 @@ internal import CYaraX
 import Foundation
 import HexwerkCore
 
-/// Thin Swift layer over the YARA-X C API (SPEC FR-7.x). Everything the C
+/// Thin Swift layer over the YARA-X C API. Everything the C
 /// side hands out (rule names, metadata, matches) is only valid inside its
 /// callback, so it is copied into Swift values right there.
 public enum YaraX {
     public static let version = "\(YARA_X_MAJOR).\(YARA_X_MINOR).\(YARA_X_PATCH)"
 
-    /// Default scan timeout in seconds (SPEC appendix).
+    /// Default scan timeout in seconds.
     public static let defaultTimeout = 60
 
     static var lastError: String {
@@ -198,7 +198,7 @@ public enum YaraScanError: Error, CustomStringConvertible {
 
 extension YaraRules {
     /// Scans `data`. Match offsets are shifted by `base`, so a scan of a
-    /// selection reports file offsets (FR-7.3). `maxMatchesPerPattern` caps
+    /// selection reports file offsets. `maxMatchesPerPattern` caps
     /// how many hits YARA-X records per pattern (nil: YARA-X default).
     public func scan(_ data: UnsafeRawBufferPointer, base: UInt64 = 0,
                      timeout: Int = YaraX.defaultTimeout,
@@ -230,7 +230,7 @@ extension YaraRules {
         }
     }
 
-    /// Scans a document snapshot (current, possibly unsaved content: FR-7.6).
+    /// Scans a document snapshot (current, possibly unsaved content).
     public func scan(_ snapshot: Snapshot, range: Range<UInt64>? = nil,
                      timeout: Int = YaraX.defaultTimeout,
                      maxMatchesPerPattern: Int? = nil) throws -> [YaraRuleMatch] {

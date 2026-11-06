@@ -2,7 +2,7 @@ import AppKit
 import HexwerkCore
 import SwiftUI
 
-/// Entropy over the file plus byte distribution (SPEC FR-9.1).
+/// Entropy over the file plus byte distribution.
 struct AnalysisTab: View {
     @ObservedObject var model: DocumentModel
     @ObservedObject var analysis: AnalysisModel

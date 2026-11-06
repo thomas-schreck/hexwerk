@@ -1,6 +1,6 @@
 import Foundation
 
-/// Programmer's calculator (SPEC FR-10.8): 64-bit integer expressions with
+/// Programmer's calculator: 64-bit integer expressions with
 /// C operators and variables such as the value under the cursor.
 public enum Calculator {
     public struct CalcError: Error, CustomStringConvertible {

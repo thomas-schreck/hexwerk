@@ -1,6 +1,6 @@
 import Foundation
 
-/// Vim-style key handling for the hex view (SPEC FR-10.9), as a pure state
+/// Vim-style key handling for the hex view, as a pure state
 /// machine: keys in, actions out. The view executes the actions.
 public enum VimMode: String, Sendable {
     case normal = "NORMAL", insert = "INSERT", replace = "REPLACE", visual = "VISUAL"

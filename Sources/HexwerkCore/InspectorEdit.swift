@@ -1,6 +1,6 @@
 import Foundation
 
-/// Values typed into the data inspector, back to bytes (SPEC FR-4.6).
+/// Values typed into the data inspector, back to bytes.
 extension Inspector {
     public struct EncodeError: Error, CustomStringConvertible {
         public let message: String

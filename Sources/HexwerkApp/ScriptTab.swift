@@ -3,7 +3,7 @@ import HexwerkCore
 import HexwerkScript
 import SwiftUI
 
-/// JavaScript editor, run button and output (SPEC FR-9.2).
+/// JavaScript editor, run button and output.
 struct ScriptTab: View {
     @ObservedObject var model: DocumentModel
     @ObservedObject var script: ScriptModel

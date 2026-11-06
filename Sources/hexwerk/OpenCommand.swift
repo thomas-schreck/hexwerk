@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import HexwerkCore
 
-/// Hands files to the app (SPEC FR-8.8), like `open -a`, but by bundle id so
+/// Hands files to the app, like `open -a`, but by bundle id so
 /// it works wherever hexwerk.app is installed.
 struct OpenCmd: ParsableCommand {
     static let configuration = CommandConfiguration(

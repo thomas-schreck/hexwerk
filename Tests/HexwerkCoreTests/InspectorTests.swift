@@ -7,7 +7,7 @@ import Testing
         Inspector.values(Data(bytes), endian: endian).first { $0.name == name }?.value
     }
 
-    /// TC-1.10: known byte sequences for every type, both byte orders.
+    /// known byte sequences for every type, both byte orders.
     @Test func integers() {
         let b: [UInt8] = [0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
         #expect(value(b, "int8") == "-2")
@@ -56,7 +56,7 @@ import Testing
         #expect(value([0x00, 0x48, 0x00, 0x69], "UTF-16 BE") == "\"Hi\"")
     }
 
-    /// TC-1.13 (part): random data and every length 0…64 must not trap.
+    /// Random data and every length 0…64 must not trap.
     @Test func robustOnRandomInput() {
         var rng = SplitMix(seed: 7)
         for len in 0...64 {
@@ -70,7 +70,7 @@ import Testing
 }
 
 @Suite struct HexDumpTests {
-    /// TC-1.12: identical to `hexdump -C -v`.
+    /// identical to `hexdump -C -v`.
     @Test(arguments: [0, 1, 7, 16, 17, 100]) func matchesHexdump(length: Int) throws {
         var rng = SplitMix(seed: UInt64(length))
         let data = Data((0..<length).map { _ in UInt8.random(in: 0...255, using: &rng) })

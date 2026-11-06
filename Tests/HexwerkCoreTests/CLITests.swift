@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import HexwerkCore
 
-/// The command line tools as a user runs them (SPEC FR-8.3/8.4).
+/// The command line tools as a user runs them.
 @Suite struct CLITests {
     static let exe = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent(".build/debug/hexwerk")

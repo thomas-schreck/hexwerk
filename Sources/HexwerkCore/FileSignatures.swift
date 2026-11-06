@@ -1,6 +1,6 @@
 import Foundation
 
-/// Magic-byte signatures of common formats (SPEC FR-10.1/10.3). Detection at
+/// Magic-byte signatures of common formats. Detection at
 /// offset 0 picks the Kaitai format; the same table finds files embedded
 /// anywhere in a larger file (firmware images, polyglots), like binwalk.
 public struct FileSignature: Sendable {

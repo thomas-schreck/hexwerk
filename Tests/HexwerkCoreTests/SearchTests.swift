@@ -29,7 +29,7 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(SearchPattern.hex("") == nil)
     }
 
-    /// TC-2.5: wildcards, every hit found, none extra.
+    /// wildcards, every hit found, none extra.
     @Test func hexWithWildcards() throws {
         let (d, url) = try doc(Data([0x4D, 0x5A, 0x90, 0x00, 0x4D, 0x5A, 0x01, 0x00, 0x4D, 0x00]))
         defer { try? FileManager.default.removeItem(at: url) }
@@ -63,7 +63,7 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(Search.find(.hex("01020304")!, in: d.snapshot()) == [UInt64(Search.chunk - 2) ..< UInt64(Search.chunk + 2)])
     }
 
-    /// TC-2.6: text in all encodings, with and without case.
+    /// text in all encodings, with and without case.
     @Test func text() throws {
         var data = Data("xx Hallo xx HALLO".utf8)
         data.append("Hallo".data(using: .utf16LittleEndian)!)
@@ -97,7 +97,7 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(calls == 1)
     }
 
-    /// TC-2.9: replace all is one undo step.
+    /// replace all is one undo step.
     @Test func replaceAllUndo() throws {
         let (d, url) = try doc(Data("a-b-c-d".utf8))
         defer { try? FileManager.default.removeItem(at: url) }
@@ -108,7 +108,7 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(d.read(0..<100) == Data("a-b-c-d".utf8))
     }
 
-    /// TC-2.8: plain byte search speed (release build gives the real number).
+    /// plain byte search speed (release build gives the real number).
     @Test func speed() throws {
         var rng = SplitMix(seed: 1)
         let data = Data((0..<(16 << 20)).map { _ in UInt8.random(in: 1...255, using: &rng) })
@@ -123,7 +123,6 @@ func doc(_ data: Data) throws -> (Document, URL) {
 }
 
 @Suite struct CompareTests {
-    /// TC-2.10
     @Test func differences() throws {
         var a = Data(count: 1000), b = Data(count: 1003)
         a[5] = 1; b[5] = 2
@@ -133,7 +132,7 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(Compare.differences(da.snapshot(), db.snapshot()) == [5..<6, 100..<110, 1000..<1003])
     }
 
-    /// TC-2.11: same results as the system tools.
+    /// same results as the system tools.
     @Test func checksums() throws {
         let (d, url) = try doc(Data("The quick brown fox jumps over the lazy dog".utf8))
         defer { try? FileManager.default.removeItem(at: url) }

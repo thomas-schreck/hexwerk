@@ -1,6 +1,6 @@
 import Foundation
 
-/// Byte statistics of a range (SPEC FR-9.1).
+/// Byte statistics of a range.
 public struct ByteStats: Sendable, Codable, Equatable {
     public var histogram: [UInt64]
     public var count: UInt64

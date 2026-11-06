@@ -3,7 +3,7 @@ import Combine
 import HexwerkCore
 import SwiftUI
 
-/// Bytes as pixels (SPEC FR-11.1).
+/// Bytes as pixels.
 @MainActor
 final class ImageModel: ObservableObject {
     @Published var format = PixelFormat(rawValue: Settings.shared.string(forKey: "imageFormat") ?? "") ?? .gray8 {

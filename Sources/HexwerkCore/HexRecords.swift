@@ -1,6 +1,6 @@
 import Foundation
 
-/// Intel HEX and Motorola S-Record (SPEC FR-10.6): text formats for
+/// Intel HEX and Motorola S-Record: text formats for
 /// firmware that carry bytes plus their load addresses.
 public enum HexRecords {
     public enum Format: String, Sendable, CaseIterable {
