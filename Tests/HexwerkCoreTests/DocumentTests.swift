@@ -387,6 +387,73 @@ import Testing
         #expect(doc.hasChangedOnDisk())
     }
 
+    /// #5: a write into the mapped file itself makes the mapping unreliable;
+    /// saving from it would mix foreign bytes into the result.
+    @Test func inPlaceExternalWriteBlocksSave() throws {
+        let url = try tempFile(Data([1, 2, 3, 4]))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.overwrite(at: 0, with: Data([9]))
+        let h = try FileHandle(forWritingTo: url)
+        try h.seek(toOffset: 2)
+        try h.write(contentsOf: Data([7]))
+        try h.close()
+
+        #expect(doc.diskChange() == .modified)
+        #expect(throws: DocumentError.self) { try doc.save() }
+        #expect(throws: DocumentError.self) { try doc.save(as: url.appendingPathExtension("copy")) }
+        #expect(try Data(contentsOf: url) == Data([1, 2, 7, 4]))
+        #expect(!FileManager.default.fileExists(atPath: url.appendingPathExtension("copy").path))
+
+        try doc.revertToDisk()
+        #expect(doc.diskChange() == .none)
+        #expect(!doc.isModified)
+        #expect(doc.read(0..<doc.count) == Data([1, 2, 7, 4]))
+    }
+
+    @Test func truncationIsAnInPlaceChange() throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.insert(Data([1]), at: 0)
+        #expect(truncate(url.path, 100) == 0)
+        #expect(doc.diskChange() == .modified)
+        #expect(throws: DocumentError.self) { try doc.save() }   // would hit SIGBUS
+        #expect(try Data(contentsOf: url).count == 100)
+    }
+
+    /// #5: a file replaced by another program (atomic save elsewhere) leaves
+    /// our mapping intact, so saving is possible once the user agreed.
+    @Test func replacedFileCanStillBeSaved() throws {
+        let url = try tempFile(Data([1, 2, 3]))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.overwrite(at: 0, with: Data([9]))
+        try Data([5, 5, 5, 5]).write(to: url, options: .atomic)
+
+        #expect(doc.diskChange() == .replaced)
+        #expect(doc.read(0..<doc.count) == Data([9, 2, 3]))
+        doc.keepAfterReplace()
+        #expect(doc.diskChange() == .none)
+        try doc.save()
+        #expect(try Data(contentsOf: url) == Data([9, 2, 3]))
+        #expect(doc.diskChange() == .none)
+    }
+
+    @Test func deletedFileCountsAsReplaced() throws {
+        let url = try tempFile(Data([1, 2, 3]))
+        let doc = try Document(url: url)
+        try FileManager.default.removeItem(at: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(doc.diskChange() == .replaced)
+        #expect(doc.read(0..<3) == Data([1, 2, 3]))      // mapping still valid
+        doc.keepAfterReplace()
+        #expect(doc.diskChange() == .none)
+        try doc.overwrite(at: 0, with: Data([4]))
+        try doc.save()                                     // writes it back
+        #expect(try Data(contentsOf: url) == Data([4, 2, 3]))
+    }
+
     @Test func modifiedRanges() throws {
         let url = try tempFile(original)
         defer { try? FileManager.default.removeItem(at: url) }

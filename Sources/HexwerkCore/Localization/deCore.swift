@@ -40,6 +40,7 @@ extension L10n {
         "Length changed: cannot save in place": "Länge geändert: In-place-Speichern nicht möglich",
         "Bytes were moved: cannot save in place": "Bytes wurden verschoben: In-place-Speichern nicht möglich",
         "Document was changed in the meantime": "Dokument wurde inzwischen geändert",
+        "The file was changed by another program; reload it before saving": "Die Datei wurde von einem anderen Programm geändert; vor dem Sichern neu laden",
         "C array": "C-Array",
 
         // Calculator

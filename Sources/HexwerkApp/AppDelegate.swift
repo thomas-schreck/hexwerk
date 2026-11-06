@@ -112,6 +112,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Intel HEX / S-Record: import into a binary image at its load address,
     /// or open the text as is. Returns true if the file was handled here.
     private func openHexRecords(_ url: URL, readOnly: Bool) -> Bool {
+        // Before reading, so a change while importing is noticed on save.
+        let stamp = try? DiskStamp(url)
         guard Self.hexRecordExtensions.contains(url.pathExtension.lowercased()),
               let text = try? String(contentsOf: url, encoding: .ascii),
               let format = HexRecords.Format.detect(text[...]) else { return false }
@@ -131,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let c = DocumentWindowController(file: doc)
             c.model.offsetBase = image.base
             c.model.importInfo = .init(source: url, format: format, gaps: image.gaps, start: image.startAddress, header: image.header)
+            c.importStamp = stamp
             c.onClose = { [weak self] closed in
                 self?.controllers.removeAll { $0 === closed }
                 try? FileManager.default.removeItem(at: dir)

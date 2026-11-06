@@ -62,6 +62,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             .store(in: &subs)
 
         refresh()
+        watchFile()
         window.setFrameAutosaveName("hexwerk.document")
         window.makeFirstResponder(hexView)
     }
@@ -476,25 +477,125 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Returns false if saving failed or was cancelled.
     private func save() -> Bool {
-        if file.hasChangedOnDisk() {
-            let a = NSAlert()
-            a.messageText = L("%@ was changed outside hexwerk.", file.url.lastPathComponent)
-            a.informativeText = L("Saving discards those changes.")
-            a.addButton(withTitle: L("Save Anyway"))
-            a.addButton(withTitle: L("Cancel"))
-            guard a.runModal() == .alertFirstButtonReturn else { return false }
+        switch file.diskChange() {
+        case .none: break
+        case .modified:
+            // Never save from a mapping whose file changed underneath.
+            checkDisk()
+            return false
+        case .replaced:
+            guard confirmOverwrite(file.url) else { return false }
+            file.keepAfterReplace()
+        }
+        if let i = model.importInfo, let stamp = importStamp, (try? DiskStamp(i.source)) != stamp {
+            guard confirmOverwrite(i.source) else { return false }
         }
         do {
             // Write-back first: saving the cache image clears isModified, so a
             // failing write-back afterwards would leave the edits looking saved.
-            if let i = model.importInfo { try writeBack(i) }
+            if let i = model.importInfo {
+                try writeBack(i)
+                importStamp = try? DiskStamp(i.source)
+            }
             try file.save(mode: .automatic)
             hexView.reload()
+            watchFile()
             return true
         } catch {
             showError(error)
             return false
         }
+    }
+
+    private func confirmOverwrite(_ url: URL) -> Bool {
+        let a = NSAlert()
+        a.messageText = L("%@ was changed by another program.", url.lastPathComponent)
+        a.informativeText = L("Saving overwrites the other program's version with yours.")
+        a.addButton(withTitle: L("Save Anyway"))
+        a.addButton(withTitle: L("Cancel"))
+        return a.runModal() == .alertFirstButtonReturn
+    }
+
+    // MARK: Changes by other programs (#5)
+
+    /// State of the imported HEX/S-Record file when it was read.
+    var importStamp: DiskStamp?
+    private var fileWatch: DispatchSourceFileSystemObject?
+    private var askingAboutDisk = false
+
+    /// Watches the file at the document's path. Re-armed after every save
+    /// and reload, because an atomic save puts a new file there.
+    private func watchFile() {
+        fileWatch?.cancel()
+        fileWatch = nil
+        let fd = Darwin.open(file.url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd, eventMask: [.write, .extend, .attrib, .delete, .rename, .revoke], queue: .main)
+        src.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.checkDisk() } }
+        src.setCancelHandler { Darwin.close(fd) }
+        src.resume()
+        fileWatch = src
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) { checkDisk() }
+
+    /// Reacts to a change by another program. A file changed in place must
+    /// be reloaded at once: the mapping shows foreign bytes and touching a
+    /// truncated part would crash (SIGBUS). A replaced file leaves the
+    /// mapping intact, so the user may keep their version.
+    func checkDisk() {
+        guard !askingAboutDisk else { return }
+        let change = file.diskChange()
+        if change == .none { return }
+        let name = file.url.lastPathComponent
+        let exists = FileManager.default.fileExists(atPath: file.url.path)
+        askingAboutDisk = true
+        defer { askingAboutDisk = false }
+
+        if change == .modified {
+            if file.isModified {
+                let a = NSAlert()
+                a.messageText = L("%@ was changed by another program.", name)
+                a.informativeText = L("It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost.")
+                a.addButton(withTitle: L("Reload"))
+                a.runModal()
+            }
+            reloadFromDisk()
+            return
+        }
+        // Replaced, moved or deleted.
+        if !file.isModified {
+            if exists { reloadFromDisk() } else { file.keepAfterReplace() }
+            return
+        }
+        let a = NSAlert()
+        a.messageText = exists ? L("%@ was replaced by another program.", name)
+                               : L("%@ was moved or deleted by another program.", name)
+        a.informativeText = L("Your version with the unsaved changes is still intact. Keep Mine continues editing; saving then overwrites the file on disk.")
+        a.addButton(withTitle: L("Keep Mine"))
+        a.addButton(withTitle: L("Save As…"))
+        if exists { a.addButton(withTitle: L("Reload")) }
+        switch a.runModal() {
+        case .alertFirstButtonReturn:
+            file.keepAfterReplace()
+        case .alertSecondButtonReturn:
+            file.keepAfterReplace()
+            DispatchQueue.main.async { [weak self] in self?.saveDocumentAs(nil) }
+        default:
+            reloadFromDisk()
+        }
+    }
+
+    /// Discards the edits and shows the file as it is on disk now.
+    private func reloadFromDisk() {
+        do { try file.revertToDisk() } catch {
+            showError(error)
+            return
+        }
+        hexView.reload()
+        refresh()
+        watchFile()
     }
 
     /// Writes the image back as Intel HEX / S-Record, keeping untouched gaps.
@@ -537,6 +638,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
                 if let i = model.importInfo { try saveImport(i, as: url) } else { try file.save(as: url) }
                 hexView.reload()
                 refresh()
+                watchFile()
             } catch {
                 showError(error)
             }
@@ -681,6 +783,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func windowWillClose(_ notification: Notification) {
+        fileWatch?.cancel()
         saveProject()
         model.cancelSearch()
         model.cancelChecksums()

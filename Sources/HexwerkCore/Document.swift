@@ -48,11 +48,16 @@ public final class Document {
         var before: Int
         var after: Int
     }
+    /// The file as mapped (or last saved).
     private var diskStamp: DiskStamp
     /// Told about every replaced range and its new length (after clipping),
     /// in the order applied, so marks such as bookmarks can follow the data.
     /// Not called for undo/redo, which swap whole piece lists.
     public var didReplace: ((_ range: Range<UInt64>, _ newLength: UInt64) -> Void)?
+    /// A different file at `url` (or none) the user chose to overwrite
+    /// (`keepAfterReplace`).
+    private var acceptedStamp: DiskStamp?
+    private var acceptedMissing = false
 
     public init(url: URL, readOnly: Bool = false) throws {
         self.url = url
@@ -73,7 +78,7 @@ public final class Document {
         added = snap.added
         pieces = snap.pieces
         count = snap.count
-        diskStamp = (try? DiskStamp(snap.original.url)) ?? DiskStamp(size: 0, mtime: timespec())
+        diskStamp = (try? DiskStamp(snap.original.url)) ?? DiskStamp(size: 0, mtime: timespec(), device: 0, inode: 0)
     }
 
     /// Takes over the content of a working copy made from `base` as one undo
@@ -297,17 +302,49 @@ public final class Document {
 
     /// True if saving in place would write the right bytes.
     public var canSaveInPlace: Bool { count == original.count && originalBytesInPlace }
+    /// How the file at `url` differs from the one this document maps.
+    public enum DiskChange: Sendable, Equatable {
+        case none
+        /// Another file now sits at the path (rewritten by an atomic save,
+        /// moved or deleted). The mapping still holds the old file, intact.
+        case replaced
+        /// The mapped file itself was written to or truncated. What the
+        /// mapping shows is no longer reliable (mixed content), and reading
+        /// past a new, shorter end crashes with SIGBUS.
+        case modified
+    }
+
+    public func diskChange() -> DiskChange {
+        guard let now = try? DiskStamp(url) else { return acceptedMissing ? .none : .replaced }
+        if now.sameFile(as: diskStamp) { return now == diskStamp ? .none : .modified }
+        return now == acceptedStamp ? .none : .replaced
+    }
 
     /// True if the file on disk changed since it was opened or last saved.
-    public func hasChangedOnDisk() -> Bool {
-        (try? DiskStamp(url)) != diskStamp
+    public func hasChangedOnDisk() -> Bool { diskChange() != .none }
+
+    /// After `.replaced`: keep editing this version; a later save overwrites
+    /// the other file without being reported again.
+    public func keepAfterReplace() {
+        acceptedStamp = try? DiskStamp(url)
+        acceptedMissing = acceptedStamp == nil
+    }
+
+    /// Discards all edits and maps the file at `url` afresh.
+    public func revertToDisk() throws {
+        try reload(url)
     }
 
     /// Saves to the current file. Undo history ends here: after saving, the
     /// document is re-based on the new file content.
+    ///
+    /// Refuses with `changedOnDisk` if the mapped file was changed in place
+    /// by another program: the bytes it would copy are no longer the ones
+    /// the user saw. A replaced file does not block saving; ask first.
     public func save(mode: SaveMode = .atomic) throws {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard isModified else { return }
+        guard diskChange() != .modified else { throw DocumentError.changedOnDisk }
         switch mode {
         case .automatic where original.count >= Self.inPlaceMinimumSize && canSaveInPlace:
             try writeChangedBytesInPlace()
@@ -325,6 +362,7 @@ public final class Document {
 
     /// Writes the document to `newURL` and continues editing that file.
     public func save(as newURL: URL) throws {
+        guard diskChange() != .modified else { throw DocumentError.changedOnDisk }
         try writeReplacement(at: newURL)
         try reload(newURL)
     }
@@ -341,6 +379,8 @@ public final class Document {
         undoStack.removeAll()
         redoStack.removeAll()
         diskStamp = try DiskStamp(newURL)
+        acceptedStamp = nil
+        acceptedMissing = false
     }
 
     /// Writes the document to a temp file next to `target` and renames it
@@ -515,25 +555,38 @@ public struct Snapshot: Sendable {
     }
 }
 
-/// Size + modification time, to notice changes made by other programs.
-struct DiskStamp: Equatable {
+/// Identity, size and modification time of a file, to notice changes made
+/// by other programs.
+public struct DiskStamp: Equatable, Sendable {
     let size: UInt64
     let mtime: timespec
+    let device: UInt64
+    let inode: UInt64
 
-    init(size: UInt64, mtime: timespec) {
+    init(size: UInt64, mtime: timespec, device: UInt64, inode: UInt64) {
         self.size = size
         self.mtime = mtime
+        self.device = device
+        self.inode = inode
     }
 
-    init(_ url: URL) throws {
+    public init(_ url: URL) throws {
         var st = stat()
         guard stat(url.path, &st) == 0 else { throw DocumentError.write(url.path, errno) }
         size = UInt64(st.st_size)
         mtime = st.st_mtimespec
+        device = UInt64(bitPattern: Int64(st.st_dev))
+        inode = UInt64(st.st_ino)
     }
 
-    static func == (a: DiskStamp, b: DiskStamp) -> Bool {
-        a.size == b.size && a.mtime.tv_sec == b.mtime.tv_sec && a.mtime.tv_nsec == b.mtime.tv_nsec
+    /// Same file (not just same path), possibly with other content.
+    func sameFile(as other: DiskStamp) -> Bool {
+        device == other.device && inode == other.inode
+    }
+
+    public static func == (a: DiskStamp, b: DiskStamp) -> Bool {
+        a.sameFile(as: b) && a.size == b.size
+            && a.mtime.tv_sec == b.mtime.tv_sec && a.mtime.tv_nsec == b.mtime.tv_nsec
     }
 }
 
@@ -543,6 +596,7 @@ public enum DocumentError: Error, CustomStringConvertible {
     case lengthChanged
     case bytesMoved
     case changedMeanwhile
+    case changedOnDisk
     case write(String, Int32)
 
     public var description: String {
@@ -552,6 +606,7 @@ public enum DocumentError: Error, CustomStringConvertible {
         case .lengthChanged: L("Length changed: cannot save in place")
         case .bytesMoved: L("Bytes were moved: cannot save in place")
         case .changedMeanwhile: L("Document was changed in the meantime")
+        case .changedOnDisk: L("The file was changed by another program; reload it before saving")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
         }
     }
