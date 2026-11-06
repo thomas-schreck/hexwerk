@@ -271,10 +271,13 @@ public final class KaitaiInterpreter {
     private func tick() throws {
         nodes += 1
         if nodes > limits.maxNodes { throw KaitaiError(L("More than %@ nodes, aborted", "\(limits.maxNodes)")) }
-        if nodes % 1024 == 0 {
-            if Date() > deadline { throw KaitaiError(L("Time limit of %ld s exceeded", Int(limits.maxSeconds))) }
-            if !shouldContinue() { throw KaitaiError(L("Cancelled")) }
-        }
+        if nodes % 1024 == 0 { try checkTime() }
+    }
+
+    /// Deadline and cancel, for long loops that create no nodes.
+    private func checkTime() throws {
+        if Date() > deadline { throw KaitaiError(L("Time limit of %ld s exceeded", Int(limits.maxSeconds))) }
+        if !shouldContinue() { throw KaitaiError(L("Cancelled")) }
     }
 
     // MARK: Attributes
@@ -491,7 +494,8 @@ public final class KaitaiInterpreter {
         } else if attr.sizeEos {
             b = try io.readBytesFull()
         } else if let term {
-            return try io.readBytesTerm(term, include: attr.include, consume: attr.consume, eosError: attr.eosError)
+            return try io.readBytesTerm(term, include: attr.include, consume: attr.consume, eosError: attr.eosError,
+                                        check: checkTime)
         } else {
             throw KaitaiError(L("Neither size nor size-eos nor terminator given"))
         }
