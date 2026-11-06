@@ -602,9 +602,13 @@ import Testing
         defer { try? FileManager.default.removeItem(at: url) }
         let doc = try Document(url: url)
         try #require(doc.snapshot().original.isClone)
-        let dir = try #require(ByteSource.cloneDirectory)
-        let mine = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("\(getpid())-") }
-        #expect(mine.isEmpty)
+        // Checks this document's own clone: it is mapped but has no directory
+        // entry any more. (Listing the clone folder raced with other tests
+        // that open documents in parallel.)
+        let handle = try #require(doc.snapshot().original.fileHandle())
+        var st = stat()
+        #expect(fstat(handle.fileDescriptor, &st) == 0)
+        #expect(st.st_nlink == 0)
     }
 
     /// #80: clones left by a crashed process are removed, live ones kept.
