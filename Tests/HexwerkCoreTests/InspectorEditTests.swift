@@ -50,4 +50,16 @@ import Testing
             #expect(throws: Inspector.EncodeError.self, "\(n) \(t)") { try Inspector.encode(n, t, endian: .little) }
         }
     }
+
+    /// Issue #23: these inputs trapped (Int64/UInt64 from a non-finite or huge
+    /// Double, force-unwrapped radix parse of fullwidth digits).
+    @Test func hostileEditInputThrowsInsteadOfTrapping() throws {
+        let fullwidth = String(repeating: "\u{FF10}", count: 32)   // "０" × 32
+        for (n, t) in [("Unix time 64", "1e30"), ("Unix time 64", "inf"), ("Unix time 64", "nan"), ("Unix time 64", "-1e19"),
+                       ("Unix time 32", "nan"), ("FILETIME", "1e30"), ("FILETIME", "inf"), ("DOS date/time", "inf"),
+                       ("GUID", fullwidth)] {
+            #expect(throws: Inspector.EncodeError.self, "\(n) \(t)") { try Inspector.encode(n, t, endian: .little) }
+        }
+        #expect(try Inspector.encode("Unix time 64", "-1", endian: .little) == Data(repeating: 0xFF, count: 8))
+    }
 }
