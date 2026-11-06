@@ -420,6 +420,55 @@ import Testing
         #expect(st.st_mode & 0o7777 == 0o640)
     }
 
+    /// #79: a save written off the main thread locks editing until it is
+    /// finished, reports progress and gives the same file as `save()`.
+    @Test func backgroundSaveLocksEditing() async throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.insert(Data([1, 2]), at: 0)
+        try doc.delete(10 ..< 20)
+        let expected = doc.read(0 ..< doc.count)
+
+        let job = try #require(try doc.prepareSave(mode: .automatic))
+        #expect(doc.isSaving)
+        #expect(throws: DocumentError.self) { try doc.insert(Data([3]), at: 0) }
+        #expect(throws: DocumentError.self) { try doc.prepareSave(mode: .automatic) }
+        doc.undo()
+        #expect(doc.read(0 ..< doc.count) == expected)
+
+        let last = try await Task.detached {
+            var last: UInt64 = 0
+            try job.write(progress: { last = $0 })
+            return last
+        }.value
+        #expect(last == job.byteCount)
+        try doc.finishSave(job)
+
+        #expect(!doc.isSaving && !doc.isModified)
+        #expect(try Data(contentsOf: url) == expected)
+        try doc.insert(Data([3]), at: 0)                  // editable again
+    }
+
+    /// #79: cancelling a full rewrite leaves the original and the edits as
+    /// they were, without a temp file.
+    @Test func cancelledSaveKeepsOriginal() throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.insert(Data([1]), at: 0)
+        let job = try #require(try doc.prepareSave())
+        #expect(throws: CancellationError.self) { try job.write(isCancelled: { true }) }
+        doc.abandonSave()
+
+        #expect(try Data(contentsOf: url) == original)
+        #expect(try leftoverTemps(next: url).isEmpty)
+        #expect(doc.isModified && !doc.isSaving)
+        try doc.insert(Data([2]), at: 0)
+        try doc.save()
+        #expect(try Data(contentsOf: url) == Data([2, 1]) + original)
+    }
+
     /// a failing save leaves the original untouched.
     @Test func failedSaveKeepsOriginal() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-ro-\(UUID().uuidString)")

@@ -130,6 +130,8 @@ extension L10n {
         "Ending .hex or .srec: save as Intel HEX or S-Record; any other ending: save the raw bytes": "Endung .hex oder .srec: als Intel HEX oder S-Record sichern; jede andere Endung: die rohen Bytes sichern",
         "%@ was changed by another program.": "%@ wurde von einem anderen Programm geändert.",
         "Saving overwrites the other program's version with yours.": "Beim Sichern wird die Fassung des anderen Programms durch Ihre überschrieben.",
+        "Saving %@…": "%@ wird gesichert …",
+        "%1$@ of %2$@": "%1$@ von %2$@",
         "It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost.": "Die Datei wurde direkt verändert, daher ist der angezeigte Inhalt nicht mehr verlässlich und kann nicht gesichert werden. hexwerk lädt sie neu von der Festplatte; nicht gesicherte Änderungen gehen verloren.",
         "Reload": "Neu laden",
         "%@ was replaced by another program.": "%@ wurde von einem anderen Programm ersetzt.",

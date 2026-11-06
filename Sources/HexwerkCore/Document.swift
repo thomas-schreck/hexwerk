@@ -85,6 +85,7 @@ public final class Document {
     /// step. Fails if this document changed since `base` was taken.
     public func adopt(_ copy: Document, base: Snapshot) throws {
         guard !isReadOnly else { throw DocumentError.readOnly }
+        guard !isSaving else { throw DocumentError.saving }
         guard pieces == base.pieces, added.count == base.added.count else { throw DocumentError.changedMeanwhile }
         guard copy.pieces != pieces else { return }
         // The copy's buffer starts with ours, so old undo states stay valid.
@@ -177,6 +178,7 @@ public final class Document {
     /// and delete (empty bytes). A range reaching past the end is clipped.
     public func replace(_ range: Range<UInt64>, with bytes: Data) throws {
         guard !isReadOnly else { throw DocumentError.readOnly }
+        guard !isSaving else { throw DocumentError.saving }
         guard range.lowerBound <= count else { throw DocumentError.outOfRange }
         if range.clamped(to: 0..<count).isEmpty && bytes.isEmpty { return }
         record([apply(range, bytes)])
@@ -186,6 +188,7 @@ public final class Document {
     /// undo step (replace all, fill).
     public func replaceAll(_ ranges: [Range<UInt64>], with bytes: Data) throws {
         guard !isReadOnly else { throw DocumentError.readOnly }
+        guard !isSaving else { throw DocumentError.saving }
         guard !ranges.isEmpty else { return }
         guard ranges.allSatisfy({ $0.lowerBound <= count }) else { throw DocumentError.outOfRange }
         // Back to front, so earlier offsets stay valid.
@@ -268,13 +271,13 @@ public final class Document {
     }
 
     public func undo() {
-        guard let step = undoStack.popLast() else { return }
+        guard !isSaving, let step = undoStack.popLast() else { return }
         revert(step)
         redoStack.append(step)
     }
 
     public func redo() {
-        guard let step = redoStack.popLast() else { return }
+        guard !isSaving, let step = redoStack.popLast() else { return }
         reapply(step)
         undoStack.append(step)
     }
@@ -343,29 +346,70 @@ public final class Document {
     /// by another program: the bytes it would copy are no longer the ones
     /// the user saw. A replaced file does not block saving; ask first.
     public func save(mode: SaveMode = .atomic) throws {
+        guard let job = try prepareSave(mode: mode) else { return }
+        try run(job)
+    }
+
+    /// Writes the document to `newURL` and continues editing that file.
+    public func save(as newURL: URL) throws {
+        try run(try prepareSave(as: newURL))
+    }
+
+    private func run(_ job: SaveJob) throws {
+        do { try job.write() } catch {
+            abandonSave()
+            throw error
+        }
+        try finishSave(job)
+    }
+
+    /// True between `prepareSave` and `finishSave`/`abandonSave`. Edits,
+    /// undo and redo are refused meanwhile, so the saved content is the
+    /// content the document continues with.
+    public private(set) var isSaving = false
+
+    /// First step of a save that may write off the main thread (#79):
+    /// checks as `save(mode:)` does and locks editing. nil if there is
+    /// nothing to save. Follow with `job.write` and then `finishSave` or,
+    /// if writing failed or was cancelled, `abandonSave`.
+    public func prepareSave(mode: SaveMode = .atomic) throws -> SaveJob? {
+        guard !isSaving else { throw DocumentError.saving }
         guard !isReadOnly else { throw DocumentError.readOnly }
-        guard isModified else { return }
+        guard isModified else { return nil }
         guard diskChange() != .modified else { throw DocumentError.changedOnDisk }
+        let inPlace: Bool
         switch mode {
-        case .automatic where original.count >= Self.inPlaceMinimumSize && canSaveInPlace:
-            try writeChangedBytesInPlace()
-        case .atomic, .automatic:
-            try writeReplacement(at: url)
+        case .automatic: inPlace = original.count >= Self.inPlaceMinimumSize && canSaveInPlace
+        case .atomic: inPlace = false
         case .inPlace:
             guard count == original.count else { throw DocumentError.lengthChanged }
             // Only new bytes are written, so any original byte that moved
             // (delete here, insert there) would never reach the disk.
             guard originalBytesInPlace else { throw DocumentError.bytesMoved }
-            try writeChangedBytesInPlace()
+            inPlace = true
         }
-        try reload(url)
+        isSaving = true
+        return SaveJob(target: url, snapshot: snapshot(), inPlaceRanges: inPlace ? modifiedRanges : nil)
     }
 
-    /// Writes the document to `newURL` and continues editing that file.
-    public func save(as newURL: URL) throws {
+    /// Like `prepareSave(mode:)` for Save As.
+    public func prepareSave(as newURL: URL) throws -> SaveJob {
+        guard !isSaving else { throw DocumentError.saving }
         guard diskChange() != .modified else { throw DocumentError.changedOnDisk }
-        try writeReplacement(at: newURL)
-        try reload(newURL)
+        isSaving = true
+        return SaveJob(target: newURL, snapshot: snapshot(), inPlaceRanges: nil)
+    }
+
+    /// Continues with the file `job` wrote; ends the undo history.
+    public func finishSave(_ job: SaveJob) throws {
+        isSaving = false
+        try reload(job.target)
+    }
+
+    /// Unlocks editing after a failed or cancelled write. The document is
+    /// unchanged and still modified.
+    public func abandonSave() {
+        isSaving = false
     }
 
     private func reload(_ newURL: URL) throws {
@@ -382,19 +426,6 @@ public final class Document {
         diskStamp = original.stamp
         acceptedStamp = nil
         acceptedMissing = false
-    }
-
-    /// Writes the document like `Document.write(_:to:)`, in 1 MiB chunks.
-    private func writeReplacement(at link: URL) throws {
-        try Self.replaceFile(at: link) { fd, path in
-            let chunk: UInt64 = 1 << 20
-            var pos: UInt64 = 0
-            while pos < count {
-                let data = read(pos ..< min(pos + chunk, count))
-                try Self.writeAll(fd, data, path: path)
-                pos += UInt64(data.count)
-            }
-        }
     }
 
     /// Writes `data` to `url` the way documents are saved (Intel HEX /
@@ -507,19 +538,7 @@ public final class Document {
         return true
     }
 
-    private func writeChangedBytesInPlace() throws {
-        let fd = open(url.path, O_WRONLY)
-        guard fd >= 0 else { throw DocumentError.write(url.path, errno) }
-        defer { close(fd) }
-        for r in modifiedRanges {
-            let data = read(r)
-            guard lseek(fd, off_t(r.lowerBound), SEEK_SET) >= 0 else { throw DocumentError.write(url.path, errno) }
-            try Self.writeAll(fd, data, path: url.path)
-        }
-        guard fsync(fd) == 0 else { throw DocumentError.write(url.path, errno) }
-    }
-
-    private static func writeAll(_ fd: Int32, _ data: Data, path: String) throws {
+    static func writeAll(_ fd: Int32, _ data: Data, path: String) throws {
         try data.withUnsafeBytes { buf in
             var done = 0
             while done < buf.count {
@@ -529,6 +548,62 @@ public final class Document {
                     throw DocumentError.write(path, errno)
                 }
                 done += n
+            }
+        }
+    }
+}
+
+/// The writing part of a save, safe to run off the main thread (#79). Made
+/// by `Document.prepareSave`; writes the snapshot taken then.
+public struct SaveJob: Sendable {
+    /// The file written; the document continues with it.
+    public let target: URL
+    let snapshot: Snapshot
+    /// Set for an in-place save: only these ranges are written into `target`.
+    let inPlaceRanges: [Range<UInt64>]?
+
+    /// False for an in-place save, which is not stopped midway.
+    public var isCancellable: Bool { inPlaceRanges == nil }
+
+    /// Bytes to write, for progress.
+    public var byteCount: UInt64 {
+        inPlaceRanges?.reduce(0) { $0 + UInt64($1.count) } ?? snapshot.count
+    }
+
+    /// Writes the file, reporting the bytes written so far. A full rewrite
+    /// stops with `CancellationError` when `isCancelled` returns true; the
+    /// temp file is removed and the original stays untouched. An in-place
+    /// save is not cancelled midway: it would leave the file half written.
+    public func write(progress: (UInt64) -> Void = { _ in },
+                      isCancelled: () -> Bool = { false }) throws {
+        let chunk: UInt64 = 1 << 20
+        if let ranges = inPlaceRanges {
+            let fd = open(target.path, O_WRONLY)
+            guard fd >= 0 else { throw DocumentError.write(target.path, errno) }
+            defer { close(fd) }
+            var done: UInt64 = 0
+            for r in ranges {
+                var pos = r.lowerBound
+                while pos < r.upperBound {
+                    let data = snapshot.read(pos ..< min(pos + chunk, r.upperBound))
+                    guard lseek(fd, off_t(pos), SEEK_SET) >= 0 else { throw DocumentError.write(target.path, errno) }
+                    try Document.writeAll(fd, data, path: target.path)
+                    pos += UInt64(data.count)
+                    done += UInt64(data.count)
+                    progress(done)
+                }
+            }
+            guard fsync(fd) == 0 else { throw DocumentError.write(target.path, errno) }
+            return
+        }
+        try Document.replaceFile(at: target) { fd, path in
+            var pos: UInt64 = 0
+            while pos < snapshot.count {
+                if isCancelled() { throw CancellationError() }
+                let data = snapshot.read(pos ..< min(pos + chunk, snapshot.count))
+                try Document.writeAll(fd, data, path: path)
+                pos += UInt64(data.count)
+                progress(pos)
             }
         }
     }
@@ -655,6 +730,7 @@ public enum DocumentError: Error, CustomStringConvertible {
     case bytesMoved
     case changedMeanwhile
     case changedOnDisk
+    case saving
     case write(String, Int32)
     /// Writing a hard-linked file in place failed; the full new content is
     /// in the temp file.
@@ -668,6 +744,7 @@ public enum DocumentError: Error, CustomStringConvertible {
         case .bytesMoved: L("Bytes were moved: cannot save in place")
         case .changedMeanwhile: L("Document was changed in the meantime")
         case .changedOnDisk: L("The file was changed by another program; reload it before saving")
+        case .saving: L("The document is being saved")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
         case .incompleteInPlace(let target, let tmp, let reason):
             L("%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.", target, reason, tmp)
