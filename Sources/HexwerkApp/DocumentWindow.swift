@@ -36,8 +36,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         model.runScript = { [weak self] in self?.runScript(nil) }
         model.reloadView = { [weak self] in self?.hexView.reload() }
         // Any model change (hits, bookmarks, view options …) may change the grid.
+        // Coalesced: a burst of changes (cursor, inspector, progress) costs one refresh.
         model.objectWillChange
-            .sink { [weak self] in DispatchQueue.main.async { self?.refresh() } }
+            .sink { [weak self] in self?.scheduleRefresh() }
             .store(in: &subs)
         // The structure model publishes separately (tree, colors, selection).
         model.structure.objectWillChange
@@ -277,16 +278,30 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Title, subtitle, edited dot, toolbar state and the grid after any change.
     func refreshTitle() { refresh() }
 
+    private var refreshPending = false
+
+    private func scheduleRefresh() {
+        guard !refreshPending else { return }
+        refreshPending = true
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshPending = false
+            self?.refresh()
+        }
+    }
+
     private func refresh() {
         guard let window else { return }
-        window.title = displayURL.lastPathComponent
+        let modified = file.isModified
         var sub = [ByteCountFormatter.string(fromByteCount: Int64(file.count), countStyle: .binary)]
         if let i = model.importInfo { sub.append(L("%1$@ at %2$@", i.format.rawValue, hex(model.offsetBase))) }
         if file.isReadOnly { sub.append(L("read-only")) }
-        if file.isModified { sub.append(L("modified")) }
-        window.subtitle = sub.joined(separator: " · ")
-        window.representedURL = displayURL
-        window.isDocumentEdited = file.isModified
+        if modified { sub.append(L("modified")) }
+        let subtitle = sub.joined(separator: " · ")
+        // Setting these always invalidates the title bar (and the proxy icon).
+        if window.title != displayURL.lastPathComponent { window.title = displayURL.lastPathComponent }
+        if window.subtitle != subtitle { window.subtitle = subtitle }
+        if window.representedURL != displayURL { window.representedURL = displayURL }
+        if window.isDocumentEdited != modified { window.isDocumentEdited = modified }
         if let seg = window.toolbar?.items.first(where: { $0.itemIdentifier == Item.mode })?.view as? NSSegmentedControl {
             seg.selectedSegment = model.insertMode ? 1 : 0
             seg.isEnabled = !file.isReadOnly

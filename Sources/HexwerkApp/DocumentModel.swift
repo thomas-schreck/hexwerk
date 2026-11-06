@@ -245,8 +245,9 @@ final class DocumentModel: ObservableObject {
         let snapshot = doc.snapshot()
         let start = cursor
         task = Task.detached(priority: .userInitiated) { [weak self] in
+            var throttle = ProgressThrottle()
             let found = Search.find(p, in: snapshot) { fraction in
-                Task { @MainActor in self?.progress = fraction }
+                if throttle.shouldReport() { Task { @MainActor in self?.progress = fraction } }
                 return !Task.isCancelled
             }
             let cancelled = Task.isCancelled
@@ -278,8 +279,9 @@ final class DocumentModel: ObservableObject {
         findMessage = nil
         let snapshot = doc.snapshot(), start = cursor, text = findText, ic = ignoreCase
         task = Task.detached(priority: .userInitiated) { [weak self] in
+            var throttle = ProgressThrottle()
             let found = (try? RegexSearch.find(text, ignoreCase: ic, in: snapshot) { fraction in
-                Task { @MainActor in self?.progress = fraction }
+                if throttle.shouldReport() { Task { @MainActor in self?.progress = fraction } }
                 return !Task.isCancelled
             }) ?? []
             let cancelled = Task.isCancelled
