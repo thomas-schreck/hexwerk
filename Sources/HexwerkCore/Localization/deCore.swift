@@ -38,6 +38,7 @@ extension L10n {
         "Document is read-only": "Dokument ist schreibgeschützt",
         "Offset is past the end of the file": "Offset liegt hinter dem Dateiende",
         "Length changed: cannot save in place": "Länge geändert: In-place-Speichern nicht möglich",
+        "Bytes were moved: cannot save in place": "Bytes wurden verschoben: In-place-Speichern nicht möglich",
         "Document was changed in the meantime": "Dokument wurde inzwischen geändert",
         "C array": "C-Array",
 

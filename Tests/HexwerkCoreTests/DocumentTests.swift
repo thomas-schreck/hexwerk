@@ -109,6 +109,35 @@ import Testing
         #expect(try Data(contentsOf: url) == original)
     }
 
+    /// #7: delete + insert keeps the length but moves original bytes; an
+    /// in-place save that writes only new bytes would corrupt the file.
+    @Test func inPlaceRefusesMovedBytes() throws {
+        let url = try tempFile(Data("ABCD".utf8))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.delete(0..<1)
+        try doc.insert(Data("X".utf8), at: 3)
+        #expect(doc.read(0..<4) == Data("BCDX".utf8))
+        #expect(throws: DocumentError.self) { try doc.save(mode: .inPlace) }
+        #expect(try Data(contentsOf: url) == Data("ABCD".utf8))
+        #expect(doc.isModified)
+        // The atomic save still gets it right.
+        try doc.save()
+        #expect(try Data(contentsOf: url) == Data("BCDX".utf8))
+    }
+
+    /// Insert and delete that cancel out at the same offset leave every
+    /// original byte where it was, so in place is fine.
+    @Test func inPlaceAllowsBalancedEditAtSameOffset() throws {
+        let url = try tempFile(Data("ABCD".utf8))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.delete(1..<2)
+        try doc.insert(Data("Y".utf8), at: 1)
+        try doc.save(mode: .inPlace)
+        #expect(try Data(contentsOf: url) == Data("AYCD".utf8))
+    }
+
     /// TC-2.2: atomic save with length change, permissions kept.
     @Test func saveAtomic() throws {
         let url = try tempFile(original)
