@@ -77,7 +77,8 @@ final class StructureModel: ObservableObject {
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: Result<ParseResult, Error>
             do {
-                let schema = try KsyLoader(libraryRoots: roots).load(url)
+                // Loading parses expressions recursively; task threads have 512 KiB.
+                let schema = try onLargeStack { Result { try KsyLoader(libraryRoots: roots).load(url) } }.get()
                 outcome = .success(KaitaiInterpreter.parse(snapshot, file: schema) { !Task.isCancelled })
             } catch {
                 outcome = .failure(error)

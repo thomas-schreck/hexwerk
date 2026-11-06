@@ -468,6 +468,25 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.error == nil && r.root.at("b")?.number == 2)
     }
 
+    /// Deep nesting overflowed the stack, long operator chains took seconds
+    /// to lex and overflowed it during evaluation (#10). Runs on a test task
+    /// thread (512 KiB stack), like the app's loader used to.
+    @Test func hostileExpressionsAreRejectedQuickly() throws {
+        let start = Date()
+        for text in [String(repeating: "(", count: 1500) + "1" + String(repeating: ")", count: 1500),
+                     String(repeating: "(", count: 20_000) + "1" + String(repeating: ")", count: 20_000),
+                     String(repeating: "-", count: 20_000) + "1",
+                     String(repeating: "not ", count: 20_000) + "true",
+                     Array(repeating: "1", count: 30_000).joined(separator: "+")] {
+            #expect(throws: KaitaiError.self) { try Expr.parse(text) }
+        }
+        #expect(Date().timeIntervalSince(start) < 5)
+        // Moderate nesting and chains just below the limit still work.
+        let ok = String(repeating: "(", count: 20) + "1" + String(repeating: ")", count: 20) + "+"
+            + Array(repeating: "2", count: 1899).joined(separator: "+")
+        #expect(try value(ok) == "3799 (0xED7)")
+    }
+
     @Test func nodeLimit() throws {
         let schema = """
             meta: {id: t}
