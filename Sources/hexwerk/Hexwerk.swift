@@ -23,6 +23,12 @@ struct Number: ExpressibleByArgument {
             value = v
         }
     }
+
+    /// Shown as "(default: …)" in --help; otherwise argument-parser prints
+    /// the struct ("Number(value: 0)").
+    var defaultValueDescription: String {
+        value < 10 ? String(value) : "0x" + String(value, radix: 16, uppercase: true)
+    }
 }
 
 func openSource(_ path: String) throws -> ByteSource {
