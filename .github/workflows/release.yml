@@ -46,6 +46,16 @@ jobs:
       - name: Build artifacts
         run: make dist VERSION="${GITHUB_REF_NAME#v}" BUILD="${{ github.run_number }}"
 
+      # SPDX SBOM; clones YARA-X at the notices version itself (the deps
+      # action keeps only the built library). Creation time = tag commit.
+      - name: SBOM
+        id: sbom
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) make sbom VERSION="$v"
+          echo "path=dist/hexwerk-$v.spdx.json" >> "$GITHUB_OUTPUT"
+          cd dist && shasum -a 256 "hexwerk-$v.spdx.json" >> SHA256SUMS && cat SHA256SUMS
+
       - name: Build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -53,6 +63,16 @@ jobs:
             dist/hexwerk-*.dmg
             dist/hexwerk-*.zip
             dist/hexwerk-cli-*.tar.gz
+            dist/hexwerk-*.spdx.json
+
+      - name: SBOM attestation
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: |
+            dist/hexwerk-*.dmg
+            dist/hexwerk-*.zip
+            dist/hexwerk-cli-*.tar.gz
+          sbom-path: ${{ steps.sbom.outputs.path }}
 
       - name: Release notes
         run: |
@@ -62,6 +82,7 @@ jobs:
           ## Downloads
           - **hexwerk-$v.dmg** / **hexwerk-$v.zip**: the app (Apple silicon, macOS $min or later)
           - **hexwerk-cli-$v-arm64.tar.gz**: the \`hexwerk\` command line tool; keep \`magic.mgc\` next to the binary
+          - **hexwerk-$v.spdx.json**: SBOM (SPDX 2.3) of the app and the CLI, attested for each download: \`gh attestation verify hexwerk-$v.dmg -R thomas-schreck/hexwerk --predicate-type https://spdx.dev/Document/v2.3\`
           - **SHA256SUMS**: checksums (\`shasum -a 256 -c SHA256SUMS\`)
 
           Verify that a download was built by this repository's release workflow:
@@ -84,7 +105,8 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" $pre --verify-tag \
             --title "hexwerk $v" --notes-file notes.md --generate-notes \
-            "dist/hexwerk-$v.dmg" "dist/hexwerk-$v.zip" "dist/hexwerk-cli-$v-arm64.tar.gz" dist/SHA256SUMS
+            "dist/hexwerk-$v.dmg" "dist/hexwerk-$v.zip" "dist/hexwerk-cli-$v-arm64.tar.gz" \
+            "dist/hexwerk-$v.spdx.json" dist/SHA256SUMS
 
       - name: Update Homebrew tap
         if: env.TAP_DEPLOY_KEY != ''

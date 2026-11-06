@@ -2,6 +2,8 @@
 
 # hexwerk
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/thomas-schreck/hexwerk/badge)](https://scorecard.dev/viewer/?uri=github.com/thomas-schreck/hexwerk)
+
 A native macOS hex editor for reverse engineering and malware analysis —
 with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 

@@ -11,11 +11,12 @@ License texts are taken from each crate's own LICENSE/COPYING/NOTICE files
 and grouped when identical.
 """
 import hashlib
-import json
 import pathlib
 import re
 import subprocess
 import sys
+
+from yara_x import checkout_version, crates
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING|NOTICE|UNLICENSE)([-._].*)?$", re.I)
@@ -46,27 +47,6 @@ def brew_prefix(formula):
     return pathlib.Path(subprocess.check_output(["brew", "--prefix", formula], text=True).strip())
 
 
-def crates(yara_x):
-    meta = json.loads(subprocess.check_output(
-        ["cargo", "metadata", "--format-version", "1", "--locked",
-         "--filter-platform", "aarch64-apple-darwin",
-         "--manifest-path", str(yara_x / "capi" / "Cargo.toml")],
-        text=True, stderr=subprocess.DEVNULL))
-    pkgs = {p["id"]: p for p in meta["packages"]}
-    nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-    root = next(p["id"] for p in meta["packages"] if p["name"] == "yara-x-capi")
-    seen, todo = set(), [root]
-    while todo:
-        i = todo.pop()
-        if i in seen:
-            continue
-        seen.add(i)
-        for dep in nodes[i]["deps"]:
-            if any(k["kind"] in (None, "normal") for k in dep["dep_kinds"]):
-                todo.append(dep["pkg"])
-    return sorted((pkgs[i] for i in seen), key=lambda p: (p["name"], p["version"]))
-
-
 def crate_texts(pkg, yara_x):
     d = pathlib.Path(pkg["manifest_path"]).parent
     files = sorted(f for f in d.iterdir() if f.is_file() and LICENSE_FILE.match(f.name))
@@ -80,7 +60,7 @@ def main():
         sys.exit(__doc__)
     yara_x = pathlib.Path(sys.argv[1]).resolve()
     out = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "THIRD_PARTY_NOTICES.md"
-    version = re.search(r'^version = "(.+)"', (yara_x / "Cargo.toml").read_text(), re.M).group(1)
+    version = checkout_version(yara_x)
 
     parts = ["""# Third-party notices
 

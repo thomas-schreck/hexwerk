@@ -10,7 +10,7 @@ XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
 VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
 BUILD   ?= 1
 
-.PHONY: test build sign-cli cli app install-app dist clean formats icon coverage bench format lint
+.PHONY: test build sign-cli cli app install-app dist sbom clean formats icon coverage bench format lint
 
 test:
 	swift test
@@ -94,6 +94,12 @@ dist: app sign-cli
 	tar -C .build/dist/cli -czf dist/hexwerk-cli-$(VERSION)-arm64.tar.gz hexwerk-cli-$(VERSION)
 	cd dist && shasum -a 256 hexwerk-$(VERSION).dmg hexwerk-$(VERSION).zip hexwerk-cli-$(VERSION)-arm64.tar.gz > SHA256SUMS
 	@cat dist/SHA256SUMS
+
+# SPDX SBOM of a release (dist/hexwerk-$(VERSION).spdx.json). Clones YARA-X at
+# the version of THIRD_PARTY_NOTICES.md unless YARA_X_SRC names a checkout.
+YARA_X_SRC ?=
+sbom:
+	scripts/sbom.py "$(VERSION)" $(if $(YARA_X_SRC),--yara-x "$(YARA_X_SRC)") -o dist/hexwerk-$(VERSION).spdx.json
 
 clean:
 	swift package clean
