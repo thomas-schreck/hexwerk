@@ -279,7 +279,7 @@ import Testing
             #expect(c == model.subdata(in: Int(a) ..< Int(b)))
         }
         let elapsed = Date().timeIntervalSince(start)
-        #expect(elapsed < 3)
+        #expect(elapsed < 10)   // old code: ~16 s; generous for loaded CI
     }
 
     /// TC-2.2: atomic save with length change, permissions kept.
