@@ -1017,7 +1017,7 @@ func display(_ v: KValue) -> String {
     case .int(let n): return n >= 10 ? "\(n) (0x\(String(n, radix: 16, uppercase: true)))" : "\(n)"
     case .float(let d): return "\(d)"
     case .bool(let b): return b ? "true" : "false"
-    case .str(let s): return "\"" + (s.count > 200 ? String(s.prefix(200)) + "…" : s) + "\""
+    case .str(let s): return "\"" + TerminalText.escape(s.count > 200 ? String(s.prefix(200)) + "…" : s) + "\""
     case .bytes(let b): return b.count <= 24 ? hexString(b) : hexString(Array(b.prefix(24))) + " … (" + L("%ld bytes", b.count) + ")"
     case .array(let a): return L("%ld entries", a.count)
     case .obj(let o): return o.type.name

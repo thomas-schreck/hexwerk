@@ -40,14 +40,12 @@ struct Parse: ParsableCommand {
         }
         let result = KaitaiInterpreter.parse(try openSnapshot(file), file: schema)
         if json {
-            let data = try JSONSerialization.data(withJSONObject: jsonObject(result.root, depth: depth),
-                                                  options: [.prettyPrinted, .sortedKeys])
-            print(String(decoding: data, as: UTF8.self))
+            try printJSON(jsonObject(result.root, depth: depth))
         } else {
             printTree(result.root, indent: 0, depth: depth)
         }
         if let e = result.error {
-            FileHandle.standardError.write(Data(("hexwerk: " + L("Parse error: %@", "\(e)") + "\n").utf8))
+            FileHandle.standardError.write(Data(("hexwerk: " + L("Parse error: %@", TerminalText.escape("\(e)")) + "\n").utf8))
             throw ExitCode(2)
         }
     }
@@ -59,7 +57,8 @@ struct Parse: ParsableCommand {
         if let v = n.value { line += " = \(v)" }
         if let r = n.range { line += String(format: "  [0x%llx, %llu B]", r.lowerBound, UInt64(r.count)) }
         if let e = n.error { line += "  ⚠ \(e)" }
-        print(line)
+        // Names, values and errors can all carry bytes from the file.
+        print(TerminalText.escape(line))
         guard indent < depth else { return }
         // Long arrays: first 50 entries are enough on a terminal.
         for i in 0 ..< n.childCount {
