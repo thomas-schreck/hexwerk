@@ -10,6 +10,7 @@ extension L10n {
         // .ksy loading
         "%@: YAML error: %@": "%@: YAML-Fehler: %@",
         "%@: not a YAML object": "%@: kein YAML-Objekt",
+        "%@: YAML has more than %@ nodes after expanding aliases": "%@: YAML hat nach dem Auflösen der Aliase mehr als %@ Knoten",
         "%@: meta.id missing": "%@: meta.id fehlt",
         "Import %@ not found (from %@)": "Import %@ nicht gefunden (von %@)",
         "seq[%ld] in %@ is not an object": "seq[%ld] in %@ ist kein Objekt",

@@ -447,6 +447,25 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("kinds")?.lazy == nil && r.root.at("kinds")?.children.count == 2000)
     }
 
+    /// Nested aliases used to expand to gigabytes in Yams.load (#11).
+    @Test func yamlAliasBombIsRejected() throws {
+        var yaml = "meta: {id: t}\nx0: &a0 [lol, lol, lol, lol, lol, lol, lol, lol, lol, lol]\n"
+        for i in 1 ... 9 {
+            yaml += "x\(i): &a\(i) [" + Array(repeating: "*a\(i - 1)", count: 10).joined(separator: ", ") + "]\n"
+        }
+        let start = Date()
+        #expect(throws: KaitaiError.self) { try parse(Data(), yaml: yaml) }
+        #expect(Date().timeIntervalSince(start) < 10)
+        // Ordinary aliases still work.
+        let r = try parse(Data([1, 2]), yaml: """
+            meta: {id: t}
+            seq:
+              - {id: a, type: &t u1}
+              - {id: b, type: *t}
+            """)
+        #expect(r.error == nil && r.root.at("b")?.number == 2)
+    }
+
     @Test func nodeLimit() throws {
         let schema = """
             meta: {id: t}
