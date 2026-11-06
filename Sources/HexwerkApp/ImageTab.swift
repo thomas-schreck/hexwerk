@@ -1,0 +1,111 @@
+import AppKit
+import Combine
+import HexwerkCore
+import SwiftUI
+
+/// Bytes as pixels (SPEC FR-11.1).
+@MainActor
+final class ImageModel: ObservableObject {
+    @Published var format = PixelFormat(rawValue: Settings.shared.string(forKey: "imageFormat") ?? "") ?? .gray8 {
+        didSet { Settings.shared.set(format.rawValue, forKey: "imageFormat") }
+    }
+    @Published var width = Settings.shared.object(forKey: "imageWidth") as? Int ?? 64 {
+        didSet { Settings.shared.set(width, forKey: "imageWidth") }
+    }
+    @Published var zoom = 2
+    /// Follow the cursor, or stay at a fixed start offset.
+    @Published var follow = true
+    /// First byte shown. With `follow` it only moves when the cursor leaves
+    /// the shown range, so clicking a pixel does not shift the picture.
+    var start: UInt64 = 0
+    @Published var hover: UInt64?
+
+    /// Enough rows to fill the panel, capped so a render stays cheap.
+    static let maxBytes = 4 << 20
+    static let rows = 512
+
+    func image(_ doc: HexwerkCore.Document, cursor: UInt64) -> (NSImage, Int, Int)? {
+        let n = min(Self.maxBytes, format.bytes(forPixels: width * Self.rows))
+        if follow, cursor < start || cursor >= start + UInt64(n) { start = cursor }
+        let origin = start
+        let data = doc.read(origin ..< origin + UInt64(n))
+        guard !data.isEmpty else { return nil }
+        let r = format.rgba(data, width: width)
+        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let provider = CGDataProvider(data: Data(r.pixels) as CFData),
+              let cg = CGImage(width: r.width, height: r.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: r.width * 4,
+                               space: cs, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                               provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+        else { return nil }
+        return (NSImage(cgImage: cg, size: NSSize(width: r.width, height: r.height)), r.width, r.height)
+    }
+
+    /// File offset of the pixel at (x, y) in image coordinates.
+    func offset(x: Int, y: Int) -> UInt64 {
+        start + UInt64(format.byteOffset(ofPixel: y * width + x))
+    }
+}
+
+struct ImageTab: View {
+    @ObservedObject var model: DocumentModel
+    @ObservedObject var image: ImageModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Picker("", selection: $image.format) {
+                        ForEach(PixelFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .labelsHidden().fixedSize()
+                    Spacer()
+                    Picker("Zoom", selection: $image.zoom) {
+                        ForEach([1, 2, 4, 8], id: \.self) { Text("\($0)×").tag($0) }
+                    }
+                    .pickerStyle(.menu).fixedSize()
+                }
+                HStack {
+                    Text("Breite").foregroundStyle(.secondary)
+                    TextField("", value: $image.width, format: .number)
+                        .textFieldStyle(.roundedBorder).frame(width: 56).monospacedDigit()
+                    Stepper("", value: $image.width, in: 1...4096).labelsHidden()
+                    Button("÷2") { image.width = max(1, image.width / 2) }.help("Halbieren")
+                    Button("×2") { image.width = min(4096, image.width * 2) }.help("Verdoppeln")
+                    Spacer(minLength: 0)
+                }
+                .controlSize(.small)
+                HStack {
+                    Toggle("Folgt dem Cursor", isOn: $image.follow).toggleStyle(.checkbox)
+                    Spacer()
+                    if let h = image.hover { Text(hex(h)).monospaced().foregroundStyle(.secondary) }
+                }
+                .font(.caption)
+            }
+            .padding(10)
+            Divider()
+            // Re-render on cursor moves and edits.
+            if let (img, w, h) = image.image(model.doc, cursor: model.cursor) {
+                ScrollView([.vertical, .horizontal]) {
+                    Image(nsImage: img)
+                        .interpolation(.none)
+                        .resizable()
+                        .frame(width: CGFloat(w * image.zoom), height: CGFloat(h * image.zoom))
+                        .onContinuousHover { phase in
+                            if case .active(let p) = phase {
+                                image.hover = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
+                            } else { image.hover = nil }
+                        }
+                        .onTapGesture { p in
+                            let off = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
+                            model.jump?(min(off, model.doc.count), nil)
+                        }
+                        .padding(8)
+                }
+                .id(model.revision)
+            } else {
+                Text("Keine Daten ab dem Cursor").foregroundStyle(.secondary).padding(10)
+                Spacer()
+            }
+        }
+    }
+}

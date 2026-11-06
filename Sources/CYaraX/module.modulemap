@@ -1,0 +1,6 @@
+// YARA-X C API from Homebrew (`brew install yara-x`). The static library is
+// linked by HexwerkYARA, so the app does not depend on Homebrew at runtime.
+module CYaraX [system] {
+    header "shim.h"
+    export *
+}

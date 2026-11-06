@@ -1,0 +1,6 @@
+// libmagic (file(1)) from Homebrew (`brew install libmagic`). Linked
+// statically by HexwerkMagic; the database magic.mgc is bundled with the app.
+module CMagic [system] {
+    header "shim.h"
+    export *
+}
