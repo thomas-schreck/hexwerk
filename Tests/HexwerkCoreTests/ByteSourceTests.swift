@@ -47,6 +47,33 @@ func tempFile(_ data: Data) throws -> URL {
         }
     }
 
+    /// #34: open() on a FIFO without a writer blocks forever; it must be
+    /// rejected as not a regular file right away.
+    @Test func rejectsFIFOWithoutHanging() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-fifo-\(UUID().uuidString)")
+        guard mkfifo(url.path, 0o600) == 0 else { throw ByteSourceError.open(url.path, errno) }
+        defer { unlink(url.path) }
+
+        nonisolated(unsafe) var result: Result<ByteSource, any Error>?
+        let done = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            result = Result { try ByteSource(url: url) }
+            done.signal()
+        }
+        if done.wait(timeout: .now() + 5) == .timedOut {
+            // Unblock the hanging open() so the test run can finish.
+            let w = open(url.path, O_WRONLY | O_NONBLOCK)
+            done.wait()
+            if w >= 0 { close(w) }
+            Issue.record("ByteSource(url:) blocked on a FIFO")
+        }
+        guard case .failure(let error) = result else {
+            Issue.record("FIFO was accepted")
+            return
+        }
+        #expect(error is ByteSourceError)
+    }
+
     @Test func missingFile() {
         #expect(throws: ByteSourceError.self) {
             try ByteSource(url: URL(fileURLWithPath: "/nonexistent/hexwerk"))
