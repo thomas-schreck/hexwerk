@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import HexwerkCore
+import HexwerkHelper
 import HexwerkScript
 
 /// JavaScript runner of one window. The script runs in the
@@ -19,38 +20,48 @@ final class ScriptModel: ObservableObject {
     @Published private(set) var error: ScriptError?
     @Published private(set) var status = ""
 
-    private var cancelFlag = CancelFlag()
+    private var cancelTask: (() -> Void)?
 
     func run(on doc: Document, cursor: UInt64, selection: Range<UInt64>?,
              done: @escaping (_ changed: Bool, ScriptResult) -> Void) {
         guard !running else { return }
         let base = doc.snapshot()
-        let copy = Document(editing: base, readOnly: doc.isReadOnly)
+        let readOnly = doc.isReadOnly
         let ctx = ScriptContext(cursor: cursor, selection: selection, fileName: doc.url.lastPathComponent)
         let source = source
         let name = fileURL?.lastPathComponent ?? L("Script")
-        let flag = CancelFlag()
-        cancelFlag = flag
         running = true
         output = []
         error = nil
         status = ""
         let start = Date()
-        // The copy is only touched by the background task until it is adopted.
-        let box = UncheckedBox(copy)
+        // The script runs in the sandboxed helper on a copy of `base` (#102);
+        // its edits come back as a piece list and are adopted as one step.
+        let task = Task.detached(priority: .userInitiated) {
+            try await HelperClient.shared.runScript(source, name: name, base: base, context: ctx, readOnly: readOnly)
+        }
+        cancelTask = { task.cancel() }
         Task { [weak self] in
-            let r = await Task.detached(priority: .userInitiated) {
-                ScriptRunner.run(source, name: name, document: box.value, context: ctx, isCancelled: { flag.value })
-            }.value
+            var r: ScriptResult
+            var edited: (EditedContent, AddedMap)?
+            do {
+                let (outcome, map) = try await task.value
+                r = outcome.result
+                edited = outcome.edited.map { ($0, map) }
+            } catch {
+                r = ScriptResult()
+                r.error = ScriptError(message: String(describing: error), line: nil)
+            }
             let elapsed = Date().timeIntervalSince(start)
             guard let self else { return }
+            cancelTask = nil
             running = false
             output = r.output
             error = r.error
             var changed = false
-            if r.error == nil, copy.isModified {
+            if r.error == nil, let (content, map) = edited {
                 do {
-                    try doc.adopt(copy, base: base)
+                    try doc.adopt(content, map: map, base: base)
                     changed = true
                 } catch {
                     self.error = ScriptError(message: L("Not applied: %@", String(describing: error)), line: nil)
@@ -64,7 +75,7 @@ final class ScriptModel: ObservableObject {
         }
     }
 
-    func cancel() { cancelFlag.value = true }
+    func cancel() { cancelTask?() }
 
     // MARK: Files
 
@@ -153,14 +164,4 @@ final class ScriptModel: ObservableObject {
         }
         """),
     ]
-}
-
-final class UncheckedBox<T>: @unchecked Sendable {
-    let value: T
-    init(_ value: T) { self.value = value }
-}
-
-/// Set from the main thread, read by the script's watchdog.
-final class CancelFlag: @unchecked Sendable {
-    var value = false
 }

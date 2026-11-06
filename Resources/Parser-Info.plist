@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Sandboxed helper (#102): hexwerk.app/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>de.schreck-thomas.hexwerk.Parser</string>
+	<key>CFBundleName</key>
+	<string>hexwerk Parser</string>
+	<key>CFBundleExecutable</key>
+	<string>HexwerkParser</string>
+	<key>CFBundlePackageType</key>
+	<string>XPC!</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>XPCService</key>
+	<dict>
+		<key>ServiceType</key>
+		<string>Application</string>
+		<!-- No run loop needed: NSXPCListener.service() runs the main queue. -->
+		<key>RunLoopType</key>
+		<string>dispatch_main</string>
+	</dict>
+</dict>
+</plist>

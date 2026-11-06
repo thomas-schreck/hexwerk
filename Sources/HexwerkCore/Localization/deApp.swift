@@ -302,5 +302,10 @@ extension L10n {
         "%ld strings": "%ld Strings",
         "%1$ld of %2$ld strings": "%1$ld von %2$ld Strings",
         "Find printable strings, like strings.": "Druckbare Zeichenketten finden, wie strings.",
+        // Sandboxed helper (#102)
+        "Invalid request: %@": "Ungültige Anfrage: %@",
+        "The helper process stopped unexpectedly. hexwerk keeps running; the next run starts a new helper.": "Der Hilfsprozess wurde unerwartet beendet. hexwerk läuft weiter; der nächste Lauf startet einen neuen Hilfsprozess.",
+        "The helper process did not answer in time and was stopped.": "Der Hilfsprozess hat nicht rechtzeitig geantwortet und wurde beendet.",
+        "Only .ksy files can be read": "Nur .ksy-Dateien können gelesen werden",
     ]
 }

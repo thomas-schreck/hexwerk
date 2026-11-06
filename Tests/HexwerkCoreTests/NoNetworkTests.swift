@@ -5,7 +5,7 @@ import Testing
 ///
 /// Checked statically on the build output with `nm`/`otool`, so the test
 /// needs `swift build` first (like the CLI tests):
-/// 1. The CLI and app binaries link no networking framework and import no
+/// 1. The CLI, app and helper (#102) binaries link no networking framework and import no
 ///    high-level networking API (URLSession, NSURLConnection, Network.framework,
 ///    CFNetwork streams/sockets, WebKit).
 /// 2. The object files compiled from this package and its Swift dependencies
@@ -59,7 +59,7 @@ import Testing
     }
 
     @Test func binariesUseNoNetworkingAPIs() throws {
-        let binaries = ["hexwerk", "HexwerkApp"].map { Self.build.appendingPathComponent("debug/\($0)").path }
+        let binaries = ["hexwerk", "HexwerkApp", "HexwerkParser"].map { Self.build.appendingPathComponent("debug/\($0)").path }
             .filter { FileManager.default.isExecutableFile(atPath: $0) }
         try #require(binaries.contains { $0.hasSuffix("/hexwerk") }, "swift build missing")
         for bin in binaries {
