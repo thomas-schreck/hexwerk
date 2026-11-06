@@ -112,4 +112,21 @@ import HexwerkScript
             #expect(doc.read(0..<doc.count) == sample && !doc.canUndo)
         }
     }
+
+    /// Huge or infinite lengths used to trap in UInt64(_:) and kill the host (#12).
+    @Test func hugeLengthsAreClamped() throws {
+        try withDoc { doc in
+            let n = sample.count
+            let r = ScriptRunner.run("""
+                print(hw.read(0, 1e20).length, hw.read(0, Infinity).length, hw.read(4, Number.MAX_VALUE).length)
+                print(hw.str(16, 1e300), hw.hex(24, Infinity))
+                """, document: doc, context: ScriptContext())
+            #expect(r.error == nil)
+            #expect(r.output == ["\(n) \(n) \(n - 4)", "hello world 72 6C 64"])
+            let r2 = ScriptRunner.run("hw.remove(16, Infinity)", document: doc, context: ScriptContext())
+            #expect(r2.error == nil && doc.count == 16)
+            let r3 = ScriptRunner.run("hw.read(0, NaN)", document: doc, context: ScriptContext())
+            #expect(r3.error != nil)
+        }
+    }
 }
