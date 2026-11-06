@@ -4,8 +4,10 @@ import Foundation
 /// document is a list of pieces pointing either into the original file or
 /// into an append-only buffer of new bytes (piece table).
 ///
-/// Undo keeps whole piece lists. That is cheap because pieces are small and
-/// the added buffer only grows, so an old piece list stays valid forever.
+/// Undo keeps, per step, only the pieces an edit replaced and the ones it put
+/// in their place, never whole piece lists: after a Replace All with 100k
+/// hits a full copy per keystroke would cost megabytes. The added buffer
+/// only grows, so recorded pieces stay valid forever.
 public final class Document {
     struct Piece: Equatable, Sendable {
         enum Source: Sendable { case original, added }
@@ -21,9 +23,29 @@ public final class Document {
     private var original: ByteSource
     private var added = Data()
     private var pieces: [Piece]
-    private var savedPieces: [Piece]
-    private var undoStack: [[Piece]] = []
-    private var redoStack: [[Piece]] = []
+    private var undoStack: [Step] = []
+    private var redoStack: [Step] = []
+    /// Identifies the current piece list; new for every edit, restored by
+    /// undo/redo. Cheaper than comparing piece lists on every redraw.
+    private var state = 0
+    private var lastState = 0
+    private var savedState = 0
+    private var modifiedCache: (state: Int, ranges: [Range<UInt64>])?
+
+    /// `pieces[index ..< index + removed.count]` was replaced by `inserted`.
+    struct Change {
+        var index: Int
+        var removed: [Piece]
+        var inserted: [Piece]
+    }
+
+    /// One undo step: changes in the order they were applied, and the states
+    /// before and after.
+    struct Step {
+        var changes: [Change]
+        var before: Int
+        var after: Int
+    }
     private var diskStamp: DiskStamp
 
     public init(url: URL, readOnly: Bool = false) throws {
@@ -31,7 +53,6 @@ public final class Document {
         self.isReadOnly = readOnly
         original = try ByteSource(url: url)
         pieces = original.count > 0 ? [Piece(source: .original, start: 0, length: original.count)] : []
-        savedPieces = pieces
         count = original.count
         diskStamp = try DiskStamp(url)
     }
@@ -45,7 +66,6 @@ public final class Document {
         original = snap.original
         added = snap.added
         pieces = snap.pieces
-        savedPieces = snap.pieces
         count = snap.count
         diskStamp = (try? DiskStamp(snap.original.url)) ?? DiskStamp(size: 0, mtime: timespec())
     }
@@ -56,30 +76,36 @@ public final class Document {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard pieces == base.pieces, added.count == base.added.count else { throw DocumentError.changedMeanwhile }
         guard copy.pieces != pieces else { return }
-        undoStack.append(pieces)
-        redoStack.removeAll()
         // The copy's buffer starts with ours, so old undo states stay valid.
         added = copy.added
-        setPieces(copy.pieces)
+        record([replacePieces(0, pieces.count, with: copy.pieces)])
     }
 
     /// Runs several edits as one undo step. If `body` throws, all its edits
     /// are rolled back.
     public func grouped<R>(_ body: () throws -> R) throws -> R {
         let mark = undoStack.count
-        let before = pieces
         do {
             let r = try body()
-            if undoStack.count > mark + 1 { undoStack.removeSubrange(mark + 1 ..< undoStack.count) }
+            if undoStack.count > mark + 1 {
+                let steps = undoStack[mark...]
+                let merged = Step(changes: steps.flatMap(\.changes), before: steps.first!.before, after: steps.last!.after)
+                undoStack.removeSubrange(mark...)
+                undoStack.append(merged)
+            }
             return r
         } catch {
-            undoStack.removeSubrange(mark ..< undoStack.count)
-            setPieces(before)
+            while undoStack.count > mark { revert(undoStack.removeLast()) }
             throw error
         }
     }
 
-    public var isModified: Bool { pieces != savedPieces }
+    public var isModified: Bool { state != savedState }
+
+    /// Pieces held by undo and redo (memory use, for tests).
+    var undoFootprint: Int {
+        (undoStack + redoStack).reduce(0) { $0 + $1.changes.reduce(0) { $0 + $1.removed.count + $1.inserted.count } }
+    }
     public var canUndo: Bool { !undoStack.isEmpty }
     public var canRedo: Bool { !redoStack.isEmpty }
 
@@ -97,13 +123,16 @@ public final class Document {
     }
 
     /// Ranges whose bytes differ from the file as last saved (for highlighting).
+    /// Cached per state: the hex view asks on every draw.
     public var modifiedRanges: [Range<UInt64>] {
+        if let c = modifiedCache, c.state == state { return c.ranges }
         var out: [Range<UInt64>] = []
         var pos: UInt64 = 0
         for p in pieces {
             if p.source == .added { out.append(pos..<pos + p.length) }
             pos += p.length
         }
+        modifiedCache = (state, out)
         return out
     }
 
@@ -115,9 +144,7 @@ public final class Document {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard range.lowerBound <= count else { throw DocumentError.outOfRange }
         if range.clamped(to: 0..<count).isEmpty && bytes.isEmpty { return }
-        undoStack.append(pieces)
-        redoStack.removeAll()
-        apply(range, bytes)
+        record([apply(range, bytes)])
     }
 
     /// Replaces several non-overlapping ranges with the same bytes as one
@@ -126,35 +153,66 @@ public final class Document {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard !ranges.isEmpty else { return }
         guard ranges.allSatisfy({ $0.lowerBound <= count }) else { throw DocumentError.outOfRange }
-        undoStack.append(pieces)
-        redoStack.removeAll()
         // Back to front, so earlier offsets stay valid.
-        for r in ranges.sorted(by: { $0.lowerBound > $1.lowerBound }) { apply(r, bytes) }
+        record(ranges.sorted(by: { $0.lowerBound > $1.lowerBound }).map { apply($0, bytes) })
     }
 
-    private func apply(_ range: Range<UInt64>, _ bytes: Data) {
+    /// Pushes one undo step for changes already applied.
+    private func record(_ changes: [Change]) {
+        lastState += 1
+        undoStack.append(Step(changes: changes, before: state, after: lastState))
+        redoStack.removeAll()
+        state = lastState
+    }
+
+    private func apply(_ range: Range<UInt64>, _ bytes: Data) -> Change {
         let r = range.clamped(to: 0..<count)
-        // Keep what lies before and after the range, put the new bytes between.
-        var before: [Piece] = [], after: [Piece] = []
-        var pos: UInt64 = 0
-        for p in pieces {
-            let s = pos, e = pos + p.length
-            pos = e
-            if s < r.lowerBound {
-                before.append(Piece(source: p.source, start: p.start, length: min(e, r.lowerBound) - s))
-            }
-            if e > r.upperBound {
-                let skip = max(s, r.upperBound) - s
-                after.append(Piece(source: p.source, start: p.start + skip, length: p.length - skip))
-            }
+        // Pieces ending at or before the range and starting at or after it
+        // stay; the ones in between are cut down to the parts outside the
+        // range, with the new bytes between them.
+        var lo = 0, pos: UInt64 = 0
+        while lo < pieces.count, pos + pieces[lo].length <= r.lowerBound {
+            pos += pieces[lo].length
+            lo += 1
+        }
+        let loStart = pos
+        var hi = lo
+        while hi < pieces.count, pos < r.upperBound {
+            pos += pieces[hi].length
+            hi += 1
         }
         var middle: [Piece] = []
+        if lo < hi, loStart < r.lowerBound {
+            let p = pieces[lo]
+            middle.append(Piece(source: p.source, start: p.start, length: r.lowerBound - loStart))
+        }
         if !bytes.isEmpty {
             middle.append(Piece(source: .added, start: UInt64(added.count), length: UInt64(bytes.count)))
             added.append(bytes)
         }
-        pieces = before + middle + after
-        count = count - UInt64(r.count) + UInt64(bytes.count)
+        if lo < hi, pos > r.upperBound {
+            let p = pieces[hi - 1]
+            let skip = p.length - (pos - r.upperBound)
+            middle.append(Piece(source: p.source, start: p.start + skip, length: p.length - skip))
+        }
+        return replacePieces(lo, hi - lo, with: middle)
+    }
+
+    private func replacePieces(_ index: Int, _ n: Int, with new: [Piece]) -> Change {
+        let old = Array(pieces[index ..< index + n])
+        pieces.replaceSubrange(index ..< index + n, with: new)
+        count = count - old.reduce(0) { $0 + $1.length } + new.reduce(0) { $0 + $1.length }
+        return Change(index: index, removed: old, inserted: new)
+    }
+
+    private func revert(_ step: Step) {
+        for c in step.changes.reversed() { _ = replacePieces(c.index, c.inserted.count, with: c.removed) }
+        state = step.before
+    }
+
+    private func reapply(_ step: Step) {
+        for c in step.changes { _ = replacePieces(c.index, c.removed.count, with: c.inserted) }
+        state = step.after
     }
 
     /// Overwrites bytes starting at `offset`; bytes past the end are appended.
@@ -171,20 +229,15 @@ public final class Document {
     }
 
     public func undo() {
-        guard let prev = undoStack.popLast() else { return }
-        redoStack.append(pieces)
-        setPieces(prev)
+        guard let step = undoStack.popLast() else { return }
+        revert(step)
+        redoStack.append(step)
     }
 
     public func redo() {
-        guard let next = redoStack.popLast() else { return }
-        undoStack.append(pieces)
-        setPieces(next)
-    }
-
-    private func setPieces(_ p: [Piece]) {
-        pieces = p
-        count = p.reduce(0) { $0 + $1.length }
+        guard let step = redoStack.popLast() else { return }
+        reapply(step)
+        undoStack.append(step)
     }
 
     // MARK: Saving
@@ -229,8 +282,10 @@ public final class Document {
         original = try ByteSource(url: newURL)
         added = Data()
         pieces = original.count > 0 ? [Piece(source: .original, start: 0, length: original.count)] : []
-        savedPieces = pieces
         count = original.count
+        lastState += 1
+        state = lastState
+        savedState = state
         undoStack.removeAll()
         redoStack.removeAll()
         diskStamp = try DiskStamp(newURL)
