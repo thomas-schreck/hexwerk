@@ -1,0 +1,50 @@
+name: Benchmarks
+
+# Timings on a generated 256 MiB file against Benchmarks/baseline.json.
+# Fails only on gross regressions (see the tolerance below), not on runner
+# noise. Weekly, by hand, and on pull requests that change the benchmarks.
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Benchmarks/**'
+      - '.github/workflows/bench.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The benchmark links only HexwerkCore and HexwerkKaitai: no YARA-X or
+      # libmagic needed.
+      - name: Build
+        run: swift build -c release --product hexwerk-bench
+
+      - name: Run benchmarks
+        run: |
+          set -o pipefail
+          .build/release/hexwerk-bench --baseline Benchmarks/baseline.json \
+            --tolerance 3 --slack 0.5 --json bench-results.json | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # To adopt these numbers as the new baseline, download this artifact
+      # and commit it as Benchmarks/baseline.json (see CONTRIBUTING.md).
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bench-results
+          path: bench-results.json
+          if-no-files-found: ignore

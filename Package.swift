@@ -90,6 +90,13 @@ let package = Package(
                            "HexwerkHelper"],
             swiftSettings: brewHeaders
         ),
+        // Timings on a large generated file: `make bench` (release build).
+        .executableTarget(
+            name: "hexwerk-bench",
+            dependencies: ["HexwerkCore", "HexwerkKaitai"],
+            path: "Benchmarks",
+            exclude: ["baseline.json"]
+        ),
         .testTarget(
             name: "HexwerkCoreTests",
             dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
