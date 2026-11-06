@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var openedAtLaunch = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ImportCache.user.removeAll()        // left over from a crash
         NSApp.mainMenu = buildMenu()
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         for path in args { open(URL(fileURLWithPath: path), readOnly: false) }
@@ -29,6 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for c in controllers where !c.confirmClose() { return .terminateCancel }
         for c in controllers { c.saveProject() }
         return .terminateNow
+    }
+
+    /// Windows do not close on quit, so their onClose cleanup does not run.
+    func applicationWillTerminate(_ notification: Notification) {
+        ImportCache.user.removeAll()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -125,9 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         do {
             let image = try HexRecords.parse(text)
             let data = try image.flatten()
-            let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("hexwerk/import/\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let dir = try ImportCache.user.makeDirectory()
             let bin = dir.appendingPathComponent(url.deletingPathExtension().lastPathComponent + ".bin")
             try data.write(to: bin)
             let doc = try Document(url: bin, readOnly: readOnly)
