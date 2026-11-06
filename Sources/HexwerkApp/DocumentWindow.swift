@@ -607,7 +607,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let text = i.format == .intelHex
             ? try HexRecords.intelHex(segs, start: i.start, startSegment: i.startSegment)
             : try HexRecords.srec(segs, start: i.start, header: i.header ?? "hexwerk")
-        try text.write(to: i.source, atomically: true, encoding: .ascii)
+        // Not String.write(atomically:): that drops xattrs (quarantine) and
+        // breaks hard links.
+        try Document.write(Data(text.utf8), to: i.source)
     }
 
     @objc func exportHexRecords(_ sender: NSMenuItem) {

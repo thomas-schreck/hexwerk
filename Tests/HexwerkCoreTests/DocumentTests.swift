@@ -345,6 +345,81 @@ import Testing
         #expect(st.st_mode & 0o7777 == 0o666)
     }
 
+    /// #81: a hard-linked file keeps its inode, so every link sees the
+    /// saved content, also when the length changes either way.
+    @Test func saveKeepsHardLinks() throws {
+        let url = try tempFile(original)
+        let link = url.appendingPathExtension("link")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: link)
+        }
+        try FileManager.default.linkItem(at: url, to: link)
+        let inode = try inodeOf(url)
+
+        let doc = try Document(url: url)
+        try doc.insert(Data([1, 2, 3]), at: 0)
+        try doc.save()
+        #expect(try inodeOf(url) == inode)
+        #expect(try Data(contentsOf: link) == Data([1, 2, 3]) + original)
+
+        try doc.delete(0 ..< 100)
+        try doc.save()
+        #expect(try inodeOf(url) == inode)
+        #expect(try Data(contentsOf: link) == (Data([1, 2, 3]) + original).dropFirst(100))
+        #expect(doc.diskChange() == .none)
+        #expect(try leftoverTemps(next: url).isEmpty)
+    }
+
+    /// #81: a hard-linked file that cannot be written in place is left
+    /// alone (no half write, no temp file left behind).
+    @Test func hardLinkedReadOnlyFileFailsCleanly() throws {
+        let url = try tempFile(original)
+        let link = url.appendingPathExtension("link")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: link)
+        }
+        try FileManager.default.linkItem(at: url, to: link)
+        chmod(url.path, 0o444)
+        let doc = try Document(url: url)
+        try doc.insert(Data([1]), at: 0)
+        #expect(throws: DocumentError.self) { try doc.save() }
+        #expect(try Data(contentsOf: link) == original)
+        #expect(try leftoverTemps(next: url).isEmpty)
+        #expect(doc.isModified)
+    }
+
+    /// #81: the Intel HEX / S-Record write-back keeps xattrs (quarantine),
+    /// mode and hard links like a document save.
+    @Test func writeKeepsMetadataAndLinks() throws {
+        let url = try tempFile(Data(":00000001FF\n".utf8))
+        let link = url.appendingPathExtension("link")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: link)
+        }
+        let q = Data("0081;00000000;hexwerk-test;".utf8)
+        try setXattr(url, "com.apple.quarantine", q)
+        chmod(url.path, 0o640)
+        try FileManager.default.linkItem(at: url, to: link)
+        let text = Data(":0100000041BE\n:00000001FF\n".utf8)
+
+        try Document.write(text, to: url)
+        #expect(try Data(contentsOf: link) == text)
+        #expect(getXattr(url, "com.apple.quarantine") != nil)
+        var st = stat()
+        stat(url.path, &st)
+        #expect(st.st_mode & 0o7777 == 0o640)
+
+        // Without a second link: atomic replacement, metadata copied over.
+        try FileManager.default.removeItem(at: link)
+        try Document.write(Data(":00000001FF\n".utf8), to: url)
+        #expect(getXattr(url, "com.apple.quarantine") != nil)
+        stat(url.path, &st)
+        #expect(st.st_mode & 0o7777 == 0o640)
+    }
+
     /// a failing save leaves the original untouched.
     @Test func failedSaveKeepsOriginal() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-ro-\(UUID().uuidString)")
@@ -545,6 +620,11 @@ private func residentPages(_ source: ByteSource) -> Int {
         guard mincore(buf.baseAddress, buf.count, &vec) == 0 else { return -1 }
         return vec.reduce(0) { $0 + Int($1 & 1) }
     }
+}
+
+private func leftoverTemps(next url: URL) throws -> [String] {
+    try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
+        .filter { $0.hasPrefix(".\(url.lastPathComponent).hexwerk-") }
 }
 
 private func setXattr(_ url: URL, _ name: String, _ value: Data) throws {

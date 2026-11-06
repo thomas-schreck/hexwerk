@@ -41,6 +41,7 @@ extension L10n {
         "Bytes were moved: cannot save in place": "Bytes wurden verschoben: In-place-Speichern nicht möglich",
         "Document was changed in the meantime": "Dokument wurde inzwischen geändert",
         "The file was changed by another program; reload it before saving": "Die Datei wurde von einem anderen Programm geändert; vor dem Sichern neu laden",
+        "%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.": "%1$@ ist möglicherweise beschädigt: Das Schreiben der Datei mit mehreren harten Links an Ort und Stelle schlug fehl (%2$@). Der vollständige neue Inhalt liegt in %3$@.",
         "C array": "C-Array",
 
         // Calculator
