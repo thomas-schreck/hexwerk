@@ -212,7 +212,10 @@ struct ChecksumsTab: View {
                         model.computeChecksums()
                     }
                     .disabled(model.checksumRunning || model.checksumSelection.isEmpty)
-                    if model.checksumRunning { ProgressView().controlSize(.small) }
+                    if model.checksumRunning {
+                        ProgressView().controlSize(.small)
+                        Button(L("Cancel")) { model.cancelChecksums() }.controlSize(.small)
+                    }
                     Spacer()
                     Menu(L("Choose")) {
                         Button(L("Common (CRC32, MD5, SHA-1, SHA-256)")) { model.checksumSelection = Set(Checksum.common) }

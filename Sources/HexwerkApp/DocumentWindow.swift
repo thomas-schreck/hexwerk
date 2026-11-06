@@ -615,6 +615,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func windowWillClose(_ notification: Notification) {
         saveProject()
         model.cancelSearch()
+        model.cancelChecksums()
         onClose?(self)
     }
 }

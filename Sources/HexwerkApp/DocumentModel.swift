@@ -74,6 +74,9 @@ final class DocumentModel: ObservableObject {
     @Published private(set) var checksums: [Checksum: String] = [:]
     @Published private(set) var checksumScope = ""
     @Published private(set) var checksumRunning = false
+    private var checksumTask: Task<Void, Never>?
+    /// Only the latest run on unchanged content may fill the table.
+    private var checksumGate = RunGate()
     /// Which algorithms to compute; remembered across launches.
     @Published var checksumSelection: Set<Checksum> = Set(
         (Settings.shared.stringArray(forKey: "checksums") ?? Checksum.common.map(\.rawValue)).compactMap(Checksum.init(rawValue:))
@@ -212,6 +215,8 @@ final class DocumentModel: ObservableObject {
         diffs = []
         diffFile = nil
         checksums = [:]
+        checksumGate.contentChanged()
+        if checksumRunning { cancelChecksums() }
         structure.contentChanged()
         yara.contentChanged()
         analysis.contentChanged()
@@ -405,17 +410,28 @@ final class DocumentModel: ObservableObject {
     func computeChecksums() {
         let range = selection ?? 0..<doc.count
         checksumScope = selection == nil ? L("Whole file") : L("Selection, %ld bytes", range.count)
+        checksumTask?.cancel()
         checksumRunning = true
         checksums = [:]
         let snapshot = doc.snapshot()
         let algos = checksumSelection
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let result = Checksum.compute(Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range) ?? [:]
+        let ticket = checksumGate.begin()
+        checksumTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let result = Checksum.compute(Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range,
+                                          progress: { _ in !Task.isCancelled })
             await MainActor.run {
-                self?.checksums = result
-                self?.checksumRunning = false
+                guard let self, let result, self.checksumGate.finish(ticket) == .current else { return }
+                self.checksums = result
+                self.checksumRunning = false
             }
         }
+    }
+
+    func cancelChecksums() {
+        checksumTask?.cancel()
+        checksumTask = nil
+        checksumGate.cancel()
+        checksumRunning = false
     }
 
     // MARK: Bookmarks
