@@ -51,17 +51,17 @@ import Testing
                                      startAddress: 0x0800_0101, header: nil)
         let flat = try image.flatten()
         #expect(image.gaps == [0x0801_00AC ..< 0x0801_0400])
-        for text in [HexRecords.intelHex(flat, base: image.base, start: image.startAddress),
-                     HexRecords.srec(flat, base: image.base, start: image.startAddress)] {
+        for text in [try HexRecords.intelHex(flat, base: image.base, start: image.startAddress),
+                     try HexRecords.srec(flat, base: image.base, start: image.startAddress)] {
             let back = try HexRecords.parse(text)
             #expect(back.base == 0x0800_FF80)
             #expect(try back.flatten() == flat)
             #expect(back.startAddress == 0x0800_0101)
         }
         // Intel HEX: no data record crosses a 64 KiB boundary; S-Record uses S3/S7.
-        let ih = HexRecords.intelHex(flat, base: image.base)
+        let ih = try HexRecords.intelHex(flat, base: image.base)
         #expect(ih.contains(":020000040801F1"))
-        let sr = HexRecords.srec(flat, base: image.base, start: 0)
+        let sr = try HexRecords.srec(flat, base: image.base, start: 0)
         #expect(sr.contains("\nS3") && sr.contains("\nS7"))
     }
 
@@ -78,9 +78,31 @@ import Testing
     }
 
     @Test func smallAddressesUseS1AndS9() throws {
-        let sr = HexRecords.srec(Data([1, 2, 3]), base: 0x1000)
+        let sr = try HexRecords.srec(Data([1, 2, 3]), base: 0x1000)
         #expect(sr.split(separator: "\n").map { String($0.prefix(2)) } == ["S0", "S1", "S5", "S9"])
         #expect(try HexRecords.parse(sr).flatten() == Data([1, 2, 3]))
+    }
+
+    /// Issue #22: addresses past 32 bits were cut off silently (data written
+    /// to address 0), and an end past UInt64.max trapped.
+    @Test func writersRejectAddressesBeyond32Bits() throws {
+        let d = Data([1, 2, 3, 4])
+        for base: UInt64 in [0x1_0000_0000, 0xFFFF_FFFE, .max - 2] {
+            #expect(throws: HexRecords.HexRecordError.self, "\(base)") { try HexRecords.intelHex(d, base: base) }
+            #expect(throws: HexRecords.HexRecordError.self, "\(base)") { try HexRecords.srec(d, base: base) }
+        }
+        #expect(throws: HexRecords.HexRecordError.self) { try HexRecords.intelHex(d, start: 0x1_0000_0000) }
+        #expect(throws: HexRecords.HexRecordError.self) { try HexRecords.srec(d, start: 0x1_0000_0000) }
+        // The last 4 bytes below 4 GiB still work.
+        for text in [try HexRecords.intelHex(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF),
+                     try HexRecords.srec(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF)] {
+            let back = try HexRecords.parse(text)
+            #expect(back.segments.map(\.address) == [0xFFFF_FFFC] && back.startAddress == 0xFFFF_FFFF)
+        }
+        // Oversized records are clamped to what the length byte can hold.
+        let big = Data(repeating: 7, count: 600)
+        #expect(try HexRecords.parse(HexRecords.intelHex(big, recordSize: 1000)).flatten() == big)
+        #expect(try HexRecords.parse(HexRecords.srec(big, base: 0x1_0000, recordSize: 1000)).flatten() == big)
     }
 }
 

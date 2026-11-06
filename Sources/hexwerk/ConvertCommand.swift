@@ -57,8 +57,8 @@ struct Convert: ParsableCommand {
             }
             let out: Data = switch outFmt {
             case .bin: segments.first?.data ?? Data()
-            case .ihex: Data(HexRecords.intelHex(segments, start: start).utf8)
-            case .srec: Data(HexRecords.srec(segments, start: start).utf8)
+            case .ihex: Data(try HexRecords.intelHex(segments, start: start).utf8)
+            case .srec: Data(try HexRecords.srec(segments, start: start).utf8)
             }
             try out.write(to: URL(fileURLWithPath: output), options: .atomic)
         } catch let e as HexRecords.HexRecordError {
