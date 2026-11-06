@@ -27,24 +27,38 @@ struct Convert: ParsableCommand {
 
     func run() throws {
         let inFmt = from ?? Self.guess(input), outFmt = to ?? Self.guess(output)
-        var data: Data
-        var addr = base?.value ?? 0
+        var segments: [HexRecords.Segment]
         var start: UInt64?
         do {
             if inFmt == .bin {
-                data = try Data(contentsOf: URL(fileURLWithPath: input))
+                let data = try Data(contentsOf: URL(fileURLWithPath: input))
+                segments = HexRecords.segments(data, base: base?.value ?? 0, gaps: [])
             } else {
                 let image = try HexRecords.parse(try String(contentsOfFile: input, encoding: .ascii))
-                guard let f = UInt8(fill, radix: 16) else { throw ValidationError(L("--fill expects a hex byte")) }
-                data = try image.flatten(fill: f)
-                if base == nil { addr = image.base }
                 start = image.startAddress
-                FileHandle.standardError.write(Data((L("%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base, data.count, image.gaps.count) + "\n").utf8))
+                FileHandle.standardError.write(Data((L("%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base, image.segments.reduce(0) { $0 + $1.data.count }, image.gaps.count) + "\n").utf8))
+                if outFmt == .bin {
+                    // Only a flat binary needs the gaps filled.
+                    guard let f = UInt8(fill, radix: 16) else { throw ValidationError(L("--fill expects a hex byte")) }
+                    try image.flatten(fill: f).write(to: URL(fileURLWithPath: output), options: .atomic)
+                    return
+                }
+                // HEX/S-Record keep the segments: filling gaps would add bytes
+                // that were never data (and get flashed), and a gap of hundreds
+                // of MiB would be written out in full.
+                segments = image.segments
+                if let base {
+                    for i in segments.indices {
+                        let (a, o) = (segments[i].address - image.base).addingReportingOverflow(base.value)
+                        guard !o else { throw ValidationError(L("--base moves the data past the end of the address space")) }
+                        segments[i].address = a
+                    }
+                }
             }
             let out: Data = switch outFmt {
-            case .bin: data
-            case .ihex: Data(HexRecords.intelHex(data, base: addr, start: start).utf8)
-            case .srec: Data(HexRecords.srec(data, base: addr, start: start).utf8)
+            case .bin: segments.first?.data ?? Data()
+            case .ihex: Data(HexRecords.intelHex(segments, start: start).utf8)
+            case .srec: Data(HexRecords.srec(segments, start: start).utf8)
             }
             try out.write(to: URL(fileURLWithPath: output), options: .atomic)
         } catch let e as HexRecords.HexRecordError {

@@ -46,6 +46,7 @@ extension L10n {
         "Start address when writing HEX/S-Record from binary": "Startadresse beim Schreiben von HEX/S-Record aus binär",
         "Fill byte for gaps when writing binary (hex)": "Füllbyte für Lücken beim Schreiben als binär (hex)",
         "--fill expects a hex byte": "--fill erwartet ein Hex-Byte",
+        "--base moves the data past the end of the address space": "--base verschiebt die Daten über das Ende des Adressraums hinaus",
         "%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)": "%ld Segment(e) ab 0x%llX, %ld Byte, %ld Lücke(n)",
 
         // open
