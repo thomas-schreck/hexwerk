@@ -12,6 +12,7 @@ extension L10n {
         "Import": "Importieren",
         "Open as Text": "Als Text öffnen",
         "%@ cannot be imported.": "%@ lässt sich nicht importieren.",
+        "%@ was imported with warnings.": "%@ wurde mit Warnungen importiert.",
         "%@ cannot be opened.": "%@ lässt sich nicht öffnen.",
         "About hexwerk": "Über hexwerk",
         "Hide hexwerk": "hexwerk ausblenden",

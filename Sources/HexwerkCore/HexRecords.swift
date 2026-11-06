@@ -36,8 +36,13 @@ public enum HexRecords {
     public struct Image: Sendable {
         public var segments: [Segment]
         public var startAddress: UInt64?
+        /// Intel HEX type 03 start (CS << 16 | IP), kept so it is written
+        /// back as 03; `startAddress` holds the linear CS * 16 + IP.
+        public var startSegment: UInt32? = nil
         /// S0 header text (S-Record only).
         public var header: String?
+        /// Problems that do not stop the import (e.g. a missing end record).
+        public var warnings: [String] = []
 
         /// Lowest address, the address of offset 0 in `flatten`.
         public var base: UInt64 { segments.map(\.address).min() ?? 0 }
@@ -114,6 +119,7 @@ public enum HexRecords {
         var segs: [Segment] = []
         var upper: UInt64 = 0          // from type 02 (segment << 4) or 04 (linear << 16)
         var start: UInt64?
+        var startSegment: UInt32?
         var sawEOF = false
         for (n, raw) in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).enumerated() {
             let lineNo = n + 1
@@ -138,14 +144,19 @@ public enum HexRecords {
             case 0x03:
                 guard data.count == 4 else { throw HexRecordError(line: lineNo, message: L("type 03 needs 4 bytes")) }
                 start = (UInt64(data[0]) << 8 | UInt64(data[1])) << 4 + (UInt64(data[2]) << 8 | UInt64(data[3]))
+                startSegment = data.reduce(0) { $0 << 8 | UInt32($1) }
             case 0x05:
                 guard data.count == 4 else { throw HexRecordError(line: lineNo, message: L("type 05 needs 4 bytes")) }
                 start = data.reduce(0) { $0 << 8 | UInt64($1) }
+                startSegment = nil
             default:
                 throw HexRecordError(line: lineNo, message: L("unknown record type %@", "\(b[3])"))
             }
         }
-        return Image(segments: segs, startAddress: start, header: nil)
+        var image = Image(segments: segs, startAddress: start, startSegment: startSegment, header: nil)
+        // Without it the file may have been cut off; still importable, but say so.
+        if !sawEOF { image.warnings.append(L("no end record (type 01): the file may be truncated")) }
+        return image
     }
 
     public static func parseSRecord(_ text: String) throws -> Image {
@@ -221,11 +232,15 @@ public enum HexRecords {
         }
     }
 
-    public static func intelHex(_ data: Data, base: UInt64 = 0, start: UInt64? = nil, recordSize: Int = 16) throws -> String {
-        try intelHex([Segment(address: base, data: data)], start: start, recordSize: recordSize)
+    /// `startSegment` (CS << 16 | IP) writes a type 03 start record instead
+    /// of the type 05 linear `start`.
+    public static func intelHex(_ data: Data, base: UInt64 = 0, start: UInt64? = nil, startSegment: UInt32? = nil,
+                                recordSize: Int = 16) throws -> String {
+        try intelHex([Segment(address: base, data: data)], start: start, startSegment: startSegment, recordSize: recordSize)
     }
 
-    public static func intelHex(_ segments: [Segment], start: UInt64? = nil, recordSize: Int = 16) throws -> String {
+    public static func intelHex(_ segments: [Segment], start: UInt64? = nil, startSegment: UInt32? = nil,
+                                recordSize: Int = 16) throws -> String {
         try checkAddresses(segments, start: start, .intelHex)
         let recordSize = min(max(recordSize, 1), 0xFF)    // length is one byte
         var lines: [String] = []
@@ -251,7 +266,8 @@ public enum HexRecords {
                 i += n
             }
         }
-        if let start { record(0x05, 0, [24, 16, 8, 0].map { UInt8(start >> UInt64($0) & 0xFF) }) }
+        if let startSegment { record(0x03, 0, [24, 16, 8, 0].map { UInt8(startSegment >> UInt32($0) & 0xFF) }) }
+        else if let start { record(0x05, 0, [24, 16, 8, 0].map { UInt8(start >> UInt64($0) & 0xFF) }) }
         record(0x01, 0, [])
         return lines.joined(separator: "\n") + "\n"
     }

@@ -44,6 +44,7 @@ final class DocumentModel: ObservableObject {
         let format: HexRecords.Format
         let gaps: [Range<UInt64>]
         let start: UInt64?
+        var startSegment: UInt32? = nil
         let header: String?
     }
     var importInfo: ImportInfo?

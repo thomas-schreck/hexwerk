@@ -603,7 +603,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let data = file.read(0 ..< file.count)
         let segs = HexRecords.segments(data, base: model.offsetBase, gaps: i.gaps)
         let text = i.format == .intelHex
-            ? try HexRecords.intelHex(segs, start: i.start)
+            ? try HexRecords.intelHex(segs, start: i.start, startSegment: i.startSegment)
             : try HexRecords.srec(segs, start: i.start, header: i.header ?? "hexwerk")
         try text.write(to: i.source, atomically: true, encoding: .ascii)
     }

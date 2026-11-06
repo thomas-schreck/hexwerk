@@ -106,6 +106,31 @@ import Testing
     }
 }
 
+/// Issue #37: truncated files are flagged; a CS:IP start stays type 03.
+@Suite struct HexRecordsEndAndStartTests {
+    static let data = ":0400000001020304F2\n"
+
+    @Test func missingEndRecordIsReported() throws {
+        let cut = try HexRecords.parse(Self.data)
+        #expect(cut.warnings.count == 1)
+        #expect(cut.segments.first?.data == Data([1, 2, 3, 4]))
+        #expect(try HexRecords.parse(Self.data + ":00000001FF\n").warnings.isEmpty)
+    }
+
+    @Test func segmentStartRecordIsWrittenBackAsType03() throws {
+        // CS = 0x1234, IP = 0x5678 → linear 0x12340 + 0x5678 = 0x179B8.
+        let text = Self.data + ":0400000312345678E5\n:00000001FF\n"
+        let image = try HexRecords.parse(text)
+        #expect(image.startAddress == 0x179B8)
+        #expect(image.startSegment == 0x1234_5678)
+        let out = try HexRecords.intelHex(image.segments, start: image.startAddress, startSegment: image.startSegment)
+        #expect(out.contains(":0400000312345678E5"))
+        #expect(!out.contains(":04000005"))
+        let back = try HexRecords.parse(out)
+        #expect(back.startSegment == 0x1234_5678 && back.startAddress == 0x179B8)
+    }
+}
+
 /// Save As of an imported file picks the format from the chosen ending (#3).
 @Suite struct HexRecordsFormatTests {
     @Test func formatFromFileExtension() {

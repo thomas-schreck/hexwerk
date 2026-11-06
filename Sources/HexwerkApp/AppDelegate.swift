@@ -132,7 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let doc = try Document(url: bin, readOnly: readOnly)
             let c = DocumentWindowController(file: doc)
             c.model.offsetBase = image.base
-            c.model.importInfo = .init(source: url, format: format, gaps: image.gaps, start: image.startAddress, header: image.header)
+            c.model.importInfo = .init(source: url, format: format, gaps: image.gaps, start: image.startAddress,
+                                       startSegment: image.startSegment, header: image.header)
             c.importStamp = stamp
             c.onClose = { [weak self] closed in
                 self?.controllers.removeAll { $0 === closed }
@@ -143,6 +144,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             c.refreshTitle()
             c.restoreProject()
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            if !image.warnings.isEmpty {
+                let w = NSAlert()
+                w.messageText = L("%@ was imported with warnings.", url.lastPathComponent)
+                w.informativeText = image.warnings.joined(separator: "\n")
+                w.runModal()
+            }
         } catch {
             let e = NSAlert()
             e.messageText = L("%@ cannot be imported.", url.lastPathComponent)
