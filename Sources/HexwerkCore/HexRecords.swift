@@ -8,6 +8,15 @@ public enum HexRecords {
 
         public var fileExtension: String { self == .intelHex ? "hex" : "srec" }
 
+        /// The format a file name ending stands for; nil for other endings.
+        public init?(fileExtension ext: String) {
+            switch ext.lowercased() {
+            case "hex", "ihex", "ihx": self = .intelHex
+            case "srec", "s19", "s28", "s37", "mot": self = .srec
+            default: return nil
+            }
+        }
+
         /// Guess from the text: first non-empty line starts with ':' or 'S'.
         public static func detect(_ text: Substring) -> Format? {
             guard let line = text.split(whereSeparator: \.isNewline).first(where: { !$0.allSatisfy(\.isWhitespace) }) else { return nil }

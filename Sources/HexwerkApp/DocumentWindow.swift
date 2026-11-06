@@ -490,16 +490,36 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func saveDocumentAs(_ sender: Any?) {
         guard let window else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = file.url.lastPathComponent
-        panel.directoryURL = file.url.deletingLastPathComponent()
+        // For imports, file.url is the cache image that is deleted on close.
+        panel.nameFieldStringValue = displayURL.lastPathComponent
+        panel.directoryURL = displayURL.deletingLastPathComponent()
+        if model.importInfo != nil {
+            panel.message = L("Ending .hex or .srec: save as Intel HEX or S-Record; any other ending: save the raw bytes")
+        }
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             do {
-                try file.save(as: url)
+                if let i = model.importInfo { try saveImport(i, as: url) } else { try file.save(as: url) }
                 hexView.reload()
+                refresh()
             } catch {
                 showError(error)
             }
+        }
+    }
+
+    /// Save As for an imported file: a HEX/S-Record ending makes `url` the new
+    /// write-back target, any other ending turns the window into a plain
+    /// binary document at `url` (off the import cache).
+    private func saveImport(_ i: DocumentModel.ImportInfo, as url: URL) throws {
+        if let format = HexRecords.Format(fileExtension: url.pathExtension) {
+            let target = DocumentModel.ImportInfo(source: url, format: format, gaps: i.gaps, start: i.start, header: i.header)
+            try writeBack(target)
+            model.importInfo = target
+            try file.save()
+        } else {
+            try file.save(as: url)
+            model.importInfo = nil
         }
     }
 
