@@ -35,10 +35,20 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 
 ## Requirements
 
-- macOS on Apple silicon; the current build targets **macOS 27** because the
-  Homebrew YARA-X bottle is built for it (see [#1](https://github.com/thomas-schreck/hexwerk/issues/1))
-- Swift 6 toolchain (Command Line Tools)
-- Homebrew packages `yara-x` and `libmagic` (linked statically)
+- macOS 26 or later on Apple silicon
+- Swift 6 toolchain (Command Line Tools or Xcode)
+- Homebrew packages `yara-x` and `libmagic` (linked statically; set
+  `HOMEBREW_PREFIX` if Homebrew is not in its default location)
+
+Notes:
+- The static libraries come from Homebrew's bottle for the build machine. A
+  build on macOS 27 links bottles made for macOS 27 and prints linker warnings
+  about the newer object files; it runs on the build machine, but builds meant
+  for macOS 26 should be made on macOS 26 — release builds come from the
+  GitHub runner, which uses macOS 26.
+- `Package.swift` uses `unsafeFlags` to link the static libraries, so the
+  package cannot be used as a dependency of another SwiftPM package. hexwerk
+  is an app and a CLI, so this is intended.
 
 ## Download
 
