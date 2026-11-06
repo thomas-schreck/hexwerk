@@ -123,6 +123,9 @@ final class DocumentModel: ObservableObject {
     var runScript: (() -> Void)?
 
     private var task: Task<Void, Never>?
+    /// Search and diff share `task`; results of an older run or of edited
+    /// content must never be shown (Replace would hit shifted offsets).
+    private var searchGate = RunGate()
 
     init(doc: Document) {
         self.doc = doc
@@ -204,6 +207,11 @@ final class DocumentModel: ObservableObject {
     /// Called after every edit. Results that depend on the content are stale.
     func contentChanged() {
         revision += 1
+        searchGate.contentChanged()
+        if searching {
+            cancelSearch()
+            findMessage = L("Content changed – search again")
+        }
         if !hits.isEmpty || currentHit != nil {
             hits = []
             currentHit = nil
@@ -231,6 +239,8 @@ final class DocumentModel: ObservableObject {
     }
 
     func runSearch(thenSelect index: Int? = nil) {
+        // Before validating: an invalid pattern must not let the old search deliver.
+        cancelSearch()
         if findMode == .regex { runRegexSearch(thenSelect: index); return }
         guard let p = pattern(findText) else {
             findMessage = findText.isEmpty ? nil : L("Invalid pattern")
@@ -238,12 +248,12 @@ final class DocumentModel: ObservableObject {
             currentHit = nil
             return
         }
-        task?.cancel()
         searching = true
         progress = 0
         findMessage = nil
         let snapshot = doc.snapshot()
         let start = cursor
+        let ticket = searchGate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let found = Search.find(p, in: snapshot) { fraction in
                 Task { @MainActor in self?.progress = fraction }
@@ -251,7 +261,7 @@ final class DocumentModel: ObservableObject {
             }
             let cancelled = Task.isCancelled
             await MainActor.run {
-                guard let self, !cancelled else { return }
+                guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
                 self.findMessage = found.isEmpty ? L("No hits")
@@ -272,11 +282,11 @@ final class DocumentModel: ObservableObject {
             currentHit = nil
             return
         }
-        task?.cancel()
         searching = true
         progress = 0
         findMessage = nil
         let snapshot = doc.snapshot(), start = cursor, text = findText, ic = ignoreCase
+        let ticket = searchGate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let found = (try? RegexSearch.find(text, ignoreCase: ic, in: snapshot) { fraction in
                 Task { @MainActor in self?.progress = fraction }
@@ -284,7 +294,7 @@ final class DocumentModel: ObservableObject {
             }) ?? []
             let cancelled = Task.isCancelled
             await MainActor.run {
-                guard let self, !cancelled else { return }
+                guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
                 self.findMessage = found.isEmpty ? L("No hits")
@@ -297,6 +307,7 @@ final class DocumentModel: ObservableObject {
 
     func cancelSearch() {
         task?.cancel()
+        searchGate.cancel()
         searching = false
     }
 
@@ -357,14 +368,15 @@ final class DocumentModel: ObservableObject {
         let other: Snapshot
         do { other = try Document(url: url, readOnly: true).snapshot() }
         catch { findMessage = String(describing: error); return }
-        task?.cancel()
+        cancelSearch()
         searching = true
         let mine = doc.snapshot()
+        let ticket = searchGate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             // Realigns after inserted/deleted bytes (positional beyond 256 MiB).
             let d = AlignedDiff.diff(mine, other)
             await MainActor.run {
-                guard let self, !Task.isCancelled else { return }
+                guard let self, !Task.isCancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.diffs = d
                 self.diffFile = url
