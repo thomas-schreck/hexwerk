@@ -6,14 +6,17 @@ public enum Compare {
     /// Byte-by-byte comparison at equal offsets (no realignment after
     /// inserted bytes). If one side is longer, the extra tail is one range.
     /// Ranges are offsets valid in both files up to the shorter length.
-    public static func differences(_ a: Snapshot, _ b: Snapshot,
+    /// Stops at exactly `maxHits` ranges (`count >= maxHits`: truncated); the
+    /// open difference and the tail are then left out, not cut short.
+    public static func differences(_ a: Snapshot, _ b: Snapshot, maxHits: Int = Search.maxHits,
                                    progress: (Double) -> Bool = { _ in true }) -> [Range<UInt64>] {
         var out: [Range<UInt64>] = []
         let common = min(a.count, b.count)
         let chunk: UInt64 = 8 << 20
         var start: UInt64? = nil
         var pos: UInt64 = 0
-        while pos < common {
+        var full = false
+        while pos < common, !full {
             let end = min(common, pos + chunk)
             let da = a.read(pos..<end), db = b.read(pos..<end)
             da.withUnsafeBytes { pa in
@@ -30,16 +33,20 @@ public enum Compare {
                         let differs = x[i] != y[i]
                         let at = pos + UInt64(i)
                         if differs, start == nil { start = at }
-                        if !differs, let s = start { out.append(s..<at); start = nil }
+                        if !differs, let s = start {
+                            out.append(s..<at); start = nil
+                            if out.count >= maxHits { full = true; break }
+                        }
                         i += 1
                     }
                 }
             }
             pos = end
-            if out.count >= Search.maxHits || !progress(Double(pos) / Double(max(common, 1))) { break }
+            if full || !progress(Double(pos) / Double(max(common, 1))) { break }
         }
+        if full { return out }
         if let s = start { out.append(s..<common) }
-        if a.count != b.count { out.append(common ..< max(a.count, b.count)) }
+        if a.count != b.count, out.count < maxHits { out.append(common ..< max(a.count, b.count)) }
         return out
     }
 }

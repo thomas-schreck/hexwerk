@@ -67,6 +67,8 @@ final class DocumentModel: ObservableObject {
     // Diff (FR-5.7).
     @Published private(set) var diffs: [DiffOp] = []
     @Published private(set) var diffFile: URL?
+    /// The comparison stopped at `Search.maxHits`; there are more differences.
+    @Published private(set) var diffsTruncated = false
 
     // Bookmarks (FR-3.6).
     @Published var bookmarks: [Bookmark] = []
@@ -229,6 +231,7 @@ final class DocumentModel: ObservableObject {
         }
         diffs = []
         diffFile = nil
+        diffsTruncated = false
         checksums = [:]
         checksumGate.contentChanged()
         if checksumRunning { cancelChecksums() }
@@ -389,10 +392,12 @@ final class DocumentModel: ObservableObject {
         task = Task.detached(priority: .userInitiated) { [weak self] in
             // Realigns after inserted/deleted bytes (positional beyond 256 MiB).
             let d = AlignedDiff.diff(mine, other)
+            let truncated = AlignedDiff.isTruncated(d, mine, other)
             await MainActor.run {
                 guard let self, !Task.isCancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.diffs = d
+                self.diffsTruncated = truncated
                 self.diffFile = url
                 self.sidebarTab = .hits
                 if let first = d.first { self.show(diff: first) }
@@ -403,6 +408,7 @@ final class DocumentModel: ObservableObject {
     func clearDiff() {
         diffs = []
         diffFile = nil
+        diffsTruncated = false
     }
 
     func jumpToDiff(forward: Bool) {

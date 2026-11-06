@@ -140,7 +140,8 @@ struct HitsTab: View {
                     }
                 } header: {
                     HStack {
-                        Text(L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count))
+                        Text(L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count)
+                             + (model.diffsTruncated ? " (" + L("stopped after %ld hits", Search.maxHits) + ")" : ""))
                         Spacer()
                         Button(L("Close")) { model.clearDiff() }.buttonStyle(.link)
                     }
