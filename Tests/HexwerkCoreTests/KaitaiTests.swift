@@ -606,8 +606,12 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         let late = KaitaiInterpreter.parse(snap, file: schema, limits: limits)
         #expect(late.error?.message == L("Time limit of %ld s exceeded", 0))
 
+        // Generous parse limit: sanitizer builds are many times slower; the
+        // hang guard below stays.
+        var generous = ParseLimits()
+        generous.maxSeconds = 600
         let start = Date()
-        let r = KaitaiInterpreter.parse(snap, file: schema)
+        let r = KaitaiInterpreter.parse(snap, file: schema, limits: generous)
         #expect(r.error == nil && r.root.at("s")?.range == 0 ..< UInt64(50 << 20) + 1)
         #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
     }

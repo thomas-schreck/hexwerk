@@ -40,6 +40,7 @@ jobs:
       HEXWERK_FUZZ_SCALE: ${{ matrix.name == 'debug' && inputs.scale || matrix.scale }}
       HEXWERK_FUZZ_TIMEOUT: "120"
       ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+      HEXWERK_SANITIZER: address
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -39,7 +39,9 @@ jobs:
           queries: security-extended
 
       - name: Build
-        run: swift build
+        # CodeQL's tracer runs the build under Rosetta; without an explicit
+        # architecture it links for x86_64 against the arm64 YARA-X/libmagic.
+        run: swift build --arch arm64
 
       - name: Analyze
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

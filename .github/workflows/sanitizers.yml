@@ -36,4 +36,5 @@ jobs:
       - name: Test under Address Sanitizer
         env:
           ASAN_OPTIONS: detect_leaks=0:abort_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1
+          HEXWERK_SANITIZER: address   # tests skip their speed assertions
         run: swift test --sanitize=address --skip hostileExpressionsAreRejectedQuickly
