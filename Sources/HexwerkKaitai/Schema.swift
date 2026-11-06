@@ -120,9 +120,16 @@ public final class KsyLoader {
         let text: String
         do { text = try String(contentsOf: url, encoding: .utf8) }
         catch { throw KaitaiError("\(url.lastPathComponent): \(error.localizedDescription)") }
-        let any: Any?
-        do { any = try Yams.load(yaml: text) }
+        let node: Node?
+        do { node = try Yams.compose(yaml: text) }
         catch { throw KaitaiError(L("%@: YAML error: %@", url.lastPathComponent, "\(error)")) }
+        // Composing shares aliased subtrees, converting to Any copies them:
+        // nested aliases ("billion laughs") would expand to gigabytes.
+        if let node, !Self.expandsWithin(Self.maxYAMLNodes, node) {
+            throw KaitaiError(L("%@: YAML has more than %@ nodes after expanding aliases",
+                                url.lastPathComponent, "\(Self.maxYAMLNodes)"))
+        }
+        let any = node?.any
         guard let top = map(any) else { throw KaitaiError(L("%@: not a YAML object", url.lastPathComponent)) }
 
         let meta = map(top["meta"]) ?? [:]
@@ -138,6 +145,27 @@ public final class KsyLoader {
             file.imports.append(try load(resolveImport(imp, from: url)))
         }
         return file
+    }
+
+    /// Far above any real format (they have thousands of nodes, not
+    /// millions), far below what exhausts memory.
+    static let maxYAMLNodes = 1_000_000
+
+    /// Counts nodes as `Node.any` would materialize them, stopping at `budget`.
+    static func expandsWithin(_ budget: Int, _ root: Node) -> Bool {
+        var count = 0
+        var stack = [root]
+        while let n = stack.popLast() {
+            count += 1
+            if count > budget { return false }
+            switch n {
+            case .scalar, .alias: break
+            case .sequence(let seq): stack.append(contentsOf: seq)
+            case .mapping(let m):
+                for (k, v) in m { stack.append(k); stack.append(v) }
+            }
+        }
+        return true
     }
 
     func resolveImport(_ name: String, from: URL) throws -> URL {
