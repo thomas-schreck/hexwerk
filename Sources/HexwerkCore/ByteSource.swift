@@ -61,7 +61,7 @@ public enum ByteSourceError: Error, CustomStringConvertible {
         switch self {
         case .open(let p, let e): "\(p): \(String(cString: strerror(e)))"
         case .map(let p, let e): "\(p): mmap: \(String(cString: strerror(e)))"
-        case .notRegularFile(let p): "\(p): keine reguläre Datei"
+        case .notRegularFile(let p): L("%@: not a regular file", "\(p)")
         }
     }
 }

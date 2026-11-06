@@ -371,10 +371,10 @@ public enum DocumentError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .readOnly: "Dokument ist schreibgeschützt"
-        case .outOfRange: "Offset liegt hinter dem Dateiende"
-        case .lengthChanged: "Länge geändert: In-place-Speichern nicht möglich"
-        case .changedMeanwhile: "Dokument wurde inzwischen geändert"
+        case .readOnly: L("Document is read-only")
+        case .outOfRange: L("Offset is past the end of the file")
+        case .lengthChanged: L("Length changed: cannot save in place")
+        case .changedMeanwhile: L("Document was changed in the meantime")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
         }
     }

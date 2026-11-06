@@ -384,7 +384,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
             seq:
               - {id: magic, type: u1, valid: 0x7f}
             """)
-        #expect(r.error?.message.contains("Validierung") == true)
+        #expect(r.error?.message == L("Validation: expected %@, found %@", "127 (0x7F)", "1"))
         #expect(r.error?.path == "magic")
     }
 
@@ -465,7 +465,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         limits.maxNodes = 1000
         let r = KaitaiInterpreter.parse(try Document(url: url, readOnly: true).snapshot(),
                                         file: try KsyLoader().load(ksy), limits: limits)
-        #expect(r.error?.message.contains("Knoten") == true)
+        #expect(r.error?.message == L("More than %@ nodes, aborted", "1000"))
         #expect(r.root.at("items")?.children.count == 500)      // 2 nodes per item
     }
 }

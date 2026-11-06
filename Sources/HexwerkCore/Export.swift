@@ -7,7 +7,7 @@ public enum ExportFormat: String, CaseIterable, Sendable {
     public var title: String {
         switch self {
         case .hex: "Hex"
-        case .c: "C-Array"
+        case .c: L("C array")
         case .python: "Python bytes"
         case .swift: "Swift [UInt8]"
         case .base64: "Base64"
