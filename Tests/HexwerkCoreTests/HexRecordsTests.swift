@@ -83,3 +83,12 @@ import Testing
         #expect(try HexRecords.parse(sr).flatten() == Data([1, 2, 3]))
     }
 }
+
+/// Save As of an imported file picks the format from the chosen ending (#3).
+@Suite struct HexRecordsFormatTests {
+    @Test func formatFromFileExtension() {
+        for e in ["hex", "HEX", "ihex", "ihx"] { #expect(HexRecords.Format(fileExtension: e) == .intelHex, "\(e)") }
+        for e in ["srec", "s19", "S28", "s37", "mot"] { #expect(HexRecords.Format(fileExtension: e) == .srec, "\(e)") }
+        for e in ["bin", "", "txt"] { #expect(HexRecords.Format(fileExtension: e) == nil, "\(e)") }
+    }
+}

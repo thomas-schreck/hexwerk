@@ -122,6 +122,7 @@ extension L10n {
         "Selection too large to copy (%@).": "Auswahl zu groß zum Kopieren (%@).",
         "At most 4 MiB. Save larger ranges with File → Export Selection.": "Höchstens 4 MiB. Größere Bereiche mit Ablage → Auswahl exportieren sichern.",
         "Save %1$ld bytes at %2$@ as raw data": "%1$ld Byte ab %2$@ als Rohdaten sichern",
+        "Ending .hex or .srec: save as Intel HEX or S-Record; any other ending: save the raw bytes": "Endung .hex oder .srec: als Intel HEX oder S-Record sichern; jede andere Endung: die rohen Bytes sichern",
         "%@ was changed outside hexwerk.": "%@ wurde außerhalb von hexwerk geändert.",
         "Saving discards those changes.": "Beim Sichern gehen diese Änderungen verloren.",
         "Save Anyway": "Trotzdem sichern",
