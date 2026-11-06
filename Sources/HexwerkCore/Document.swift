@@ -22,7 +22,9 @@ public final class Document {
 
     private var original: ByteSource
     private var added = Data()
-    private var pieces: [Piece]
+    private var pieces: [Piece] { didSet { offsetsCache = nil } }
+    /// Start offset of each piece, built on demand for binary search.
+    private var offsetsCache: [UInt64]?
     private var undoStack: [Step] = []
     private var redoStack: [Step] = []
     /// Identifies the current piece list; new for every edit, restored by
@@ -119,7 +121,9 @@ public final class Document {
     /// Immutable copy of the current content for background work (search,
     /// diff, hashes). Cheap: pieces and the added buffer are copy-on-write.
     public func snapshot() -> Snapshot {
-        Snapshot(original: original, added: added, pieces: pieces, count: count)
+        let offsets = offsetsCache ?? Snapshot.offsets(of: pieces)
+        offsetsCache = offsets
+        return Snapshot(original: original, added: added, pieces: pieces, offsets: offsets, count: count)
     }
 
     /// Ranges whose bytes differ from the file as last saved (for highlighting).
@@ -253,7 +257,18 @@ public final class Document {
         /// unmodified byte is still at its offset in the file); an
         /// interruption can leave a partly saved file.
         case inPlace
+        /// In place if the file is at least `inPlaceMinimumSize` and only
+        /// bytes were overwritten (nothing inserted, deleted or moved),
+        /// otherwise atomic. Changing one byte of a huge file then costs one
+        /// write instead of a full copy (and needs no free space).
+        case automatic
     }
+
+    /// Below this size an atomic save is cheap enough to always be preferred.
+    public static let inPlaceMinimumSize: UInt64 = 64 << 20
+
+    /// True if saving in place would write the right bytes.
+    public var canSaveInPlace: Bool { count == original.count && originalBytesInPlace }
 
     /// True if the file on disk changed since it was opened or last saved.
     public func hasChangedOnDisk() -> Bool {
@@ -266,7 +281,9 @@ public final class Document {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard isModified else { return }
         switch mode {
-        case .atomic:
+        case .automatic where original.count >= Self.inPlaceMinimumSize && canSaveInPlace:
+            try writeChangedBytesInPlace()
+        case .atomic, .automatic:
             try writeReplacement(at: url)
         case .inPlace:
             guard count == original.count else { throw DocumentError.lengthChanged }
@@ -400,16 +417,42 @@ public struct Snapshot: Sendable {
     let original: ByteSource
     let added: Data
     let pieces: [Document.Piece]
+    /// Start offset of each piece in the content.
+    let offsets: [UInt64]
     public let count: UInt64
+
+    static func offsets(of pieces: [Document.Piece]) -> [UInt64] {
+        var out: [UInt64] = []
+        out.reserveCapacity(pieces.count)
+        var pos: UInt64 = 0
+        for p in pieces {
+            out.append(pos)
+            pos += p.length
+        }
+        return out
+    }
+
+    /// Index of the piece containing `offset` (pieces.count if past the end).
+    /// Binary search: after many edits a linear walk per 1 MiB chunk made
+    /// saving and scanning O(pieces²).
+    func pieceIndex(at offset: UInt64) -> Int {
+        var lo = 0, hi = pieces.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if offsets[mid] + pieces[mid].length <= offset { lo = mid + 1 } else { hi = mid }
+        }
+        return lo
+    }
 
     /// Bytes in `range`, clipped to the content.
     public func read(_ range: Range<UInt64>) -> Data {
         let r = range.clamped(to: 0..<count)
         var out = Data(capacity: Int(r.count))
-        var pos: UInt64 = 0
-        for p in pieces {
-            let pieceRange = pos..<pos + p.length
-            pos += p.length
+        guard !r.isEmpty else { return out }
+        for i in pieceIndex(at: r.lowerBound) ..< pieces.count {
+            let p = pieces[i]
+            let pos = offsets[i] + p.length
+            let pieceRange = offsets[i]..<pos
             let hit = pieceRange.clamped(to: r)
             if hit.isEmpty { continue }
             let from = p.start + (hit.lowerBound - pieceRange.lowerBound)
@@ -428,18 +471,17 @@ public struct Snapshot: Sendable {
     public func withContiguousBytes<R>(_ range: Range<UInt64>,
                                        _ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
         let r = range.clamped(to: 0..<count)
-        var pos: UInt64 = 0
-        for p in pieces {
-            let pieceRange = pos..<pos + p.length
-            pos += p.length
-            guard pieceRange.contains(r.lowerBound) || (r.isEmpty && pieceRange.upperBound == r.lowerBound) else { continue }
+        // An empty range at a piece end may use that piece, as before.
+        let i = pieceIndex(at: r.isEmpty && r.lowerBound > 0 ? r.lowerBound - 1 : r.lowerBound)
+        if i < pieces.count {
+            let p = pieces[i]
+            let pieceRange = offsets[i] ..< offsets[i] + p.length
             if p.source == .original, r.upperBound <= pieceRange.upperBound {
                 let from = Int(p.start + (r.lowerBound - pieceRange.lowerBound))
                 return try original.withUnsafeBytes { all in
                     try body(UnsafeRawBufferPointer(rebasing: all[from ..< from + r.count]))
                 }
             }
-            break
         }
         return try read(r).withUnsafeBytes(body)
     }

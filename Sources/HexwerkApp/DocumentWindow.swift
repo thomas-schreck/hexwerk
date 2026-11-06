@@ -488,7 +488,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             // Write-back first: saving the cache image clears isModified, so a
             // failing write-back afterwards would leave the edits looking saved.
             if let i = model.importInfo { try writeBack(i) }
-            try file.save()
+            try file.save(mode: .automatic)
             hexView.reload()
             return true
         } catch {
