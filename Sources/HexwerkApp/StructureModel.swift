@@ -40,6 +40,9 @@ final class StructureModel: ObservableObject {
     /// Cursor at the last follow() call, applied once a parse finishes.
     private var lastCursor: UInt64?
 
+    /// Closing the window must not leave a parse running for up to 30 s.
+    isolated deinit { task?.cancel() }
+
     static let genericExtensions: Set<String> = ["bin", "dat", "data", "raw", "img", "dump", "out", "tmp", "rom", "fw", "hex", ""]
 
 
@@ -78,8 +81,12 @@ final class StructureModel: ObservableObject {
             let outcome: Result<ParseResult, Error>
             do {
                 // Loading parses expressions recursively; task threads have 512 KiB.
+                // It is short and bounded (#10), so the blocking variant is fine;
+                // KsyFile is not Sendable, so it cannot use the async one.
                 let schema = try onLargeStack { Result { try KsyLoader(libraryRoots: roots).load(url) } }.get()
-                outcome = .success(KaitaiInterpreter.parse(snapshot, file: schema) { !Task.isCancelled })
+                // The async parse stops when this task is cancelled (format
+                // switch, reparse, window closed) and does not block a pool thread.
+                outcome = .success(await KaitaiInterpreter.parse(snapshot, file: schema))
             } catch {
                 outcome = .failure(error)
             }
