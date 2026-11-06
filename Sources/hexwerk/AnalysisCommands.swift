@@ -9,7 +9,8 @@ func resolveRange(_ snap: Snapshot, _ offset: Number?, _ length: Number?) throws
         FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, snap.count) + "\n").utf8))
         throw ExitCode(1)
     }
-    return start ..< (length.map { min(snap.count, start + $0.value) } ?? snap.count)
+    // Clamp the length before adding: start + length can exceed UInt64.max.
+    return start ..< (length.map { start + min($0.value, snap.count - start) } ?? snap.count)
 }
 
 struct Entropy: ParsableCommand {

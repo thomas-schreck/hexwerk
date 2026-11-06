@@ -33,7 +33,7 @@ struct Yara: ParsableCommand {
             FileHandle.standardError.write(Data(("hexwerk: " + L("Offset is past the end of the file") + "\n").utf8))
             throw ExitCode(1)
         }
-        let end = length.map { min(snap.count, start + $0.value) } ?? snap.count
+        let end = length.map { start + min($0.value, snap.count - start) } ?? snap.count
         let hits: [YaraRuleMatch]
         do { hits = try compiled.scan(snap, range: start ..< end, timeout: timeout) }
         catch let e as YaraScanError {

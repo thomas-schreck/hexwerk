@@ -159,7 +159,9 @@ public final class Document {
 
     /// Overwrites bytes starting at `offset`; bytes past the end are appended.
     public func overwrite(at offset: UInt64, with bytes: Data) throws {
-        try replace(offset ..< offset + UInt64(bytes.count), with: bytes)
+        // Saturate: replace() rejects an offset past the end and clips the range.
+        let (end, overflow) = offset.addingReportingOverflow(UInt64(bytes.count))
+        try replace(offset ..< (overflow ? .max : end), with: bytes)
     }
 
     public func insert(_ bytes: Data, at offset: UInt64) throws {
