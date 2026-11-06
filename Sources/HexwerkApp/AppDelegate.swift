@@ -8,7 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var openedAtLaunch = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        ImportCache.user.removeAll()        // left over from a crash
+        ImportCache.user.removeAll()  // left over from a crash
         NSApp.mainMenu = buildMenu()
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         for path in args { open(URL(fileURLWithPath: path), readOnly: false) }
@@ -106,7 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Editor); the tab bar stays visible even with a single file.
     private func showAsTab(_ c: DocumentWindowController) {
         guard let window = c.window else { return }
-        let host = controllers.lazy.compactMap(\.window)
+        let host =
+            controllers.lazy.compactMap(\.window)
             .first { $0 !== window && ($0.isMainWindow || $0.isKeyWindow) }
             ?? controllers.lazy.compactMap(\.window).first { $0 !== window && $0.isVisible }
         if let host {
@@ -148,8 +149,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Before reading, so a change while importing is noticed on save.
         let stamp = try? DiskStamp(url)
         guard Self.hexRecordExtensions.contains(url.pathExtension.lowercased()),
-              let text = try? String(contentsOf: url, encoding: .ascii),
-              let format = HexRecords.Format.detect(text[...]) else { return false }
+            let text = try? String(contentsOf: url, encoding: .ascii),
+            let format = HexRecords.Format.detect(text[...])
+        else { return false }
         let a = NSAlert()
         a.messageText = L("%1$@ is %2$@.", url.lastPathComponent, format.rawValue)
         a.informativeText = L("Import shows the bytes at their addresses; Save writes %@ again.", format.rawValue)
@@ -165,8 +167,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let doc = try Document(url: bin, readOnly: readOnly)
             let c = DocumentWindowController(file: doc)
             c.model.offsetBase = image.base
-            c.model.importInfo = .init(source: url, format: format, gaps: image.gaps, start: image.startAddress,
-                                       startSegment: image.startSegment, header: image.header)
+            c.model.importInfo = .init(
+                source: url, format: format, gaps: image.gaps, start: image.startAddress,
+                startSegment: image.startSegment, header: image.header)
             c.importStamp = stamp
             c.onClose = { [weak self] closed in
                 self?.controllers.removeAll { $0 === closed }
@@ -242,13 +245,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         file.addItem(.separator())
         file.addItem(withTitle: L("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         file.addItem(withTitle: L("Save"), action: #selector(DocumentWindowController.saveDocument(_:)), keyEquivalent: "s")
-        let saveAs = file.addItem(withTitle: L("Save As…"), action: #selector(DocumentWindowController.saveDocumentAs(_:)), keyEquivalent: "s")
+        let saveAs = file.addItem(
+            withTitle: L("Save As…"), action: #selector(DocumentWindowController.saveDocumentAs(_:)), keyEquivalent: "s")
         saveAs.keyEquivalentModifierMask = [.command, .shift]
         file.addItem(.separator())
         file.addItem(withTitle: L("Export Project…"), action: #selector(DocumentWindowController.exportProject(_:)), keyEquivalent: "")
         file.addItem(withTitle: L("Export Selection…"), action: #selector(DocumentWindowController.exportSelection(_:)), keyEquivalent: "")
         for (i, f) in HexRecords.Format.allCases.enumerated() {
-            file.addItem(withTitle: L("Export as %@…", f.rawValue), action: #selector(DocumentWindowController.exportHexRecords(_:)), keyEquivalent: "").tag = i
+            file.addItem(
+                withTitle: L("Export as %@…", f.rawValue), action: #selector(DocumentWindowController.exportHexRecords(_:)),
+                keyEquivalent: ""
+            ).tag = i
         }
         main.addItem(submenu(file, L("File")))
 
@@ -278,12 +285,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let find = NSMenu()
         find.addItem(withTitle: L("Find…"), action: #selector(DocumentWindowController.showFind(_:)), keyEquivalent: "f")
         find.addItem(withTitle: L("Find Next"), action: #selector(DocumentWindowController.findNext(_:)), keyEquivalent: "g")
-        let prev = find.addItem(withTitle: L("Find Previous"), action: #selector(DocumentWindowController.findPrevious(_:)), keyEquivalent: "g")
+        let prev = find.addItem(
+            withTitle: L("Find Previous"), action: #selector(DocumentWindowController.findPrevious(_:)), keyEquivalent: "g")
         prev.keyEquivalentModifierMask = [.command, .shift]
         find.addItem(.separator())
         find.addItem(withTitle: L("Compare with File…"), action: #selector(DocumentWindowController.compareWithFile(_:)), keyEquivalent: "")
         find.addItem(withTitle: L("Next Difference"), action: #selector(DocumentWindowController.nextDifference(_:)), keyEquivalent: "]")
-        find.addItem(withTitle: L("Previous Difference"), action: #selector(DocumentWindowController.previousDifference(_:)), keyEquivalent: "[")
+        find.addItem(
+            withTitle: L("Previous Difference"), action: #selector(DocumentWindowController.previousDifference(_:)), keyEquivalent: "[")
         main.addItem(submenu(find, L("Find")))
 
         let tools = NSMenu()
@@ -292,7 +301,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         tools.addItem(withTitle: L("Run Script"), action: #selector(DocumentWindowController.runScript(_:)), keyEquivalent: "r")
         let calc = tools.addItem(withTitle: L("Calculator"), action: #selector(toggleCalculator(_:)), keyEquivalent: "k")
         calc.keyEquivalentModifierMask = [.command, .shift]
-        tools.addItem(withTitle: L("Entropy and Byte Distribution"), action: #selector(DocumentWindowController.showAnalysis(_:)), keyEquivalent: "")
+        tools.addItem(
+            withTitle: L("Entropy and Byte Distribution"), action: #selector(DocumentWindowController.showAnalysis(_:)), keyEquivalent: "")
         main.addItem(submenu(tools, L("Tools")))
 
         let view = NSMenu()
@@ -301,7 +311,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             bpr.addItem(withTitle: title, action: #selector(DocumentWindowController.setBytesPerRow(_:)), keyEquivalent: "").tag = tag
         }
         view.addItem(submenu(bpr, L("Bytes per Row")))
-        view.addItem(withTitle: L("Decimal Offsets"), action: #selector(DocumentWindowController.toggleDecimalOffsets(_:)), keyEquivalent: "")
+        view.addItem(
+            withTitle: L("Decimal Offsets"), action: #selector(DocumentWindowController.toggleDecimalOffsets(_:)), keyEquivalent: "")
         view.addItem(withTitle: L("Vim Key Bindings"), action: #selector(DocumentWindowController.toggleVim(_:)), keyEquivalent: "")
         let cs = NSMenu()
         for (i, enc) in TextEncodingView.allCases.enumerated() {
@@ -309,7 +320,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         view.addItem(submenu(cs, L("Character Set")))
         view.addItem(.separator())
-        let insp = view.addItem(withTitle: L("Show/Hide Inspector"), action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
+        let insp = view.addItem(
+            withTitle: L("Show/Hide Inspector"), action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
         insp.keyEquivalentModifierMask = [.command, .option]
         main.addItem(submenu(view, L("View")))
 
@@ -319,7 +331,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         window.addItem(withTitle: L("New Tab…"), action: #selector(newWindowForTab(_:)), keyEquivalent: "t")
         let nextTab = window.addItem(withTitle: L("Show Next Tab"), action: #selector(NSWindow.selectNextTab(_:)), keyEquivalent: "]")
         nextTab.keyEquivalentModifierMask = [.command, .shift]
-        let prevTab = window.addItem(withTitle: L("Show Previous Tab"), action: #selector(NSWindow.selectPreviousTab(_:)), keyEquivalent: "[")
+        let prevTab = window.addItem(
+            withTitle: L("Show Previous Tab"), action: #selector(NSWindow.selectPreviousTab(_:)), keyEquivalent: "[")
         prevTab.keyEquivalentModifierMask = [.command, .shift]
         window.addItem(withTitle: L("Move Tab to New Window"), action: #selector(NSWindow.moveTabToNewWindow(_:)), keyEquivalent: "")
         window.addItem(withTitle: L("Merge All Windows"), action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")

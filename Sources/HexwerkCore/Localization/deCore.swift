@@ -40,9 +40,11 @@ extension L10n {
         "Length changed: cannot save in place": "Länge geändert: In-place-Speichern nicht möglich",
         "Bytes were moved: cannot save in place": "Bytes wurden verschoben: In-place-Speichern nicht möglich",
         "Document was changed in the meantime": "Dokument wurde inzwischen geändert",
-        "The file was changed by another program; reload it before saving": "Die Datei wurde von einem anderen Programm geändert; vor dem Sichern neu laden",
+        "The file was changed by another program; reload it before saving":
+            "Die Datei wurde von einem anderen Programm geändert; vor dem Sichern neu laden",
         "The document is being saved": "Das Dokument wird gerade gesichert",
-        "%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.": "%1$@ ist möglicherweise beschädigt: Das Schreiben der Datei mit mehreren harten Links an Ort und Stelle schlug fehl (%2$@). Der vollständige neue Inhalt liegt in %3$@.",
+        "%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.":
+            "%1$@ ist möglicherweise beschädigt: Das Schreiben der Datei mit mehreren harten Links an Ort und Stelle schlug fehl (%2$@). Der vollständige neue Inhalt liegt in %3$@.",
         "C array": "C-Array",
 
         // Calculator
@@ -196,7 +198,8 @@ extension L10n {
         "output": "Ausgabe",
 
         // Project files
-        "Project file %@ could not be read and is left unchanged: %@": "Projektdatei %@ konnte nicht gelesen werden und bleibt unverändert: %@",
+        "Project file %@ could not be read and is left unchanged: %@":
+            "Projektdatei %@ konnte nicht gelesen werden und bleibt unverändert: %@",
         // Sandboxed helper (#102)
         "Invalid reply from the helper: %@": "Ungültige Antwort des Hilfsprozesses: %@",
         "Invalid document data: %@": "Ungültige Dokumentdaten: %@",

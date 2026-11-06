@@ -12,8 +12,8 @@ final class HexView: NSView, NSMenuItemValidation {
     var document: Document { model.doc }
 
     private(set) var cursor: UInt64 = 0
-    private(set) var anchor: UInt64?          // selection start while selecting
-    private var lowNibble = false             // typing the second hex digit
+    private(set) var anchor: UInt64?  // selection start while selecting
+    private var lowNibble = false  // typing the second hex digit
     private var pane: Pane = .hex
     private var topRow: UInt64 = 0
     private var scrollRemainder: CGFloat = 0
@@ -127,7 +127,7 @@ final class HexView: NSView, NSMenuItemValidation {
         // Up to 3 bytes before the window give the UTF-8 decoder context for
         // a character whose first bytes scrolled off the top.
         let ctxStart = start >= 3 ? start - 3 : 0
-        let raw = [UInt8](start < end ? document.read(ctxStart..<end) : Data())
+        let raw = [UInt8](start < end ? document.read(ctxStart ..< end) : Data())
         let lead = Int(start - ctxStart)
         let bytes = raw.count > lead ? Array(raw[lead...]) : []
         let cells = raw.count > lead ? TextCells.decode(raw, from: lead, as: model.charset) : []
@@ -140,7 +140,7 @@ final class HexView: NSView, NSMenuItemValidation {
         NSRect(x: offsetColW - 1, y: headerH, width: 1, height: bounds.height).fill()
         // A faint tint of the text color works in light and dark mode alike.
         NSColor.labelColor.withAlphaComponent(0.035).setFill()
-        for row in first..<last where row % 2 == 1 {
+        for row in first ..< last where row % 2 == 1 {
             NSRect(x: offsetColW, y: rowY(row), width: bounds.width - offsetColW, height: lineH).fill()
         }
 
@@ -157,18 +157,18 @@ final class HexView: NSView, NSMenuItemValidation {
         // Text. Zero bytes and unprintable characters are dimmed, so the eye
         // finds the interesting bytes faster.
         let off: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.secondaryLabelColor]
-        for row in first..<last {
+        for row in first ..< last {
             let y = rowY(row) + 2
             let rowStart = Int((row - first) * w)
             guard rowStart <= bytes.count else { break }
-            let slice = bytes[rowStart..<min(rowStart + bytesPerRow, bytes.count)]
+            let slice = bytes[rowStart ..< min(rowStart + bytesPerRow, bytes.count)]
 
             (offsetString(row * w) as NSString).draw(at: NSPoint(x: inset, y: y), withAttributes: off)
 
             // Monospaced grid: put glyphs at fixed positions and skip text
             // layout entirely. Attributed strings with color runs cost ~3x.
             let baseline = y + font.ascender
-            var coveredUntil = 0      // text cells taken by a multi-byte char
+            var coveredUntil = 0  // text cells taken by a multi-byte char
             for (i, b) in slice.enumerated() {
                 let x = hexColX(i)
                 let pair = hexGlyphs[Int(b)]
@@ -188,7 +188,7 @@ final class HexView: NSView, NSMenuItemValidation {
                         coveredUntil = i + span
                     }
                 case .continuation where i < coveredUntil:
-                    break   // drawn as part of the character
+                    break  // drawn as part of the character
                 case .continuation, .unprintable:
                     append(dotGlyph, NSPoint(x: tx, y: baseline), dim: true)
                 }
@@ -214,9 +214,9 @@ final class HexView: NSView, NSMenuItemValidation {
 
     private lazy var hexGlyphs: [(CGGlyph, CGGlyph)] = {
         let digits = Array("0123456789ABCDEF").map { glyph(for: $0) }
-        return (0...255).map { (digits[$0 >> 4], digits[$0 & 0xF]) }
+        return (0 ... 255).map { (digits[$0 >> 4], digits[$0 & 0xF]) }
     }()
-    private lazy var asciiGlyphs: [CGGlyph] = (0...255).map { glyph(for: Character(UnicodeScalar(UInt8($0)))) }
+    private lazy var asciiGlyphs: [CGGlyph] = (0 ... 255).map { glyph(for: Character(UnicodeScalar(UInt8($0)))) }
     private lazy var dotGlyph = glyph(for: "·")
 
     /// Non-ASCII characters go through normal text drawing: it handles font
@@ -239,7 +239,7 @@ final class HexView: NSView, NSMenuItemValidation {
     private func flushGlyphs() {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.saveGState()
-        ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)   // view is flipped
+        ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)  // view is flipped
         for (g, p, color) in [(glyphs, positions, NSColor.labelColor), (dimGlyphs, dimPositions, NSColor.tertiaryLabelColor)] {
             ctx.setFillColor(color.cgColor)
             CTFontDrawGlyphs(ctFont, g, p, g.count, ctx)
@@ -262,9 +262,10 @@ final class HexView: NSView, NSMenuItemValidation {
         NSRect(x: 0, y: headerH - 1, width: bounds.width, height: 1).fill()
         let attrs: [NSAttributedString.Key: Any] = [.font: headerFont, .foregroundColor: NSColor.secondaryLabelColor]
         let y = (headerH - headerFont.boundingRectForFont.height) / 2
-        ((model.offsetBase != 0 ? L("Address") : model.decimalOffsets ? L("Offset (dec)") : "Offset") as NSString).draw(at: NSPoint(x: inset, y: y), withAttributes: attrs)
+        ((model.offsetBase != 0 ? L("Address") : model.decimalOffsets ? L("Offset (dec)") : "Offset") as NSString).draw(
+            at: NSPoint(x: inset, y: y), withAttributes: attrs)
         let cursorCol = Int(cursor % UInt64(bytesPerRow))
-        for c in 0..<bytesPerRow {
+        for c in 0 ..< bytesPerRow {
             let label = String(format: "%02X", c)
             var a = attrs
             if c == cursorCol { a[.foregroundColor] = NSColor.controlAccentColor }
@@ -273,7 +274,7 @@ final class HexView: NSView, NSMenuItemValidation {
         }
         // One digit per text cell: the header font is smaller than the grid
         // font, so drawing the digits as one string would drift out of line.
-        for c in 0..<bytesPerRow {
+        for c in 0 ..< bytesPerRow {
             let label = String(c % 16, radix: 16, uppercase: true)
             var a = attrs
             if c == cursorCol { a[.foregroundColor] = NSColor.controlAccentColor }
@@ -292,7 +293,7 @@ final class HexView: NSView, NSMenuItemValidation {
         while pos < r.upperBound {
             let row = pos / w
             let c0 = Int(pos % w)
-            let c1 = Int(min(r.upperBound, (row + 1) * w) - row * w)   // exclusive
+            let c1 = Int(min(r.upperBound, (row + 1) * w) - row * w)  // exclusive
             let y = rowY(row) + 1
             if only != .text {
                 let x0 = hexColX(c0) - charW * 0.35
@@ -300,8 +301,10 @@ final class HexView: NSView, NSMenuItemValidation {
                 NSBezierPath(roundedRect: NSRect(x: x0, y: y, width: x1 - x0, height: lineH - 2), xRadius: 3, yRadius: 3).fill()
             }
             if only != .hex {
-                NSBezierPath(roundedRect: NSRect(x: textX + CGFloat(c0) * charW, y: y, width: CGFloat(c1 - c0) * charW, height: lineH - 2),
-                             xRadius: 3, yRadius: 3).fill()
+                NSBezierPath(
+                    roundedRect: NSRect(x: textX + CGFloat(c0) * charW, y: y, width: CGFloat(c1 - c0) * charW, height: lineH - 2),
+                    xRadius: 3, yRadius: 3
+                ).fill()
             }
             pos = (row + 1) * w
         }
@@ -382,8 +385,7 @@ final class HexView: NSView, NSMenuItemValidation {
 
     private func ensureCursorVisible() {
         let row = cursor / UInt64(bytesPerRow)
-        if row < topRow { topRow = row }
-        else if row >= topRow + UInt64(visibleRows) { topRow = row - UInt64(visibleRows) + 1 }
+        if row < topRow { topRow = row } else if row >= topRow + UInt64(visibleRows) { topRow = row - UInt64(visibleRows) + 1 }
         clampTop()
     }
 
@@ -399,7 +401,7 @@ final class HexView: NSView, NSMenuItemValidation {
             hitPane = .text
         } else if p.x >= hexX - charW / 2 {
             let rel = (p.x - hexX) / charW
-            col = (0..<bytesPerRow).first { rel < CGFloat($0 * 3 + $0 / 8) + 2.5 } ?? bytesPerRow - 1
+            col = (0 ..< bytesPerRow).first { rel < CGFloat($0 * 3 + $0 / 8) + 2.5 } ?? bytesPerRow - 1
             hitPane = .hex
         } else {
             return nil
@@ -467,7 +469,8 @@ final class HexView: NSView, NSMenuItemValidation {
             return
         }
         guard !cmd, let chars = event.characters, chars.count == 1, let ch = chars.unicodeScalars.first,
-              ch.value >= 0x20 else {
+            ch.value >= 0x20
+        else {
             super.keyDown(with: event)
             return
         }
@@ -494,7 +497,7 @@ final class HexView: NSView, NSMenuItemValidation {
         if lowNibble {
             // The second digit always edits the byte just started and joins
             // its undo step, so one undo takes back the whole byte.
-            let old = document.read(cursor..<cursor + 1).first ?? 0
+            let old = document.read(cursor ..< cursor + 1).first ?? 0
             edit { try document.amendingLastEdit { try document.overwrite(at: cursor, with: Data([(old & 0xF0) | digit])) } }
             cursor += 1
             lowNibble = false
@@ -509,7 +512,7 @@ final class HexView: NSView, NSMenuItemValidation {
             cursor = at
             lowNibble = true
         } else {
-            let old = document.read(cursor..<cursor + 1).first ?? 0
+            let old = document.read(cursor ..< cursor + 1).first ?? 0
             edit { try document.overwrite(at: cursor, with: Data([(digit << 4) | (old & 0x0F)])) }
             lowNibble = true
         }
@@ -555,7 +558,9 @@ final class HexView: NSView, NSMenuItemValidation {
         } else if cursor > 0 {
             edit { try document.delete(cursor - 1 ..< cursor) }
             cursor -= 1
-        } else { NSSound.beep(); return }
+        } else {
+            NSSound.beep(); return
+        }
         anchor = nil
         lowNibble = false
         ensureCursorVisible()
@@ -572,7 +577,9 @@ final class HexView: NSView, NSMenuItemValidation {
             cursor = sel.lowerBound
         } else if cursor < document.count {
             edit { try document.delete(cursor ..< cursor + 1) }
-        } else { NSSound.beep(); return }
+        } else {
+            NSSound.beep(); return
+        }
         anchor = nil
         lowNibble = false
         changed(content: true)
@@ -612,7 +619,7 @@ final class HexView: NSView, NSMenuItemValidation {
         let row = document.read(rowStart ..< rowStart + w)
         let byte: String
         if cursor < document.count, let b = document.read(cursor ..< cursor + 1).first {
-            let ch = (0x20...0x7E).contains(b) ? String(UnicodeScalar(b)) : "·"
+            let ch = (0x20 ... 0x7E).contains(b) ? String(UnicodeScalar(b)) : "·"
             byte = L("byte %1$@, %2$@", String(format: "%02X", b), ch)
         } else {
             byte = L("end of file")
@@ -631,14 +638,15 @@ final class HexView: NSView, NSMenuItemValidation {
     @objc func redo(_ sender: Any?) { document.redo(); reload() }
 
     @objc func copy(_ sender: Any?) {
-        let range = selection ?? (cursor < document.count ? cursor..<cursor + 1 : nil)
+        let range = selection ?? (cursor < document.count ? cursor ..< cursor + 1 : nil)
         guard let range else { return }
         // Cap so a careless Cmd-A + Cmd-C on a huge file stays harmless.
         let limit: UInt64 = 16 << 20
         let data = document.read(range.lowerBound ..< min(range.upperBound, range.lowerBound + limit))
-        let text = pane == .hex
+        let text =
+            pane == .hex
             ? data.map { String(format: "%02X", $0) }.joined(separator: " ")
-            : String(decoding: data.map { (0x20...0x7E).contains($0) ? $0 : 0x2E }, as: UTF8.self)
+            : String(decoding: data.map { (0x20 ... 0x7E).contains($0) ? $0 : 0x2E }, as: UTF8.self)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
@@ -655,8 +663,9 @@ final class HexView: NSView, NSMenuItemValidation {
         guard !document.isReadOnly, let s = NSPasteboard.general.string(forType: .string) else { return }
         let bytes: Data
         if pane == .hex, let p = SearchPattern.hex(s),
-           case let fixed = p.elements.compactMap({ if case .byte(let b) = $0 { b } else { nil } }),
-           fixed.count == p.count {
+            case let fixed = p.elements.compactMap({ if case .byte(let b) = $0 { b } else { nil } }),
+            fixed.count == p.count
+        {
             bytes = Data(fixed)
         } else {
             bytes = Data(s.utf8)
@@ -716,12 +725,12 @@ final class HexView: NSView, NSMenuItemValidation {
 extension HexView {
     /// Returns true if the vim layer consumed the key.
     fileprivate func handleVim(_ event: NSEvent) -> Bool {
-        if event.keyCode == 53 {                                   // Esc
+        if event.keyCode == 53 {  // Esc
             runVim(model.vim.escape())
             return true
         }
-        guard model.vim.handlesTyping else { return false }        // insert/replace: normal typing
-        if event.specialKey != nil { return false }                // arrows, page keys … work as usual
+        guard model.vim.handlesTyping else { return false }  // insert/replace: normal typing
+        if event.specialKey != nil { return false }  // arrows, page keys … work as usual
         let ctrl = event.modifierFlags.contains(.control)
         guard let chars = event.charactersIgnoringModifiers, chars.count == 1, let ch = chars.first else { return false }
         runVim(model.vim.key(ch, control: ctrl))
@@ -762,7 +771,7 @@ extension HexView {
                 }
             case .paste(let after):
                 let wasInsert = model.insertMode
-                model.insertMode = true                  // p/P insert, like vim
+                model.insertMode = true  // p/P insert, like vim
                 if after, cursor < document.count { move(to: cursor + 1, extend: false) }
                 paste(nil)
                 model.insertMode = wasInsert
@@ -787,11 +796,17 @@ extension HexView {
                 let name = String(c)
                 model.bookmarks.removeAll { $0.name == name }
                 let range = selection ?? cursor ..< min(document.count, cursor + 1)
-                model.bookmarks.append(.init(name: name, range: range, color: DocumentModel.bookmarkColors[model.bookmarks.count % DocumentModel.bookmarkColors.count]))
+                model.bookmarks.append(
+                    .init(
+                        name: name, range: range,
+                        color: DocumentModel.bookmarkColors[model.bookmarks.count % DocumentModel.bookmarkColors.count]))
                 model.bookmarks.sort { $0.range.lowerBound < $1.range.lowerBound }
             case .jumpMark(let c):
-                if let b = model.bookmarks.first(where: { $0.name == String(c) }) { move(to: b.range.lowerBound, extend: visual) }
-                else { NSSound.beep() }
+                if let b = model.bookmarks.first(where: { $0.name == String(c) }) {
+                    move(to: b.range.lowerBound, extend: visual)
+                } else {
+                    NSSound.beep()
+                }
             case .switchPane: pane = pane == .hex ? .text : .hex; changed()
             case .beep: NSSound.beep()
             }

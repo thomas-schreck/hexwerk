@@ -4,8 +4,8 @@ import Foundation
 public struct SearchPattern: Sendable, Equatable {
     public enum Element: Sendable, Equatable {
         case byte(UInt8)
-        case any                       // ?? in hex
-        case either(UInt8, UInt8)      // ASCII letter, either case
+        case any  // ?? in hex
+        case either(UInt8, UInt8)  // ASCII letter, either case
     }
     public let elements: [Element]
 
@@ -20,10 +20,8 @@ public struct SearchPattern: Sendable, Equatable {
         var out: [Element] = []
         var i = s.startIndex
         while i < s.endIndex {
-            let pair = String(s[i..<s.index(i, offsetBy: 2)])
-            if pair == "??" { out.append(.any) }
-            else if let b = UInt8(pair, radix: 16) { out.append(.byte(b)) }
-            else { return nil }
+            let pair = String(s[i ..< s.index(i, offsetBy: 2)])
+            if pair == "??" { out.append(.any) } else if let b = UInt8(pair, radix: 16) { out.append(.byte(b)) } else { return nil }
             i = s.index(i, offsetBy: 2)
         }
         return SearchPattern(out)
@@ -105,10 +103,12 @@ public enum Search {
     /// All matches of `pattern` in `range` of `snapshot`. `progress` gets the
     /// fraction done and returns false to cancel. Matches may not overlap
     /// (after a hit the search continues behind it), like in a text editor.
-    public static func find(_ pattern: SearchPattern, in snapshot: Snapshot,
-                            range: Range<UInt64>? = nil,
-                            progress: (Double) -> Bool = { _ in true }) -> [Range<UInt64>] {
-        let r = (range ?? 0..<snapshot.count).clamped(to: 0..<snapshot.count)
+    public static func find(
+        _ pattern: SearchPattern, in snapshot: Snapshot,
+        range: Range<UInt64>? = nil,
+        progress: (Double) -> Bool = { _ in true }
+    ) -> [Range<UInt64>] {
+        let r = (range ?? 0 ..< snapshot.count).clamped(to: 0 ..< snapshot.count)
         let n = pattern.count
         guard n > 0, r.count >= n else { return [] }
 
@@ -121,11 +121,11 @@ public enum Search {
         while pos + UInt64(n) <= r.upperBound {
             // Overlap n-1 bytes so matches across chunk borders are found.
             let end = min(r.upperBound, pos + UInt64(chunk) + UInt64(n - 1))
-            let data = snapshot.read(pos..<end)
+            let data = snapshot.read(pos ..< end)
             var nextPos = pos + UInt64(data.count - n + 1)
             data.withUnsafeBytes { raw in
                 let base = raw.bindMemory(to: UInt8.self).baseAddress!
-                let last = data.count - n               // last valid start
+                let last = data.count - n  // last valid start
                 var i = 0
                 while i <= last {
                     if let a = anchor, case .byte(let b) = pattern.elements[a] {

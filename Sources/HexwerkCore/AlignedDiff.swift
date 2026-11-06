@@ -3,7 +3,7 @@ import Foundation
 /// One difference between two files, with offsets in both.
 public struct DiffOp: Sendable, Equatable, Codable {
     public enum Kind: String, Sendable, Codable {
-        case replace, insert, delete    // insert: only in B; delete: only in A
+        case replace, insert, delete  // insert: only in B; delete: only in A
     }
     public let kind: Kind
     public let a: Range<UInt64>
@@ -24,8 +24,8 @@ public enum AlignedDiff {
     public static let maxSize: UInt64 = 256 << 20
     /// Gaps up to this size (each side) are solved exactly.
     static let exactGap = 2048
-    static let k = 32                  // anchor length in bytes
-    static let sampleMask: UInt64 = 31 // ~1 sample per 32 positions
+    static let k = 32  // anchor length in bytes
+    static let sampleMask: UInt64 = 31  // ~1 sample per 32 positions
 
     public static func diff(_ a: Snapshot, _ b: Snapshot) -> [DiffOp] {
         if a.count > maxSize || b.count > maxSize { return positional(a, b) }
@@ -137,7 +137,7 @@ public enum AlignedDiff {
 
     /// Longest subsequence strictly increasing in .0 (input sorted by .1).
     static func longestIncreasing(_ pairs: [(Int, Int)]) -> [(Int, Int)] {
-        var tails: [Int] = []           // index into pairs of the smallest tail per length
+        var tails: [Int] = []  // index into pairs of the smallest tail per length
         var prev = [Int](repeating: -1, count: pairs.count)
         for (n, p) in pairs.enumerated() {
             var lo = 0, hi = tails.count
@@ -190,15 +190,18 @@ public enum AlignedDiff {
         var t = [UInt16](repeating: 0, count: (n + 1) * (m + 1))
         for i in stride(from: n - 1, through: 0, by: -1) {
             for j in stride(from: m - 1, through: 0, by: -1) {
-                t[i * (m + 1) + j] = x[ra.lowerBound + i] == y[rb.lowerBound + j]
+                t[i * (m + 1) + j] =
+                    x[ra.lowerBound + i] == y[rb.lowerBound + j]
                     ? t[(i + 1) * (m + 1) + j + 1] + 1
                     : max(t[(i + 1) * (m + 1) + j], t[i * (m + 1) + j + 1])
             }
         }
         var i = 0, j = 0
         func emit(_ kind: DiffOp.Kind, _ a: Int, _ a2: Int, _ b: Int, _ b2: Int) {
-            out.append(DiffOp(kind, a: UInt64(ra.lowerBound + a) ..< UInt64(ra.lowerBound + a2),
-                              b: UInt64(rb.lowerBound + b) ..< UInt64(rb.lowerBound + b2)))
+            out.append(
+                DiffOp(
+                    kind, a: UInt64(ra.lowerBound + a) ..< UInt64(ra.lowerBound + a2),
+                    b: UInt64(rb.lowerBound + b) ..< UInt64(rb.lowerBound + b2)))
         }
         while i < n || j < m {
             if i < n, j < m, x[ra.lowerBound + i] == y[rb.lowerBound + j] { i += 1; j += 1; continue }

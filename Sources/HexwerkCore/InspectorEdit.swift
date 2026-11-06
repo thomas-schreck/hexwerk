@@ -66,7 +66,7 @@ extension Inspector {
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = TimeZone(identifier: "UTC")!
             let c = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: Date(timeIntervalSince1970: s))
-            guard let y = c.year, (1980...2107).contains(y) else { throw fail(L("DOS date only 1980–2107")) }
+            guard let y = c.year, (1980 ... 2107).contains(y) else { throw fail(L("DOS date only 1980–2107")) }
             let date = UInt64((y - 1980) << 9 | c.month! << 5 | c.day!)
             let time = UInt64(c.hour! << 11 | c.minute! << 5 | c.second! / 2)
             // Always little endian, like the display.
@@ -75,7 +75,9 @@ extension Inspector {
             // isHexDigit also accepts fullwidth digits, which UInt8(radix:) rejects.
             let h = t.filter { $0.isASCII && $0.isHexDigit }
             guard h.count == 32 else { throw fail(L("GUID needs 32 hex digits")) }
-            let raw = stride(from: 0, to: 32, by: 2).map { UInt8(h[h.index(h.startIndex, offsetBy: $0) ..< h.index(h.startIndex, offsetBy: $0 + 2)], radix: 16)! }
+            let raw = stride(from: 0, to: 32, by: 2).map {
+                UInt8(h[h.index(h.startIndex, offsetBy: $0) ..< h.index(h.startIndex, offsetBy: $0 + 2)], radix: 16)!
+            }
             // Microsoft order: first three fields little endian.
             return Data(raw[0 ..< 4].reversed() + raw[4 ..< 6].reversed() + raw[6 ..< 8].reversed() + raw[8...])
         case "ULEB128":
@@ -115,9 +117,13 @@ extension Inspector {
         var neg = false
         if t.hasPrefix("-") { neg = true; t.removeFirst() } else if t.hasPrefix("+") { t.removeFirst() }
         let mag: UInt64?
-        if t.hasPrefix("0x") { mag = UInt64(t.dropFirst(2), radix: 16) }
-        else if t.hasPrefix("0b") { mag = UInt64(t.dropFirst(2), radix: 2) }
-        else { mag = UInt64(t) }
+        if t.hasPrefix("0x") {
+            mag = UInt64(t.dropFirst(2), radix: 16)
+        } else if t.hasPrefix("0b") {
+            mag = UInt64(t.dropFirst(2), radix: 2)
+        } else {
+            mag = UInt64(t)
+        }
         guard let m = mag else { return nil }
         if neg {
             guard m <= UInt64(Int64.max) + 1 else { return nil }

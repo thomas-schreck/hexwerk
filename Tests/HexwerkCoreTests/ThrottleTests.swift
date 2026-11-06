@@ -22,7 +22,7 @@ import Testing
         let d = Debouncer(delay: .milliseconds(50))
         let c = Counter()
         for i in 0 ..< 100 { d.schedule { c.add(i) } }
-        #expect(c.all.isEmpty)                       // nothing written synchronously
+        #expect(c.all.isEmpty)  // nothing written synchronously
         try await Task.sleep(for: .milliseconds(300))
         #expect(c.all == [99])
     }
@@ -34,7 +34,7 @@ import Testing
         d.schedule { c.add(2) }
         d.flush()
         #expect(c.all == [2])
-        d.flush()                                    // nothing pending
+        d.flush()  // nothing pending
         #expect(c.all == [2])
     }
 }

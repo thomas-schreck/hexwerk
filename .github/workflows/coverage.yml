@@ -40,11 +40,10 @@ jobs:
             scripts/coverage.sh
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # swift-format check, non-blocking until the one-time reformat has landed.
+  # swift-format check (`make lint`); run `make format` before committing.
   lint:
     runs-on: macos-26
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -57,13 +57,17 @@ struct StringsTab: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     ForEach(FoundString.Encoding.allCases, id: \.self) { e in
-                        Toggle(e.rawValue, isOn: Binding(get: { strings.encodings.contains(e) },
-                                                         set: { if $0 { strings.encodings.insert(e) } else { strings.encodings.remove(e) } }))
-                            .toggleStyle(.button).controlSize(.small)
+                        Toggle(
+                            e.rawValue,
+                            isOn: Binding(
+                                get: { strings.encodings.contains(e) },
+                                set: { if $0 { strings.encodings.insert(e) } else { strings.encodings.remove(e) } })
+                        )
+                        .toggleStyle(.button).controlSize(.small)
                     }
                 }
                 HStack {
-                    Stepper(L("at least %ld characters", strings.minLength), value: $strings.minLength, in: 2...64)
+                    Stepper(L("at least %ld characters", strings.minLength), value: $strings.minLength, in: 2 ... 64)
                         .font(.caption).fixedSize()
                     Spacer()
                     if strings.running {

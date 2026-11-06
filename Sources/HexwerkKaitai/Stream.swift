@@ -68,23 +68,25 @@ final class KStream {
         switch source {
         case .data(let d):
             let a = Int(start + from)
-            return Array(d[a..<a + n])
+            return Array(d[a ..< a + n])
         case .file(let s):
             let abs = start + from
             if abs >= cacheStart, abs + UInt64(n) <= cacheStart + UInt64(cache.count) {
                 let o = Int(abs - cacheStart)
-                return Array(cache[o..<o + n])
+                return Array(cache[o ..< o + n])
             }
             if n > 4096 { return [UInt8](s.read(abs ..< abs + UInt64(n))) }
             cacheStart = abs
             cache = [UInt8](s.read(abs ..< min(s.count, abs + 65536)))
-            return Array(cache[0..<n])
+            return Array(cache[0 ..< n])
         }
     }
 
     private func rawRead(_ n: UInt64) throws -> [UInt8] {
         guard n <= size - min(pos, size) else {
-            throw KaitaiError(L("End of stream reached: %@ bytes requested, %@ left", "\(n)", "\(size - min(pos, size))"), offset: fileBase.map { $0 + pos })
+            throw KaitaiError(
+                L("End of stream reached: %@ bytes requested, %@ left", "\(n)", "\(size - min(pos, size))"),
+                offset: fileBase.map { $0 + pos })
         }
         let out = peek(pos, Int(n))
         pos += n
@@ -122,8 +124,10 @@ final class KStream {
     /// Bytes up to the terminator (Kaitai semantics for include/consume/eos-error).
     /// Scans block by block; `check` runs between blocks so that deadline and
     /// cancel apply to long scans (a huge file without the terminator).
-    func readBytesTerm(_ term: UInt8, include: Bool, consume: Bool, eosError: Bool,
-                       check: () throws -> Void = {}) throws -> [UInt8] {
+    func readBytesTerm(
+        _ term: UInt8, include: Bool, consume: Bool, eosError: Bool,
+        check: () throws -> Void = {}
+    ) throws -> [UInt8] {
         alignToByte()
         var out: [UInt8] = []
         var first = true
@@ -192,7 +196,8 @@ final class KStream {
     func substream(_ n: UInt64, id: Int) throws -> KStream {
         alignToByte()
         guard n <= size - min(pos, size) else {
-            throw KaitaiError(L("Size %@ exceeds the end of the stream (%@ left)", "\(n)", "\(size - min(pos, size))"), offset: fileBase.map { $0 + pos })
+            throw KaitaiError(
+                L("Size %@ exceeds the end of the stream (%@ left)", "\(n)", "\(size - min(pos, size))"), offset: fileBase.map { $0 + pos })
         }
         let s = KStream(parent: self, offset: pos, size: n, id: id)
         pos += n
@@ -224,7 +229,7 @@ enum Process {
                     return inflate(&stream, Z_NO_FLUSH)
                 }
                 let produced = chunk.count - Int(stream.avail_out)
-                out += chunk[0..<produced]
+                out += chunk[0 ..< produced]
                 // Decompression bombs: stop at 256 MiB.
                 if out.count > 256 << 20 { return Z_MEM_ERROR }
             } while r == Z_OK

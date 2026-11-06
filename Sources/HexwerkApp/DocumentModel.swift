@@ -25,7 +25,7 @@ final class DocumentModel: ObservableObject {
     @Published private(set) var revision = 0
 
     // View options.
-    @Published var bytesPerRowSetting = 16          // 0 = fit window
+    @Published var bytesPerRowSetting = 16  // 0 = fit window
     @Published var decimalOffsets = false
     /// Load address of offset 0 (Intel HEX / S-Record import); shown in
     /// the offset column and accepted by "go to".
@@ -83,7 +83,8 @@ final class DocumentModel: ObservableObject {
     /// Which algorithms to compute; remembered across launches.
     @Published var checksumSelection: Set<Checksum> = Set(
         (Settings.shared.stringArray(forKey: "checksums") ?? Checksum.common.map(\.rawValue)).compactMap(Checksum.init(rawValue:))
-    ) {
+    )
+    {
         didSet { Settings.shared.set(checksumSelection.map(\.rawValue), forKey: "checksums") }
     }
 
@@ -248,7 +249,7 @@ final class DocumentModel: ObservableObject {
         switch findMode {
         case .hex: .hex(text)
         case .text: .text(text, encoding: textEncoding, ignoreCase: ignoreCase)
-        case .regex: nil      // handled by RegexSearch in runSearch
+        case .regex: nil  // handled by RegexSearch in runSearch
         default: .number(text, kind: SearchPattern.NumberKind(rawValue: findMode.rawValue.lowercased())!, endian: endian)
         }
     }
@@ -280,7 +281,9 @@ final class DocumentModel: ObservableObject {
                 guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
-                self.findMessage = found.isEmpty ? L("No hits")
+                self.findMessage =
+                    found.isEmpty
+                    ? L("No hits")
                     : found.count >= Search.maxHits ? L("more than %ld hits", Search.maxHits) : nil
                 // First hit at or after the cursor, like a text editor.
                 let i = index ?? found.firstIndex { $0.lowerBound >= start } ?? 0
@@ -305,16 +308,19 @@ final class DocumentModel: ObservableObject {
         let ticket = searchGate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             var throttle = ProgressThrottle()
-            let found = (try? RegexSearch.find(text, ignoreCase: ic, in: snapshot) { fraction in
-                if throttle.shouldReport() { Task { @MainActor in self?.progress = fraction } }
-                return !Task.isCancelled
-            }) ?? []
+            let found =
+                (try? RegexSearch.find(text, ignoreCase: ic, in: snapshot) { fraction in
+                    if throttle.shouldReport() { Task { @MainActor in self?.progress = fraction } }
+                    return !Task.isCancelled
+                }) ?? []
             let cancelled = Task.isCancelled
             await MainActor.run {
                 guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
-                self.findMessage = found.isEmpty ? L("No hits")
+                self.findMessage =
+                    found.isEmpty
+                    ? L("No hits")
                     : found.count >= Search.maxHits ? L("more than %ld hits", Search.maxHits) : nil
                 let i = index ?? found.firstIndex { $0.lowerBound >= start } ?? 0
                 if !found.isEmpty { self.select(hit: min(i, found.count - 1)) }
@@ -357,11 +363,11 @@ final class DocumentModel: ObservableObject {
 
     private func replacementBytes() -> Data? {
         if replaceText.isEmpty { return Data() }
-        if findMode == .regex { return Data(replaceText.utf8) }      // literal text, no back references
+        if findMode == .regex { return Data(replaceText.utf8) }  // literal text, no back references
         guard let p = pattern(replaceText) else { return nil }
         var out = Data()
         for e in p.elements {
-            guard case .byte(let b) = e else { return nil }   // ?? not allowed here
+            guard case .byte(let b) = e else { return nil }  // ?? not allowed here
             out.append(b)
         }
         return out
@@ -373,7 +379,7 @@ final class DocumentModel: ObservableObject {
         do {
             try doc.replace(hits[i], with: bytes)
             contentChanged()
-            reloadView?()                   // the file may have become shorter
+            reloadView?()  // the file may have become shorter
             runSearch(thenSelect: i)
         } catch { findMessage = String(describing: error) }
     }
@@ -385,7 +391,7 @@ final class DocumentModel: ObservableObject {
             let n = hits.count
             try doc.replaceAll(hits, with: bytes)
             contentChanged()
-            reloadView?()                   // the file may have become shorter
+            reloadView?()  // the file may have become shorter
             findMessage = L("%ld replaced", n)
         } catch { findMessage = String(describing: error) }
     }
@@ -394,8 +400,7 @@ final class DocumentModel: ObservableObject {
 
     func compare(with url: URL) {
         let other: Snapshot
-        do { other = try Document(url: url, readOnly: true).snapshot() }
-        catch { findMessage = String(describing: error); return }
+        do { other = try Document(url: url, readOnly: true).snapshot() } catch { findMessage = String(describing: error); return }
         cancelSearch()
         searching = true
         let mine = doc.snapshot()
@@ -423,7 +428,8 @@ final class DocumentModel: ObservableObject {
     }
 
     func jumpToDiff(forward: Bool) {
-        let target = forward
+        let target =
+            forward
             ? diffs.first { $0.a.lowerBound > cursor }
             : diffs.last { $0.a.lowerBound < cursor }
         if let t = target ?? (forward ? diffs.first : diffs.last) { show(diff: t) }
@@ -446,7 +452,7 @@ final class DocumentModel: ObservableObject {
     // MARK: Checksums
 
     func computeChecksums() {
-        let range = selection ?? 0..<doc.count
+        let range = selection ?? 0 ..< doc.count
         checksumScope = selection == nil ? L("Whole file") : L("Selection, %ld bytes", range.count)
         checksumTask?.cancel()
         checksumRunning = true
@@ -455,8 +461,9 @@ final class DocumentModel: ObservableObject {
         let algos = checksumSelection
         let ticket = checksumGate.begin()
         checksumTask = Task.detached(priority: .userInitiated) { [weak self] in
-            let result = Checksum.compute(Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range,
-                                          progress: { _ in !Task.isCancelled })
+            let result = Checksum.compute(
+                Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range,
+                progress: { _ in !Task.isCancelled })
             await MainActor.run {
                 guard let self, let result, self.checksumGate.finish(ticket) == .current else { return }
                 self.checksums = result
@@ -486,7 +493,7 @@ final class DocumentModel: ObservableObject {
 
     /// Keeps bookmarks on their data when bytes are inserted or deleted.
     private func shiftBookmarks(replacing range: Range<UInt64>, newLength: UInt64) {
-        guard UInt64(range.count) != newLength else { return }      // overwrite: nothing moves
+        guard UInt64(range.count) != newLength else { return }  // overwrite: nothing moves
         let moved = bookmarks.compactMap { b -> Bookmark? in
             guard let r = b.range.adjustedForEdit(replacing: range, newLength: newLength) else { return nil }
             var b = b
@@ -548,6 +555,6 @@ final class DocumentModel: ObservableObject {
         }
         var end = lo
         while end < ranges.count && ranges[end].lowerBound < window.upperBound { end += 1 }
-        return ranges[lo..<end]
+        return ranges[lo ..< end]
     }
 }

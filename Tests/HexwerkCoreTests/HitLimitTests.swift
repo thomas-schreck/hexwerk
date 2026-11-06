@@ -13,9 +13,9 @@ import UniformTypeIdentifiers
         defer { try? FileManager.default.removeItem(at: ua); try? FileManager.default.removeItem(at: ub) }
         let r = Compare.differences(da.snapshot(), db.snapshot(), maxHits: 100)
         #expect(r.count == 100)
-        #expect(r.last == 199 ..< 200)                      // no bogus range to the end
+        #expect(r.last == 199 ..< 200)  // no bogus range to the end
         #expect(r.allSatisfy { $0.count == 1 })
-        #expect(Compare.differences(da.snapshot(), db.snapshot()).count == 501)   // 500 + tail
+        #expect(Compare.differences(da.snapshot(), db.snapshot()).count == 501)  // 500 + tail
     }
 
     @Test func embeddedScanStopsExactlyAtTheLimit() throws {

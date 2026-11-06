@@ -19,12 +19,13 @@ import Testing
             for (name, text) in cases {
                 let bytes = try Inspector.encode(name, text, endian: endian) + Data(repeating: 0, count: 16)
                 let shown = Inspector.values(bytes, endian: endian).first { $0.name == name }?.value
-                let expected: String = switch name {
-                case "uint16": "48879"
-                case "ULEB128": L("%@ (%ld bytes)", "624485", 3)
-                case "SLEB128": L("%@ (%ld bytes)", "-123456", 3)
-                default: text
-                }
+                let expected: String =
+                    switch name {
+                    case "uint16": "48879"
+                    case "ULEB128": L("%@ (%ld bytes)", "624485", 3)
+                    case "SLEB128": L("%@ (%ld bytes)", "-123456", 3)
+                    default: text
+                    }
                 #expect(shown == expected, "\(name) \(endian): \(shown ?? "nil")")
             }
         }
@@ -32,7 +33,9 @@ import Testing
 
     /// Int64.min under the cursor used to trap in abs() (Unix time 64).
     @Test func extremeValuesDoNotCrash() {
-        for bytes in [Data(repeating: 0, count: 7) + Data([0x80]), Data(repeating: 0xFF, count: 16), Data([0x80]) + Data(repeating: 0, count: 15)] {
+        for bytes in [
+            Data(repeating: 0, count: 7) + Data([0x80]), Data(repeating: 0xFF, count: 16), Data([0x80]) + Data(repeating: 0, count: 15),
+        ] {
             for e in Endian.allCases { _ = Inspector.values(bytes, endian: e) }
         }
     }
@@ -45,8 +48,10 @@ import Testing
     }
 
     @Test func rejectsBadInput() {
-        for (n, t) in [("int8", "128"), ("uint8", "-1"), ("uint16", "65536"), ("int32", "abc"), ("binary", "102"),
-                       ("ASCII", "ä"), ("GUID", "{123}"), ("Unix time 32", "gestern"), ("DOS date/time", "1970-01-01")] {
+        for (n, t) in [
+            ("int8", "128"), ("uint8", "-1"), ("uint16", "65536"), ("int32", "abc"), ("binary", "102"),
+            ("ASCII", "ä"), ("GUID", "{123}"), ("Unix time 32", "gestern"), ("DOS date/time", "1970-01-01"),
+        ] {
             #expect(throws: Inspector.EncodeError.self, "\(n) \(t)") { try Inspector.encode(n, t, endian: .little) }
         }
     }
@@ -54,10 +59,12 @@ import Testing
     /// Issue #23: these inputs trapped (Int64/UInt64 from a non-finite or huge
     /// Double, force-unwrapped radix parse of fullwidth digits).
     @Test func hostileEditInputThrowsInsteadOfTrapping() throws {
-        let fullwidth = String(repeating: "\u{FF10}", count: 32)   // "０" × 32
-        for (n, t) in [("Unix time 64", "1e30"), ("Unix time 64", "inf"), ("Unix time 64", "nan"), ("Unix time 64", "-1e19"),
-                       ("Unix time 32", "nan"), ("FILETIME", "1e30"), ("FILETIME", "inf"), ("DOS date/time", "inf"),
-                       ("GUID", fullwidth)] {
+        let fullwidth = String(repeating: "\u{FF10}", count: 32)  // "０" × 32
+        for (n, t) in [
+            ("Unix time 64", "1e30"), ("Unix time 64", "inf"), ("Unix time 64", "nan"), ("Unix time 64", "-1e19"),
+            ("Unix time 32", "nan"), ("FILETIME", "1e30"), ("FILETIME", "inf"), ("DOS date/time", "inf"),
+            ("GUID", fullwidth),
+        ] {
             #expect(throws: Inspector.EncodeError.self, "\(n) \(t)") { try Inspector.encode(n, t, endian: .little) }
         }
         #expect(try Inspector.encode("Unix time 64", "-1", endian: .little) == Data(repeating: 0xFF, count: 8))

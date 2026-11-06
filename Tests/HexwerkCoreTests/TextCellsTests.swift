@@ -3,14 +3,15 @@ import Testing
 
 @Suite struct TextCellsTests {
     @Test func utf8Spans() {
-        let bytes = Array("aä中😀".utf8)   // 1 + 2 + 3 + 4 bytes
+        let bytes = Array("aä中😀".utf8)  // 1 + 2 + 3 + 4 bytes
         let cells = TextCells.decode(bytes, as: .utf8)
-        #expect(cells == [
-            .char("a", span: 1),
-            .char("ä", span: 2), .continuation,
-            .char("中", span: 3), .continuation, .continuation,
-            .char("😀", span: 4), .continuation, .continuation, .continuation,
-        ])
+        #expect(
+            cells == [
+                .char("a", span: 1),
+                .char("ä", span: 2), .continuation,
+                .char("中", span: 3), .continuation, .continuation,
+                .char("😀", span: 4), .continuation, .continuation, .continuation,
+            ])
     }
 
     @Test func invalidAndControl() {
@@ -37,9 +38,9 @@ import Testing
     /// Random bytes must not trap and must keep the cell count.
     @Test func robust() {
         var rng = SplitMix(seed: 3)
-        for _ in 0..<500 {
-            let b = (0..<Int.random(in: 0...40, using: &rng)).map { _ in UInt8.random(in: 0...255, using: &rng) }
-            let from = b.isEmpty ? 0 : Int.random(in: 0...min(3, b.count), using: &rng)
+        for _ in 0 ..< 500 {
+            let b = (0 ..< Int.random(in: 0 ... 40, using: &rng)).map { _ in UInt8.random(in: 0 ... 255, using: &rng) }
+            let from = b.isEmpty ? 0 : Int.random(in: 0 ... min(3, b.count), using: &rng)
             #expect(TextCells.decode(b, from: from, as: .utf8).count == b.count - from)
         }
     }

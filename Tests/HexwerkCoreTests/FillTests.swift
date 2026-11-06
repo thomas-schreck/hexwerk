@@ -13,7 +13,7 @@ import Testing
     }
 
     @Test func slicedPatternIsHandled() {
-        let p = Data([0, 0xAA, 0xBB]).dropFirst()       // non-zero startIndex
+        let p = Data([0, 0xAA, 0xBB]).dropFirst()  // non-zero startIndex
         #expect(FillPattern.bytes(p, count: 5) == Data([0xAA, 0xBB, 0xAA, 0xBB, 0xAA]))
         #expect(FillPattern.bytes(Data([0, 7]).dropFirst(), count: 2) == Data([7, 7]))
     }

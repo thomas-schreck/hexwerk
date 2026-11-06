@@ -10,7 +10,8 @@ struct StringsCmd: ParsableCommand {
 
     @Argument(help: .init(L("File"))) var file: String
     @Option(name: .short, help: .init(L("Minimum length in characters"))) var n: Int = 4
-    @Option(name: .shortAndLong, help: .init(L("Encodings: ascii, utf8, utf16le, utf16be (comma-separated)"))) var encodings: String = "ascii,utf16le"
+    @Option(name: .shortAndLong, help: .init(L("Encodings: ascii, utf8, utf16le, utf16be (comma-separated)"))) var encodings: String =
+        "ascii,utf16le"
     @Option(help: .init(L("Start offset"))) var offset: Number?
     @Option(help: .init(L("Length"))) var length: Number?
     @Flag(help: .init(L("Output as JSON"))) var json = false

@@ -30,7 +30,7 @@ public enum ExportFormat: String, CaseIterable, Sendable {
                 switch b {
                 case 0x5C: "\\\\"
                 case 0x22: "\\\""
-                case 0x20..<0x7F: String(UnicodeScalar(b))
+                case 0x20 ..< 0x7F: String(UnicodeScalar(b))
                 default: String(format: "\\x%02x", b)
                 }
             }.joined()

@@ -30,10 +30,14 @@ struct ScriptTab: View {
                     ProgressView().controlSize(.small)
                     Button(L("Cancel")) { script.cancel() }.controlSize(.small)
                 } else {
-                    Button { run() } label: { Label(L("Run"), systemImage: "play.fill") }
-                        .buttonStyle(.borderedProminent).controlSize(.small)
-                        .keyboardShortcut("r", modifiers: [.command])
-                        .help(L("Run Script (⌘R)"))
+                    Button {
+                        run()
+                    } label: {
+                        Label(L("Run"), systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
+                    .keyboardShortcut("r", modifiers: [.command])
+                    .help(L("Run Script (⌘R)"))
                 }
             }
 

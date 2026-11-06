@@ -59,7 +59,7 @@ enum Fuzz {
         case "random"?: return UInt64.random(in: 0 ... UInt64.max >> 1)
         case let s? where s.hasPrefix("0x"): return UInt64(s.dropFirst(2), radix: 16) ?? 0x4845_5857
         case let s?: return UInt64(s) ?? 0x4845_5857
-        case nil: return 0x4845_5857          // "HEXW": fixed, so plain `swift test` is deterministic
+        case nil: return 0x4845_5857  // "HEXW": fixed, so plain `swift test` is deterministic
         }
     }()
 
@@ -92,8 +92,10 @@ enum Fuzz {
 
     /// Runs `body` `iterations` times (or HEXWERK_FUZZ_ITERATIONS), each with
     /// its own seeded generator, on a large-stack thread with a time limit.
-    static func run(_ target: String, iterations: Int,
-                    _ body: @escaping (inout SplitMix64) throws -> Void) {
+    static func run(
+        _ target: String, iterations: Int,
+        _ body: @escaping (inout SplitMix64) throws -> Void
+    ) {
         _ = installCrashHandler
         let n = iterationsOverride ?? iterations * scale
         let started = Date()
@@ -104,13 +106,14 @@ enum Fuzz {
             _ = repro.withCString { strlcpy(fuzzCurrent, $0, 512) }
             guard let threw = runOne(seed: seed, body) else {
                 Issue.record("hang (> \(timeout) s) in \(repro)")
-                return      // the stuck thread cannot be stopped; leave it
+                return  // the stuck thread cannot be stopped; leave it
             }
             if threw { rejected += 1 }
         }
         fuzzCurrent[0] = 0
-        print("fuzz \(target): \(n) iterations (\(rejected) rejected with an error) from seed \(baseSeed) in "
-              + String(format: "%.1f s", Date().timeIntervalSince(started)))
+        print(
+            "fuzz \(target): \(n) iterations (\(rejected) rejected with an error) from seed \(baseSeed) in "
+                + String(format: "%.1f s", Date().timeIntervalSince(started)))
     }
 
     private final class Job: @unchecked Sendable {
@@ -190,7 +193,7 @@ enum Fuzz {
                 let a = r.int(0 ..< d.count), len = min(r.int(1 ... 256), d.count - a)
                 d.insert(contentsOf: d[a ..< a + len], at: r.int(0 ... d.count))
             case 6 where !d.isEmpty:
-                d.removeSubrange(r.int(0 ..< d.count)...)          // truncate
+                d.removeSubrange(r.int(0 ..< d.count)...)  // truncate
             default:
                 d[d.count / 2 ..< d.count / 2].append(contentsOf: r.bytes(r.int(0 ... 8)))
             }
@@ -209,11 +212,11 @@ enum Fuzz {
             guard !lines.isEmpty else { lines = [""]; continue }
             let i = r.int(0 ..< lines.count)
             switch r.int(0 ..< 20) {
-            case 0 ..< 7:     // replace numbers on a line that has some
+            case 0 ..< 7:  // replace numbers on a line that has some
                 var j = i
                 for _ in 0 ..< 8 where !lines[j].contains(where: \.isNumber) { j = r.int(0 ..< lines.count) }
                 lines[j] = lines[j].replacingOccurrences(of: #"\b\d+\b"#, with: r.pick(numbers), options: .regularExpression)
-            case 7 ..< 13 where !words.isEmpty:   // replace a word with another one from the file or a keyword
+            case 7 ..< 13 where !words.isEmpty:  // replace a word with another one from the file or a keyword
                 let w = r.pick(words)
                 lines[i] = lines[i].replacingOccurrences(of: w, with: r.pick(words + keywords))
             case 13: lines.remove(at: i)
@@ -230,23 +233,29 @@ enum Fuzz {
         return lines.joined(separator: "\n")
     }
 
-    static let numbers = ["0", "-1", "1", "255", "65536", "2147483648", "4294967296", "9223372036854775807",
-                          "9223372036854775808", "18446744073709551616", "-9223372036854775808", "1e308",
-                          "0x7fffffffffffffff", "0xffffffffffffffff", "99999999999999999999999"]
+    static let numbers = [
+        "0", "-1", "1", "255", "65536", "2147483648", "4294967296", "9223372036854775807",
+        "9223372036854775808", "18446744073709551616", "-9223372036854775808", "1e308",
+        "0x7fffffffffffffff", "0xffffffffffffffff", "99999999999999999999999",
+    ]
 
-    static let keywords = ["meta", "id", "seq", "types", "instances", "enums", "type", "size", "repeat", "repeat-expr",
-                           "repeat-until", "eos", "expr", "until", "pos", "io", "value", "if", "contents", "process",
-                           "encoding", "terminator", "consume", "include", "eos-error", "pad-right", "endian",
-                           "switch-on", "cases", "imports", "valid", "enum", "u1", "u2", "u4", "u8", "s1", "s2",
-                           "s4", "s8", "f4", "f8", "b1", "b7", "b64", "str", "strz", "u4be", "s8le", "bits",
-                           "_io", "_root", "_parent", "_index", "_", "size-eos", "doc", "xor(0xff)", "zlib",
-                           "rotate_left(3)", "UTF-8", "UTF-16LE", "ASCII", "be", "le", "true", "false", "null"]
+    static let keywords = [
+        "meta", "id", "seq", "types", "instances", "enums", "type", "size", "repeat", "repeat-expr",
+        "repeat-until", "eos", "expr", "until", "pos", "io", "value", "if", "contents", "process",
+        "encoding", "terminator", "consume", "include", "eos-error", "pad-right", "endian",
+        "switch-on", "cases", "imports", "valid", "enum", "u1", "u2", "u4", "u8", "s1", "s2",
+        "s4", "s8", "f4", "f8", "b1", "b7", "b64", "str", "strz", "u4be", "s8le", "bits",
+        "_io", "_root", "_parent", "_index", "_", "size-eos", "doc", "xor(0xff)", "zlib",
+        "rotate_left(3)", "UTF-8", "UTF-16LE", "ASCII", "be", "le", "true", "false", "null",
+    ]
 
-    static let yamlFragments = ["- ", ": ", "&a ", "*a", "[", "]", "{", "}", "!!binary aGV4", "!!int", "? ", "|",
-                                ">-", "\t", "#", "'", "\"", "\\", "- id: x", "  type: u4", "size: -1", "repeat: eos",
-                                "<<: *a", "...", "---", "%YAML 1.1", "\u{0}", "\u{FEFF}", "~", ".inf", ".nan",
-                                "type: x", "types: {x: {seq: [{id: y, type: x}]}}", "instances: {i: {value: i}}",
-                                "size: _io.size * 1000000", "pos: -1", "repeat-expr: 1000000000"]
+    static let yamlFragments = [
+        "- ", ": ", "&a ", "*a", "[", "]", "{", "}", "!!binary aGV4", "!!int", "? ", "|",
+        ">-", "\t", "#", "'", "\"", "\\", "- id: x", "  type: u4", "size: -1", "repeat: eos",
+        "<<: *a", "...", "---", "%YAML 1.1", "\u{0}", "\u{FEFF}", "~", ".inf", ".nan",
+        "type: x", "types: {x: {seq: [{id: y, type: x}]}}", "instances: {i: {value: i}}",
+        "size: _io.size * 1000000", "pos: -1", "repeat-expr: 1000000000",
+    ]
 }
 
 nonisolated(unsafe) private var fuzzOld = Array(repeating: Darwin.sigaction(), count: 64)
@@ -348,22 +357,29 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
         Fuzz.run("randomYAML", iterations: 60) { r in
             func value(_ depth: Int) -> String {
                 if depth > 3 || r.chance(0.5) {
-                    return r.pick(Fuzz.keywords + Fuzz.numbers + ["\"\"", "'x'", "[]", "{}", "~", "_io.size - 1",
-                                                                  "a.b.c", "(1", "x ? y : z", "-", "[1, [2, [3]]]"])
+                    return r.pick(
+                        Fuzz.keywords + Fuzz.numbers + [
+                            "\"\"", "'x'", "[]", "{}", "~", "_io.size - 1",
+                            "a.b.c", "(1", "x ? y : z", "-", "[1, [2, [3]]]",
+                        ])
                 }
                 if r.chance(0.5) {
                     return "[" + (0 ..< r.int(0 ... 3)).map { _ in value(depth + 1) }.joined(separator: ", ") + "]"
                 }
-                return "{" + (0 ..< r.int(0 ... 4)).map { _ in "\(r.pick(Fuzz.keywords)): \(value(depth + 1))" }
+                return "{"
+                    + (0 ..< r.int(0 ... 4)).map { _ in "\(r.pick(Fuzz.keywords)): \(value(depth + 1))" }
                     .joined(separator: ", ") + "}"
             }
             var yaml = "meta: {id: fz, endian: \(r.pick(["le", "be", "x", "{switch-on: a, cases: {}}"]))}\n"
             for key in ["seq", "types", "instances", "enums"] where r.chance(0.7) {
                 if key == "seq" {
-                    yaml += "seq:\n" + (0 ..< r.int(0 ... 4)).map { _ in
-                        "  - " + (0 ..< r.int(1 ... 4)).map { _ in "\(r.pick(Fuzz.keywords)): \(value(1))" }
-                            .joined(separator: "\n    ")
-                    }.joined(separator: "\n") + "\n"
+                    yaml +=
+                        "seq:\n"
+                        + (0 ..< r.int(0 ... 4)).map { _ in
+                            "  - "
+                                + (0 ..< r.int(1 ... 4)).map { _ in "\(r.pick(Fuzz.keywords)): \(value(1))" }
+                                .joined(separator: "\n    ")
+                        }.joined(separator: "\n") + "\n"
                 } else {
                     yaml += "\(key): \(value(0))\n"
                 }
@@ -372,9 +388,10 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
             let url = try writeTempKsy(yaml)
             defer { try? FileManager.default.removeItem(at: url) }
             let file = try KsyLoader().load(url)
-            touch(try withSnapshot(r.bytes(r.int(0 ... 256))) {
-                KaitaiInterpreter.parse($0, file: file, limits: fuzzLimits)
-            }.root)
+            touch(
+                try withSnapshot(r.bytes(r.int(0 ... 256))) {
+                    KaitaiInterpreter.parse($0, file: file, limits: fuzzLimits)
+                }.root)
         }
     }
 
@@ -391,17 +408,20 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
     /// A random, mostly well-formed Kaitai expression.
     static func genExpr(_ r: inout SplitMix64, _ depth: Int = 0) -> String {
         if depth > 3 || r.chance(0.4) {
-            return r.pick(["a", "b", "s", "arr", "x", "y", "_io.size", "_io.pos", "_io.eof", "_index", "_root.a",
-                           "_parent", "e::one", "e::two", "true", "false", "'str'", "\"a\\x00\"", "[1, 2, 255]", "[]",
-                           "0", "1", "-1", "7", "8", "63", "64", "65", "255", "0x7fffffffffffffff", "0xffffffffffffffff",
-                           "-9223372036854775808", "0b1011", "0o777", "1.5", "1e308", "-0.0", "sizeof<u8>",
-                           "a.as<u4>", "arr.size"])
+            return r.pick([
+                "a", "b", "s", "arr", "x", "y", "_io.size", "_io.pos", "_io.eof", "_index", "_root.a",
+                "_parent", "e::one", "e::two", "true", "false", "'str'", "\"a\\x00\"", "[1, 2, 255]", "[]",
+                "0", "1", "-1", "7", "8", "63", "64", "65", "255", "0x7fffffffffffffff", "0xffffffffffffffff",
+                "-9223372036854775808", "0b1011", "0o777", "1.5", "1e308", "-0.0", "sizeof<u8>",
+                "a.as<u4>", "arr.size",
+            ])
         }
         func e() -> String { genExpr(&r, depth + 1) }
         switch r.int(0 ..< 7) {
         case 0: return r.chance(0.3) ? "(not \(e()))" : r.pick(["-", "~"]) + e()
         case 1, 2:
-            return "(\(e()) \(r.pick(["+", "-", "*", "/", "%", "<<", ">>", "&", "|", "^", "==", "!=", "<", "<=", ">", ">=", "and", "or"])) \(e()))"
+            return
+                "(\(e()) \(r.pick(["+", "-", "*", "/", "%", "<<", ">>", "&", "|", "^", "==", "!=", "<", "<=", ">", ">=", "and", "or"])) \(e()))"
         case 3: return "(\(e()) ? \(e()) : \(e()))"
         case 4: return "\(e()).\(r.pick(["to_s", "to_i", "length", "size", "reverse", "first", "last", "min", "max", "as<u2>", "as<str>"]))"
         case 5: return "\(e())[\(e())]"
@@ -430,42 +450,43 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
             func expr() -> String { Self.genExpr(&r) }
             func block(_ e: String) -> String { "|-\n      " + e }
             let yaml = """
-            meta:
-              id: fz
-              endian: \(r.pick(["le", "be"]))
-            seq:
-              - id: a
-                type: u1
-              - id: b
-                type: u4
-              - id: s
-                size: 4
-              - id: arr
-                type: u2
-                repeat: expr
-                repeat-expr: 3
-              - id: c
-                size: \(block(expr()))
-                if: \(block(expr()))
-            enums:
-              e:
-                1: one
-                2: two
-            instances:
-              x:
-                value: \(block(expr()))
-              y:
-                pos: \(block(expr()))
-                type: u1
-              z:
-                value: \(block(expr()))
-            """
+                meta:
+                  id: fz
+                  endian: \(r.pick(["le", "be"]))
+                seq:
+                  - id: a
+                    type: u1
+                  - id: b
+                    type: u4
+                  - id: s
+                    size: 4
+                  - id: arr
+                    type: u2
+                    repeat: expr
+                    repeat-expr: 3
+                  - id: c
+                    size: \(block(expr()))
+                    if: \(block(expr()))
+                enums:
+                  e:
+                    1: one
+                    2: two
+                instances:
+                  x:
+                    value: \(block(expr()))
+                  y:
+                    pos: \(block(expr()))
+                    type: u1
+                  z:
+                    value: \(block(expr()))
+                """
             let url = try writeTempKsy(yaml)
             defer { try? FileManager.default.removeItem(at: url) }
             let file = try KsyLoader().load(url)
-            touch(try withSnapshot(r.bytes(r.int(0 ... 64))) {
-                KaitaiInterpreter.parse($0, file: file, limits: fuzzLimits)
-            }.root)
+            touch(
+                try withSnapshot(r.bytes(r.int(0 ... 64))) {
+                    KaitaiInterpreter.parse($0, file: file, limits: fuzzLimits)
+                }.root)
         }
     }
 
@@ -515,12 +536,14 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
     /// Every inspector row with hostile strings.
     @Test func inspectorEncode() {
         let rows = Inspector.values(Data(repeating: 0, count: Inspector.window), endian: .little).map(\.name)
-        let pieces = ["-", "+", "0x", "0b", "0o", "1", "9", "F", "e", "E", ".", ":", "T", "Z", "{", "}", "\"", "'",
-                      " ", "\u{0}", "ü", "😀", "\u{301}", "nan", "inf", "-0", "9223372036854775808", "18446744073709551616",
-                      "-9223372036854775809", "1e400", "-1e-400", "0x8000000000000000", "9999-12-31T23:59:59Z",
-                      "0000-01-01T00:00:00Z", "-292277026596-12-04T15:30:08Z", "2026-11-06 09:30:42", "24:60:61",
-                      "1980-00-00 00:00:00", "{01234567-89AB-CDEF-0123-456789ABCDEF}", "01234567-89AB", "\\",
-                      String(repeating: "9", count: 400), String(repeating: "1", count: 70), "-" + String(repeating: "0", count: 100)]
+        let pieces = [
+            "-", "+", "0x", "0b", "0o", "1", "9", "F", "e", "E", ".", ":", "T", "Z", "{", "}", "\"", "'",
+            " ", "\u{0}", "ü", "😀", "\u{301}", "nan", "inf", "-0", "9223372036854775808", "18446744073709551616",
+            "-9223372036854775809", "1e400", "-1e-400", "0x8000000000000000", "9999-12-31T23:59:59Z",
+            "0000-01-01T00:00:00Z", "-292277026596-12-04T15:30:08Z", "2026-11-06 09:30:42", "24:60:61",
+            "1980-00-00 00:00:00", "{01234567-89AB-CDEF-0123-456789ABCDEF}", "01234567-89AB", "\\",
+            String(repeating: "9", count: 400), String(repeating: "1", count: 70), "-" + String(repeating: "0", count: 100),
+        ]
         Fuzz.run("inspectorEncode", iterations: 3000) { r in
             let name = r.pick(rows)
             let text = (0 ..< r.int(0 ... 6)).map { _ in r.pick(pieces) }.joined()
@@ -542,8 +565,10 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
         "new Proxy({}, {get(){throw 1}})", "new Proxy([], {get(t, k){return k === 'length' ? 3 : 1e9}})",
         "Array(70000).fill(255)", "function(){}", "Object.create(null)", "new Date()", "/x/",
     ]
-    static let jsFunctions = ["size", "read", "write", "insert", "remove", "u8", "u16", "u32", "u64", "i8", "i16",
-                              "i32", "i64", "f32", "f64", "str", "hex", "find", "findText", "select", "goto"]
+    static let jsFunctions = [
+        "size", "read", "write", "insert", "remove", "u8", "u16", "u32", "u64", "i8", "i16",
+        "i32", "i64", "f32", "f64", "str", "hex", "find", "findText", "select", "goto",
+    ]
 
     /// Script API calls with hostile arguments (JS errors are fine).
     @Test func scriptAPI() throws {
@@ -552,17 +577,20 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
                 let args = (0 ..< r.int(0 ... 4)).map { _ in r.pick(Self.jsValues) }.joined(separator: ", ")
                 return "try { print(hw.\(r.pick(Self.jsFunctions))(\(args))) } catch (e) {}"
             }
-            let extra = r.pick(["", "print(hw.cursor, hw.selection, hw.fileName)", "hw.cursor = -1; hw.fileName = {}",
-                                "console.log(...Array(100).fill(hw))", "print(Symbol())"])
+            let extra = r.pick([
+                "", "print(hw.cursor, hw.selection, hw.fileName)", "hw.cursor = -1; hw.fileName = {}",
+                "console.log(...Array(100).fill(hw))", "print(Symbol())",
+            ])
             let url = try tempFile(Data(r.bytes(r.int(0 ... 64))))
             defer { try? FileManager.default.removeItem(at: url) }
             let doc = try Document(url: url)
             let size = doc.count
             let cursor = UInt64(r.int(0 ... Int(size) + 2))
             let selection: Range<UInt64>? = r.chance(0.5) ? nil : min(cursor, size) ..< size
-            let result = ScriptRunner.run((calls + [extra]).joined(separator: "\n"), document: doc,
-                                          context: ScriptContext(cursor: cursor, selection: selection, fileName: "f\u{0}.bin"),
-                                          timeout: 10)
+            let result = ScriptRunner.run(
+                (calls + [extra]).joined(separator: "\n"), document: doc,
+                context: ScriptContext(cursor: cursor, selection: selection, fileName: "f\u{0}.bin"),
+                timeout: 10)
             #expect(result.error?.isTimeout != true, "script hit the time limit")
             _ = doc.read(0 ..< doc.count)
         }

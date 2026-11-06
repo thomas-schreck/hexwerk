@@ -22,8 +22,10 @@ final class ScriptModel: ObservableObject {
 
     private var cancelTask: (() -> Void)?
 
-    func run(on doc: Document, cursor: UInt64, selection: Range<UInt64>?,
-             done: @escaping (_ changed: Bool, ScriptResult) -> Void) {
+    func run(
+        on doc: Document, cursor: UInt64, selection: Range<UInt64>?,
+        done: @escaping (_ changed: Bool, ScriptResult) -> Void
+    ) {
         guard !running else { return }
         let base = doc.snapshot()
         let readOnly = doc.isReadOnly
@@ -85,7 +87,8 @@ final class ScriptModel: ObservableObject {
         panel.directoryURL = Self.scriptsDir
         panel.message = L("Open JavaScript File")
         guard panel.runModal() == .OK, let url = panel.url,
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+            let text = try? String(contentsOf: url, encoding: .utf8)
+        else { return }
         source = text
         fileURL = url
     }
@@ -116,52 +119,64 @@ final class ScriptModel: ObservableObject {
 
     /// Example scripts (menu title, source). The code is English in every language.
     static let examples: [(String, String)] = [
-        (L("Byte Statistics"), """
-        // Counts zero bytes and printable characters in the selection or file.
-        const s = hw.selection ?? { start: 0, end: hw.size() }
-        const d = hw.read(s.start, s.end - s.start)
-        let zeros = 0, printable = 0
-        for (const b of d) {
-          if (b === 0) zeros++
-          if (b >= 0x20 && b < 0x7f) printable++
-        }
-        print(`${d.length} bytes, ${zeros} × 0x00, ${printable} printable`)
-        """),
-        (L("XOR Selection"), """
-        // XORs the selection with a key (one undo step).
-        const key = [0x5a]
-        const s = hw.selection
-        if (!s) throw new Error("Select some bytes first")
-        const d = hw.read(s.start, s.end - s.start)
-        for (let i = 0; i < d.length; i++) d[i] ^= key[i % key.length]
-        hw.write(s.start, d)
-        hw.select(s.start, s.end)
-        """),
-        (L("Find Strings"), """
-        // Printable ASCII runs of 6 or more characters, like `strings`.
-        const min = 6, d = hw.read(0, hw.size())
-        let start = -1, found = 0
-        for (let i = 0; i <= d.length; i++) {
-          const ok = i < d.length && d[i] >= 0x20 && d[i] < 0x7f
-          if (ok && start < 0) start = i
-          if (!ok && start >= 0) {
-            if (i - start >= min && found++ < 200) print("0x" + start.toString(16), hw.str(start, i - start))
-            start = -1
-          }
-        }
-        print(`${found} Strings`)
-        """),
-        (L("PNG Chunks"), """
-        // Lists the chunks of a PNG file and jumps to the first IDAT.
-        if (hw.hex(0, 4) !== "89 50 4E 47") throw new Error("not a PNG file")
-        let off = 8
-        while (off + 8 <= hw.size()) {
-          const len = hw.u32(off, false), type = hw.str(off + 4, 4)
-          print("0x" + off.toString(16), type, len)
-          if (type === "IDAT") hw.goto(off)
-          if (type === "IEND") break
-          off += 12 + len
-        }
-        """),
+        (
+            L("Byte Statistics"),
+            """
+            // Counts zero bytes and printable characters in the selection or file.
+            const s = hw.selection ?? { start: 0, end: hw.size() }
+            const d = hw.read(s.start, s.end - s.start)
+            let zeros = 0, printable = 0
+            for (const b of d) {
+              if (b === 0) zeros++
+              if (b >= 0x20 && b < 0x7f) printable++
+            }
+            print(`${d.length} bytes, ${zeros} × 0x00, ${printable} printable`)
+            """
+        ),
+        (
+            L("XOR Selection"),
+            """
+            // XORs the selection with a key (one undo step).
+            const key = [0x5a]
+            const s = hw.selection
+            if (!s) throw new Error("Select some bytes first")
+            const d = hw.read(s.start, s.end - s.start)
+            for (let i = 0; i < d.length; i++) d[i] ^= key[i % key.length]
+            hw.write(s.start, d)
+            hw.select(s.start, s.end)
+            """
+        ),
+        (
+            L("Find Strings"),
+            """
+            // Printable ASCII runs of 6 or more characters, like `strings`.
+            const min = 6, d = hw.read(0, hw.size())
+            let start = -1, found = 0
+            for (let i = 0; i <= d.length; i++) {
+              const ok = i < d.length && d[i] >= 0x20 && d[i] < 0x7f
+              if (ok && start < 0) start = i
+              if (!ok && start >= 0) {
+                if (i - start >= min && found++ < 200) print("0x" + start.toString(16), hw.str(start, i - start))
+                start = -1
+              }
+            }
+            print(`${found} Strings`)
+            """
+        ),
+        (
+            L("PNG Chunks"),
+            """
+            // Lists the chunks of a PNG file and jumps to the first IDAT.
+            if (hw.hex(0, 4) !== "89 50 4E 47") throw new Error("not a PNG file")
+            let off = 8
+            while (off + 8 <= hw.size()) {
+              const len = hw.u32(off, false), type = hw.str(off + 4, 4)
+              print("0x" + off.toString(16), type, len)
+              if (type === "IDAT") hw.goto(off)
+              if (type === "IEND") break
+              off += 12 + len
+            }
+            """
+        ),
     ]
 }

@@ -10,8 +10,9 @@ public struct ImportCache: Sendable {
 
     /// `~/Library/Caches/hexwerk/import`.
     public static var user: ImportCache {
-        ImportCache(root: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("hexwerk/import"))
+        ImportCache(
+            root: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("hexwerk/import"))
     }
 
     /// A new, empty folder for one import.

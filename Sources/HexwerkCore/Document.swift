@@ -174,7 +174,7 @@ public final class Document {
         var out: [Range<UInt64>] = []
         var pos: UInt64 = 0
         for p in pieces {
-            if p.source == .added { out.append(pos..<pos + p.length) }
+            if p.source == .added { out.append(pos ..< pos + p.length) }
             pos += p.length
         }
         modifiedCache = (state, out)
@@ -189,7 +189,7 @@ public final class Document {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard !isSaving else { throw DocumentError.saving }
         guard range.lowerBound <= count else { throw DocumentError.outOfRange }
-        if range.clamped(to: 0..<count).isEmpty && bytes.isEmpty { return }
+        if range.clamped(to: 0 ..< count).isEmpty && bytes.isEmpty { return }
         record([apply(range, bytes)])
     }
 
@@ -213,7 +213,7 @@ public final class Document {
     }
 
     private func apply(_ range: Range<UInt64>, _ bytes: Data) -> Change {
-        let r = range.clamped(to: 0..<count)
+        let r = range.clamped(to: 0 ..< count)
         // Pieces ending at or before the range and starting at or after it
         // stay; the ones in between are cut down to the parts outside the
         // range, with the new bytes between them.
@@ -272,7 +272,7 @@ public final class Document {
     }
 
     public func insert(_ bytes: Data, at offset: UInt64) throws {
-        try replace(offset..<offset, with: bytes)
+        try replace(offset ..< offset, with: bytes)
     }
 
     public func delete(_ range: Range<UInt64>) throws {
@@ -493,7 +493,7 @@ public final class Document {
         }
         guard fsync(fd) == 0 else { throw DocumentError.write(tmp.path, errno) }
         guard rename(tmp.path, target.path) == 0 else { throw DocumentError.write(target.path, errno) }
-        keepTmp = true      // renamed, nothing left to remove
+        keepTmp = true  // renamed, nothing left to remove
         // Make the rename itself durable.
         let dfd = open(dir.path, O_RDONLY)
         if dfd >= 0 {
@@ -583,8 +583,10 @@ public struct SaveJob: Sendable {
     /// stops with `CancellationError` when `isCancelled` returns true; the
     /// temp file is removed and the original stays untouched. An in-place
     /// save is not cancelled midway: it would leave the file half written.
-    public func write(progress: (UInt64) -> Void = { _ in },
-                      isCancelled: () -> Bool = { false }) throws {
+    public func write(
+        progress: (UInt64) -> Void = { _ in },
+        isCancelled: () -> Bool = { false }
+    ) throws {
         let chunk: UInt64 = 1 << 20
         if let ranges = inPlaceRanges {
             let fd = open(target.path, O_WRONLY)
@@ -652,19 +654,19 @@ public struct Snapshot: Sendable {
 
     /// Bytes in `range`, clipped to the content.
     public func read(_ range: Range<UInt64>) -> Data {
-        let r = range.clamped(to: 0..<count)
+        let r = range.clamped(to: 0 ..< count)
         var out = Data(capacity: Int(r.count))
         guard !r.isEmpty else { return out }
         for i in pieceIndex(at: r.lowerBound) ..< pieces.count {
             let p = pieces[i]
             let pos = offsets[i] + p.length
-            let pieceRange = offsets[i]..<pos
+            let pieceRange = offsets[i] ..< pos
             let hit = pieceRange.clamped(to: r)
             if hit.isEmpty { continue }
             let from = p.start + (hit.lowerBound - pieceRange.lowerBound)
             switch p.source {
             case .original: out.append(original.read(from ..< from + UInt64(hit.count)))
-            case .added: out.append(added.subdata(in: Int(from)..<Int(from) + hit.count))
+            case .added: out.append(added.subdata(in: Int(from) ..< Int(from) + hit.count))
             }
             if pos >= r.upperBound { break }
         }
@@ -674,9 +676,11 @@ public struct Snapshot: Sendable {
     /// Contiguous bytes of `range` (clipped). If the range lies inside one
     /// unmodified piece the file mapping is passed directly, without a copy;
     /// otherwise the bytes are materialized.
-    public func withContiguousBytes<R>(_ range: Range<UInt64>,
-                                       _ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
-        let r = range.clamped(to: 0..<count)
+    public func withContiguousBytes<R>(
+        _ range: Range<UInt64>,
+        _ body: (UnsafeRawBufferPointer) throws -> R
+    ) rethrows -> R {
+        let r = range.clamped(to: 0 ..< count)
         // An empty range at a piece end may use that piece, as before.
         let i = pieceIndex(at: r.isEmpty && r.lowerBound > 0 ? r.lowerBound - 1 : r.lowerBound)
         if i < pieces.count {
@@ -756,7 +760,9 @@ public enum DocumentError: Error, CustomStringConvertible {
         case .saving: L("The document is being saved")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
         case .incompleteInPlace(let target, let tmp, let reason):
-            L("%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.", target, reason, tmp)
+            L(
+                "%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.",
+                target, reason, tmp)
         }
     }
 }

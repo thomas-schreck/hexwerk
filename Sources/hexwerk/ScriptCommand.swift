@@ -18,22 +18,23 @@ struct Script: ParsableCommand {
 
     func run() throws {
         let source: String
-        if eval { source = script } else {
-            do { source = try String(contentsOfFile: script, encoding: .utf8) }
-            catch {
+        if eval {
+            source = script
+        } else {
+            do { source = try String(contentsOfFile: script, encoding: .utf8) } catch {
                 FileHandle.standardError.write(Data("hexwerk: \(script): \(error.localizedDescription)\n".utf8))
                 throw ExitCode(1)
             }
         }
         let doc: Document
-        do { doc = try Document(url: URL(fileURLWithPath: file)) }
-        catch {
+        do { doc = try Document(url: URL(fileURLWithPath: file)) } catch {
             FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
             throw ExitCode(1)
         }
-        let r = ScriptRunner.run(source, name: eval ? "-e" : (script as NSString).lastPathComponent, document: doc,
-                                 context: ScriptContext(fileName: (file as NSString).lastPathComponent),
-                                 timeout: timeout)
+        let r = ScriptRunner.run(
+            source, name: eval ? "-e" : (script as NSString).lastPathComponent, document: doc,
+            context: ScriptContext(fileName: (file as NSString).lastPathComponent),
+            timeout: timeout)
         for line in r.output { print(TerminalText.escape(line, keepingLayout: true)) }
         if let e = r.error {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))

@@ -2,7 +2,9 @@ import Foundation
 
 /// Printable strings in binary data, like `strings`.
 public struct FoundString: Sendable, Equatable, Hashable {
-    public enum Encoding: String, Sendable, CaseIterable { case ascii = "ASCII", utf8 = "UTF-8", utf16le = "UTF-16LE", utf16be = "UTF-16BE" }
+    public enum Encoding: String, Sendable, CaseIterable {
+        case ascii = "ASCII", utf8 = "UTF-8", utf16le = "UTF-16LE", utf16be = "UTF-16BE"
+    }
     public let offset: UInt64
     /// Length in bytes.
     public let length: UInt64
@@ -16,14 +18,16 @@ public enum Strings {
     public static let maxTextLength = 256
 
     static func printable(_ c: UInt32) -> Bool {
-        c == 9 || (0x20..<0x7F).contains(c) || (c >= 0xA0 && c != 0xFFFE && c != 0xFFFF && !(0xD800...0xDFFF).contains(c))
+        c == 9 || (0x20 ..< 0x7F).contains(c) || (c >= 0xA0 && c != 0xFFFE && c != 0xFFFF && !(0xD800 ... 0xDFFF).contains(c))
     }
 
     /// One pass per encoding; runs crossing chunk borders are kept.
     /// `minLength` counts characters. Results are sorted by offset.
-    public static func find(_ snap: Snapshot, range: Range<UInt64>? = nil, minLength: Int = 4,
-                            encodings: Set<FoundString.Encoding> = [.ascii, .utf16le], maxResults: Int = 200_000,
-                            isCancelled: () -> Bool = { false }, progress: (Double) -> Void = { _ in }) -> [FoundString] {
+    public static func find(
+        _ snap: Snapshot, range: Range<UInt64>? = nil, minLength: Int = 4,
+        encodings: Set<FoundString.Encoding> = [.ascii, .utf16le], maxResults: Int = 200_000,
+        isCancelled: () -> Bool = { false }, progress: (Double) -> Void = { _ in }
+    ) -> [FoundString] {
         let r = (range ?? 0 ..< snap.count).clamped(to: 0 ..< snap.count)
         // UTF-8 finds everything ASCII finds (and more); skip duplicates.
         let encs = encodings.contains(.utf8) ? encodings.subtracting([.ascii]) : encodings
@@ -99,10 +103,10 @@ public enum Strings {
                 case .utf8:
                     if need == 0 {
                         switch b {
-                        case 0..<0x80: add(UInt32(b), at: off, end: off + 1, into: &out)
-                        case 0xC2...0xDF: unit = [b]; unitStart = off; need = 1
-                        case 0xE0...0xEF: unit = [b]; unitStart = off; need = 2
-                        case 0xF0...0xF4: unit = [b]; unitStart = off; need = 3
+                        case 0 ..< 0x80: add(UInt32(b), at: off, end: off + 1, into: &out)
+                        case 0xC2 ... 0xDF: unit = [b]; unitStart = off; need = 1
+                        case 0xE0 ... 0xEF: unit = [b]; unitStart = off; need = 2
+                        case 0xF0 ... 0xF4: unit = [b]; unitStart = off; need = 3
                         default: add(0, at: off, end: off + 1, into: &out)
                         }
                     } else if b & 0xC0 == 0x80 {
@@ -147,9 +151,11 @@ public enum RegexSearch {
     /// Longest match that is still found across a chunk border.
     public static let overlap = 4096
 
-    public static func find(_ pattern: String, ignoreCase: Bool = false, in snap: Snapshot,
-                            range: Range<UInt64>? = nil, maxHits: Int = Search.maxHits,
-                            progress: (Double) -> Bool = { _ in true }) throws -> [Range<UInt64>] {
+    public static func find(
+        _ pattern: String, ignoreCase: Bool = false, in snap: Snapshot,
+        range: Range<UInt64>? = nil, maxHits: Int = Search.maxHits,
+        progress: (Double) -> Bool = { _ in true }
+    ) throws -> [Range<UInt64>] {
         var opts: NSRegularExpression.Options = [.dotMatchesLineSeparators]
         if ignoreCase { opts.insert(.caseInsensitive) }
         let re = try NSRegularExpression(pattern: pattern, options: opts)
@@ -157,7 +163,7 @@ public enum RegexSearch {
         let chunk: UInt64 = 4 << 20
         var hits: [Range<UInt64>] = []
         var pos = r.lowerBound
-        var nextFree = r.lowerBound      // no overlapping hits, like the byte search
+        var nextFree = r.lowerBound  // no overlapping hits, like the byte search
         while pos < r.upperBound, hits.count < maxHits {
             let end = min(r.upperBound, pos + chunk)
             let readEnd = min(r.upperBound, end + UInt64(overlap))

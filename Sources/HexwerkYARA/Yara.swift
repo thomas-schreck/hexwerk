@@ -75,9 +75,11 @@ public final class YaraRules: @unchecked Sendable {
     public static func compile(files: [URL]) throws -> YaraRules {
         let sources = try files.map { url in
             do { return try YaraSource(file: url) } catch {
-                throw YaraCompileError(diagnostics: [YaraDiagnostic(
-                    file: url.path, line: nil, column: nil, code: "io",
-                    message: L("cannot be read: %@", error.localizedDescription), report: "")])
+                throw YaraCompileError(diagnostics: [
+                    YaraDiagnostic(
+                        file: url.path, line: nil, column: nil, code: "io",
+                        message: L("cannot be read: %@", error.localizedDescription), report: "")
+                ])
             }
         }
         // `include "x.yar"` resolves against the including file's folder.
@@ -125,8 +127,10 @@ public final class YaraRules: @unchecked Sendable {
         let text: String?
     }
 
-    private static func diagnostics(_ comp: OpaquePointer, errors: Bool,
-                                    sources: [String: String]) -> [YaraDiagnostic] {
+    private static func diagnostics(
+        _ comp: OpaquePointer, errors: Bool,
+        sources: [String: String]
+    ) -> [YaraDiagnostic] {
         var buf: UnsafeMutablePointer<YRX_BUFFER>?
         let r = errors ? yrx_compiler_errors_json(comp, &buf) : yrx_compiler_warnings_json(comp, &buf)
         guard r == YRX_SUCCESS, let buf else { return [] }
@@ -141,8 +145,9 @@ public final class YaraRules: @unchecked Sendable {
             if let start = label?.span?.start, let file, let text = sources[file] {
                 (line, column) = lineColumn(text, byteOffset: start)
             }
-            return YaraDiagnostic(file: file, line: line, column: column, code: d.code ?? "",
-                                  message: d.title ?? L("Error"), report: d.text ?? d.title ?? "")
+            return YaraDiagnostic(
+                file: file, line: line, column: column, code: d.code ?? "",
+                message: d.title ?? L("Error"), report: d.text ?? d.title ?? "")
         }
     }
 
@@ -200,9 +205,11 @@ extension YaraRules {
     /// Scans `data`. Match offsets are shifted by `base`, so a scan of a
     /// selection reports file offsets. `maxMatchesPerPattern` caps
     /// how many hits YARA-X records per pattern (nil: YARA-X default).
-    public func scan(_ data: UnsafeRawBufferPointer, base: UInt64 = 0,
-                     timeout: Int = YaraX.defaultTimeout,
-                     maxMatchesPerPattern: Int? = nil) throws -> [YaraRuleMatch] {
+    public func scan(
+        _ data: UnsafeRawBufferPointer, base: UInt64 = 0,
+        timeout: Int = YaraX.defaultTimeout,
+        maxMatchesPerPattern: Int? = nil
+    ) throws -> [YaraRuleMatch] {
         var scanner: OpaquePointer?
         guard yrx_scanner_create(ptr, &scanner) == YRX_SUCCESS, let scanner else {
             throw YaraScanError.failed(YaraX.lastError)
@@ -213,10 +220,12 @@ extension YaraRules {
 
         let collector = Collector(base: base)
         let ud = Unmanaged.passUnretained(collector).toOpaque()
-        _ = yrx_scanner_on_matching_rule(scanner, { rule, ud in
-            guard let rule, let ud else { return }
-            Unmanaged<Collector>.fromOpaque(ud).takeUnretainedValue().add(rule)
-        }, ud)
+        _ = yrx_scanner_on_matching_rule(
+            scanner,
+            { rule, ud in
+                guard let rule, let ud else { return }
+                Unmanaged<Collector>.fromOpaque(ud).takeUnretainedValue().add(rule)
+            }, ud)
 
         let result = withExtendedLifetime(collector) {
             onLargeStack {
@@ -231,9 +240,11 @@ extension YaraRules {
     }
 
     /// Scans a document snapshot (current, possibly unsaved content).
-    public func scan(_ snapshot: Snapshot, range: Range<UInt64>? = nil,
-                     timeout: Int = YaraX.defaultTimeout,
-                     maxMatchesPerPattern: Int? = nil) throws -> [YaraRuleMatch] {
+    public func scan(
+        _ snapshot: Snapshot, range: Range<UInt64>? = nil,
+        timeout: Int = YaraX.defaultTimeout,
+        maxMatchesPerPattern: Int? = nil
+    ) throws -> [YaraRuleMatch] {
         let r = (range ?? 0 ..< snapshot.count).clamped(to: 0 ..< snapshot.count)
         return try snapshot.withContiguousBytes(r) {
             try scan($0, base: r.lowerBound, timeout: timeout, maxMatchesPerPattern: maxMatchesPerPattern)
@@ -256,35 +267,46 @@ private final class Collector {
         let ns = Self.string { yrx_rule_namespace(rule, $0, $1) }
 
         let tags = Box<[String]>([])
-        _ = yrx_rule_iter_tags(rule, { tag, ud in
-            guard let tag, let ud else { return }
-            Unmanaged<Box<[String]>>.fromOpaque(ud).takeUnretainedValue().value.append(String(cString: tag))
-        }, Unmanaged.passUnretained(tags).toOpaque())
+        _ = yrx_rule_iter_tags(
+            rule,
+            { tag, ud in
+                guard let tag, let ud else { return }
+                Unmanaged<Box<[String]>>.fromOpaque(ud).takeUnretainedValue().value.append(String(cString: tag))
+            }, Unmanaged.passUnretained(tags).toOpaque())
 
         let meta = Box<[YaraMeta]>([])
-        _ = yrx_rule_iter_metadata(rule, { m, ud in
-            guard let m, let ud else { return }
-            Unmanaged<Box<[YaraMeta]>>.fromOpaque(ud).takeUnretainedValue().value.append(Collector.meta(m.pointee))
-        }, Unmanaged.passUnretained(meta).toOpaque())
+        _ = yrx_rule_iter_metadata(
+            rule,
+            { m, ud in
+                guard let m, let ud else { return }
+                Unmanaged<Box<[YaraMeta]>>.fromOpaque(ud).takeUnretainedValue().value.append(Collector.meta(m.pointee))
+            }, Unmanaged.passUnretained(meta).toOpaque())
 
         let matches = Box<PatternState>(PatternState(base: base))
-        _ = yrx_rule_iter_patterns(rule, { pattern, ud in
-            guard let pattern, let ud else { return }
-            let box = Unmanaged<Box<PatternState>>.fromOpaque(ud).takeUnretainedValue()
-            box.value.current = Collector.string { yrx_pattern_identifier(pattern, $0, $1) }
-            _ = yrx_pattern_iter_matches(pattern, { m, ud in
-                guard let m, let ud else { return }
+        _ = yrx_rule_iter_patterns(
+            rule,
+            { pattern, ud in
+                guard let pattern, let ud else { return }
                 let box = Unmanaged<Box<PatternState>>.fromOpaque(ud).takeUnretainedValue()
-                let k = Int(m.pointee.xor_key)
-                box.value.out.append(YaraPatternMatch(
-                    pattern: box.value.current, offset: box.value.base + UInt64(m.pointee.offset),
-                    length: UInt64(m.pointee.length), xorKey: k < 0 ? nil : k))
-            }, ud)
-        }, Unmanaged.passUnretained(matches).toOpaque())
+                box.value.current = Collector.string { yrx_pattern_identifier(pattern, $0, $1) }
+                _ = yrx_pattern_iter_matches(
+                    pattern,
+                    { m, ud in
+                        guard let m, let ud else { return }
+                        let box = Unmanaged<Box<PatternState>>.fromOpaque(ud).takeUnretainedValue()
+                        let k = Int(m.pointee.xor_key)
+                        box.value.out.append(
+                            YaraPatternMatch(
+                                pattern: box.value.current, offset: box.value.base + UInt64(m.pointee.offset),
+                                length: UInt64(m.pointee.length), xorKey: k < 0 ? nil : k))
+                    }, ud)
+            }, Unmanaged.passUnretained(matches).toOpaque())
 
         withExtendedLifetime((tags, meta, matches)) {
-            rules.append(YaraRuleMatch(rule: name, namespace: ns, tags: tags.value, metadata: meta.value,
-                                       matches: matches.value.out.sorted { ($0.offset, $0.pattern) < ($1.offset, $1.pattern) }))
+            rules.append(
+                YaraRuleMatch(
+                    rule: name, namespace: ns, tags: tags.value, metadata: meta.value,
+                    matches: matches.value.out.sorted { ($0.offset, $0.pattern) < ($1.offset, $1.pattern) }))
         }
     }
 
@@ -304,16 +326,17 @@ private final class Collector {
 
     static func meta(_ m: YRX_METADATA) -> YaraMeta {
         let key = m.identifier.map { String(cString: $0) } ?? ""
-        let value: String = switch m.value_type {
-        case YRX_I64: String(m.value.i64)
-        case YRX_F64: String(m.value.f64)
-        case YRX_BOOLEAN: m.value.boolean ? "true" : "false"
-        case YRX_STRING: m.value.string.map { String(cString: $0) } ?? ""
-        case YRX_BYTES:
-            UnsafeBufferPointer(start: m.value.bytes.data, count: m.value.bytes.length)
-                .map { String(format: "%02X", $0) }.joined(separator: " ")
-        default: ""
-        }
+        let value: String =
+            switch m.value_type {
+            case YRX_I64: String(m.value.i64)
+            case YRX_F64: String(m.value.f64)
+            case YRX_BOOLEAN: m.value.boolean ? "true" : "false"
+            case YRX_STRING: m.value.string.map { String(cString: $0) } ?? ""
+            case YRX_BYTES:
+                UnsafeBufferPointer(start: m.value.bytes.data, count: m.value.bytes.length)
+                    .map { String(format: "%02X", $0) }.joined(separator: " ")
+            default: ""
+            }
         return YaraMeta(key: key, value: value)
     }
 }

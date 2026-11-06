@@ -15,7 +15,7 @@ import Testing
     @Test func profileAndStatsOverEditedDocument() throws {
         // 4 KiB zeros, then 4 KiB of all byte values.
         var d = Data(repeating: 0, count: 4096)
-        d.append(Data((0..<4096).map { UInt8($0 & 0xFF) }))
+        d.append(Data((0 ..< 4096).map { UInt8($0 & 0xFF) }))
         let url = try tempFile(d)
         defer { try? FileManager.default.removeItem(at: url) }
         let doc = try Document(url: url)
@@ -24,14 +24,14 @@ import Testing
         #expect(stats.histogram[0] == 4096 + 16)
         #expect(stats.distinct == 256)
         #expect(profile.blockSize == 1024 && profile.blocks.count == 8)
-        #expect(profile.blocks[0...3].allSatisfy { $0 == 0 })
-        #expect(profile.blocks[4...7].allSatisfy { abs($0 - 8) < 1e-12 })
+        #expect(profile.blocks[0 ... 3].allSatisfy { $0 == 0 })
+        #expect(profile.blocks[4 ... 7].allSatisfy { abs($0 - 8) < 1e-12 })
         // Edits are seen: overwrite the zero half's first block.
-        try doc.overwrite(at: 0, with: Data((0..<1024).map { UInt8($0 & 0xFF) }))
+        try doc.overwrite(at: 0, with: Data((0 ..< 1024).map { UInt8($0 & 0xFF) }))
         let (_, p2) = try #require(Analysis.analyze(doc.snapshot(), blocks: 8))
         #expect(abs(p2.blocks[0] - 8) < 1e-12)
         // Sub range and cancel.
-        let (s3, p3) = try #require(Analysis.analyze(doc.snapshot(), range: 1000..<1300, blocks: 100))
+        let (s3, p3) = try #require(Analysis.analyze(doc.snapshot(), range: 1000 ..< 1300, blocks: 100))
         #expect(s3.count == 300 && p3.blockSize == 256 && p3.blocks.count == 2 && p3.start == 1000)
         #expect(Analysis.analyze(doc.snapshot(), isCancelled: { true }) == nil)
     }
@@ -50,14 +50,14 @@ import Testing
         let c = ExportFormat.c.render(d, name: "buf")
         #expect(c.hasPrefix("unsigned char buf[15] = {\n    0x00, 0x41,"))
         #expect(c.hasSuffix("0x01\n};"))
-        #expect(c.components(separatedBy: "\n").count == 4)     // 12 per line
+        #expect(c.components(separatedBy: "\n").count == 4)  // 12 per line
         #expect(ExportFormat.python.render(d.prefix(5)) == #"data = b"\x00A\"\\\xff""#)
         #expect(ExportFormat.swift.render(Data([1, 2])) == "let data: [UInt8] = [\n    0x01, 0x02\n]")
     }
 
     /// The Python rendering must be valid Python that yields the same bytes.
     @Test func pythonRoundTrip() throws {
-        let d = Data((0...255).map { UInt8($0) })
+        let d = Data((0 ... 255).map { UInt8($0) })
         let script = ExportFormat.python.render(d) + "\nimport sys; sys.stdout.buffer.write(data)\n"
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/python3")

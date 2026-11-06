@@ -41,8 +41,9 @@ extension ParseNode {
 }
 
 func image(_ type: UTType, width: Int, height: Int) -> Data {
-    let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    let ctx = CGContext(
+        data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     ctx.setFillColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 1)
     ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
     let out = NSMutableData()
@@ -73,7 +74,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("ihdr.width")?.number == 53)
         #expect(r.root.at("ihdr.height")?.number == 37)
         #expect(r.root.at("chunks")?.children.last?.at("type")?.value == "\"IEND\"")
-        #expect(r.root.at("ihdr.width")?.range == 16..<20)
+        #expect(r.root.at("ihdr.width")?.range == 16 ..< 20)
     }
 
     @Test func gif() throws {
@@ -104,7 +105,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         let first = r.root.at("sections.[0].body.header")
         #expect(first?.at("file_name")?.value == "\"a.txt\"")
         #expect(first?.at("len_body_uncompressed")?.number == 550)
-        #expect(r.root.at("sections")?.children.count == 5)   // 2 local, 2 central, end
+        #expect(r.root.at("sections")?.children.count == 5)  // 2 local, 2 central, end
     }
 
     /// Info-ZIP writes the access-time flag in the central directory but only
@@ -131,13 +132,14 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.error == nil)
         #expect(r.root.at("len_uncompressed")?.number == 550)
         #expect(r.root.at("flags.has_name")?.value == "true")
-        #expect(r.root.at("name")?.value == "61 2E 74 78 74")   // "a.txt"
+        #expect(r.root.at("name")?.value == "61 2E 74 78 74")  // "a.txt"
     }
 
     @Test func wav() throws {
         let samples = 100
         var d: [UInt8] = Array("RIFF".utf8) + le(UInt32(36 + samples * 2)) + Array("WAVE".utf8)
-        d += Array("fmt ".utf8) + le(UInt32(16)) + le(UInt16(1)) + le(UInt16(1)) + le(UInt32(8000))
+        d +=
+            Array("fmt ".utf8) + le(UInt32(16)) + le(UInt16(1)) + le(UInt16(1)) + le(UInt32(8000))
             + le(UInt32(16000)) + le(UInt16(2)) + le(UInt16(16))
         d += Array("data".utf8) + le(UInt32(samples * 2)) + [UInt8](repeating: 0, count: samples * 2)
         let r = try parse(Data(d), ksy: "media/wav.ksy")
@@ -149,12 +151,14 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     }
 
     @Test func pcap() throws {
-        var d: [UInt8] = le(UInt32(0xA1B2_C3D4)) + le(UInt16(2)) + le(UInt16(4)) + le(Int32(0))
+        var d: [UInt8] =
+            le(UInt32(0xA1B2_C3D4)) + le(UInt16(2)) + le(UInt16(4)) + le(Int32(0))
             + le(UInt32(0)) + le(UInt32(65535)) + le(UInt32(1))
         for (i, payload) in ["hello", "world!!"].enumerated() {
             let p = Array(payload.utf8)
             let udp = be(UInt16(1234)) + be(UInt16(53)) + be(UInt16(8 + p.count)) + be(UInt16(0)) + p
-            let ip: [UInt8] = [0x45, 0] + be(UInt16(20 + udp.count)) + be(UInt16(1)) + be(UInt16(0)) + [64, 17]
+            let ip: [UInt8] =
+                [0x45, 0] + be(UInt16(20 + udp.count)) + be(UInt16(1)) + be(UInt16(0)) + [64, 17]
                 + be(UInt16(0)) + [10, 0, 0, 1, 10, 0, 0, 2] + udp
             let frame: [UInt8] = [0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 8, 0] + ip
             d += le(UInt32(i + 1)) + le(UInt32(0)) + le(UInt32(frame.count)) + le(UInt32(frame.count)) + frame
@@ -167,10 +171,12 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
 
     @Test func elf() throws {
         var d: [UInt8] = [0x7F] + Array("ELF".utf8) + [2, 1, 1, 0] + [UInt8](repeating: 0, count: 8)
-        d += le(UInt16(2)) + le(UInt16(0x3E)) + le(UInt32(1)) + le(UInt64(0x401000)) + le(UInt64(64))
+        d +=
+            le(UInt16(2)) + le(UInt16(0x3E)) + le(UInt32(1)) + le(UInt64(0x401000)) + le(UInt64(64))
             + le(UInt64(0)) + le(UInt32(0)) + le(UInt16(64)) + le(UInt16(56)) + le(UInt16(1))
             + le(UInt16(64)) + le(UInt16(0)) + le(UInt16(0))
-        d += le(UInt32(1)) + le(UInt32(5)) + le(UInt64(0)) + le(UInt64(0x400000)) + le(UInt64(0x400000))
+        d +=
+            le(UInt32(1)) + le(UInt32(5)) + le(UInt64(0)) + le(UInt64(0x400000)) + le(UInt64(0x400000))
             + le(UInt64(0x80)) + le(UInt64(0x80)) + le(UInt64(0x1000))
         d += [UInt8](repeating: 0, count: 0x80 - d.count)
         let r = try parse(Data(d), ksy: "executable/elf.ksy")
@@ -192,11 +198,13 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
 
 @Suite struct KaitaiLanguageTests {
     func value(_ expr: String) throws -> String? {
-        let r = try parse(Data([0]), yaml: """
-            meta: {id: t}
-            instances:
-              v: {value: '\(expr)'}
-            """)
+        let r = try parse(
+            Data([0]),
+            yaml: """
+                meta: {id: t}
+                instances:
+                  v: {value: '\(expr)'}
+                """)
         if let e = r.error { throw e }
         return r.root.at("v")?.value ?? r.root.at("v")?.error
     }
@@ -204,7 +212,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     @Test func expressions() throws {
         #expect(try value("1 + 2 * 3") == "7")
         #expect(try value("(1 + 2) * 3") == "9")
-        #expect(try value("-7 / 2") == "-4")            // floor division like Python
+        #expect(try value("-7 / 2") == "-4")  // floor division like Python
         #expect(try value("-7 % 3") == "2")
         #expect(try value("1 << 4 | 1") == "17 (0x11)")
         #expect(try value("3 > 2 and not false") == "true")
@@ -219,53 +227,63 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
 
     /// Hostile expressions must give an error, never trap (#6).
     @Test func arithmeticEdgeCasesDoNotTrap() throws {
-        for expr in ["-9223372036854775807 - 1 / -1", "(-9223372036854775807 - 1) / -1",
-                     "1 >> -1", "1 << -1", "(0.0 / 0.0).to_i", "(1.0 / 0.0).to_i", "1e300.to_i",
-                     "\"12\".to_i(99)", "\"12\".to_i(1)", "\"abc\".substring", "\"abc\".substring(1)"] {
-            _ = try value(expr)          // an error value is fine; a crash is not
+        for expr in [
+            "-9223372036854775807 - 1 / -1", "(-9223372036854775807 - 1) / -1",
+            "1 >> -1", "1 << -1", "(0.0 / 0.0).to_i", "(1.0 / 0.0).to_i", "1e300.to_i",
+            "\"12\".to_i(99)", "\"12\".to_i(1)", "\"abc\".substring", "\"abc\".substring(1)",
+        ] {
+            _ = try value(expr)  // an error value is fine; a crash is not
         }
         #expect(try value("(-9223372036854775807 - 1) % -1") == "0")
         #expect(try value("2.9.to_i") == "2")
         #expect(try value("-2.9.to_i") == "-2")
         // repeat-expr with a float that does not fit reports an error.
-        let r = try parse(Data([0, 0]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: u1, repeat: expr, repeat-expr: 1e300}
-            """)
+        let r = try parse(
+            Data([0, 0]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, type: u1, repeat: expr, repeat-expr: 1e300}
+                """)
         #expect(r.error != nil || r.root.at("a")?.error != nil)
     }
 
     /// Overflow in the number-array fast path, sizeof, ror and literals (#7).
     @Test func sizeAndLiteralOverflowsDoNotTrap() throws {
-        let huge = try parse(Data(repeating: 0, count: 16), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: u8, repeat: expr, repeat-expr: 0x7fffffffffffffff}
-            """)
+        let huge = try parse(
+            Data(repeating: 0, count: 16),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, type: u8, repeat: expr, repeat-expr: 0x7fffffffffffffff}
+                """)
         #expect(huge.error != nil || huge.root.at("a")?.error != nil)
 
-        let sz = try parse(Data([0]), yaml: """
-            meta: {id: t}
-            types:
-              big:
-                seq:
-                  - {id: a, size: 0x2000000000000000}
-              many:
-                seq:
-                  - {id: b, type: u8, repeat: expr, repeat-expr: 0x2000000000000000}
-            instances:
-              s1: {value: sizeof<big>}
-              s2: {value: sizeof<many>}
-            """)
+        let sz = try parse(
+            Data([0]),
+            yaml: """
+                meta: {id: t}
+                types:
+                  big:
+                    seq:
+                      - {id: a, size: 0x2000000000000000}
+                  many:
+                    seq:
+                      - {id: b, type: u8, repeat: expr, repeat-expr: 0x2000000000000000}
+                instances:
+                  s1: {value: sizeof<big>}
+                  s2: {value: sizeof<many>}
+                """)
         #expect(sz.root.at("s1")?.error != nil)
         #expect(sz.root.at("s2")?.error != nil)
 
-        let rot = try parse(Data([0x81]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, size: 1, process: ror(-9223372036854775807 - 1)}
-            """)
+        let rot = try parse(
+            Data([0x81]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, size: 1, process: ror(-9223372036854775807 - 1)}
+                """)
         #expect(rot.error == nil)
 
         #expect(Expr.parseIntLiteral("-0x8000000000000000") == .min)
@@ -276,47 +294,53 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     /// An instance that parses its own type again must stop at the depth
     /// limit instead of overflowing the stack (#8).
     @Test func selfReferencingInstanceStops() throws {
-        let r = try parse(Data(repeating: 1, count: 64), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, size: me.a.length}
-            instances:
-              me: {pos: 0, type: t}
-            """)
+        let r = try parse(
+            Data(repeating: 1, count: 64),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, size: me.a.length}
+                instances:
+                  me: {pos: 0, type: t}
+                """)
         // Reaching here without a crash is the point; the chain ends in an error.
         #expect(r.error != nil || r.root.at("a")?.error != nil)
     }
 
     /// sizeof of a type that contains itself is an error, not a stack overflow (#9).
     @Test func sizeofRecursiveTypeStops() throws {
-        let r = try parse(Data([0]), yaml: """
-            meta: {id: t}
-            types:
-              x:
-                seq:
-                  - {id: a, type: x}
-            instances:
-              s: {value: sizeof<x>}
-            """)
+        let r = try parse(
+            Data([0]),
+            yaml: """
+                meta: {id: t}
+                types:
+                  x:
+                    seq:
+                      - {id: a, type: x}
+                instances:
+                  s: {value: sizeof<x>}
+                """)
         #expect(r.root.at("s")?.error != nil)
     }
 
     @Test func enumsAndSwitch() throws {
-        let r = try parse(Data([2, 0xAA, 0xBB]), yaml: """
-            meta: {id: t, endian: be}
-            seq:
-              - {id: kind, type: u1, enum: kinds}
-              - id: body
-                type:
-                  switch-on: kind
-                  cases:
-                    'kinds::short': u1
-                    'kinds::long': u2
-            instances:
-              is_long: {value: 'kind == kinds::long'}
-            enums:
-              kinds: {1: short, 2: long}
-            """)
+        let r = try parse(
+            Data([2, 0xAA, 0xBB]),
+            yaml: """
+                meta: {id: t, endian: be}
+                seq:
+                  - {id: kind, type: u1, enum: kinds}
+                  - id: body
+                    type:
+                      switch-on: kind
+                      cases:
+                        'kinds::short': u1
+                        'kinds::long': u2
+                instances:
+                  is_long: {value: 'kind == kinds::long'}
+                enums:
+                  kinds: {1: short, 2: long}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("kind")?.value == "long (0x2)")
         #expect(r.root.at("body")?.number == 0xAABB)
@@ -324,14 +348,16 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     }
 
     @Test func bitFields() throws {
-        let r = try parse(Data([0b1011_0010, 0b1100_0000]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: b1}
-              - {id: b, type: b3}
-              - {id: c, type: b6}
-              - {id: d, type: b6}
-            """)
+        let r = try parse(
+            Data([0b1011_0010, 0b1100_0000]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, type: b1}
+                  - {id: b, type: b3}
+                  - {id: c, type: b6}
+                  - {id: d, type: b6}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("a")?.value == "true")
         #expect(r.root.at("b")?.number == 0b011)
@@ -341,60 +367,68 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
 
     /// repeat eos / expr / until, instances with pos, size-limited subtypes.
     @Test func repeatsAndInstances() throws {
-        let r = try parse(Data([3, 1, 2, 3, 7, 8, 0, 0x42]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: n, type: u1}
-              - {id: items, type: u1, repeat: expr, repeat-expr: n}
-              - {id: until_zero, type: u1, repeat: until, repeat-until: _ == 0}
-              - {id: rest, type: u1, repeat: eos}
-            instances:
-              at_last: {pos: 7, type: u1}
-            """)
+        let r = try parse(
+            Data([3, 1, 2, 3, 7, 8, 0, 0x42]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: n, type: u1}
+                  - {id: items, type: u1, repeat: expr, repeat-expr: n}
+                  - {id: until_zero, type: u1, repeat: until, repeat-until: _ == 0}
+                  - {id: rest, type: u1, repeat: eos}
+                instances:
+                  at_last: {pos: 7, type: u1}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("items")?.children.map(\.number) == [1, 2, 3])
         #expect(r.root.at("until_zero")?.children.map(\.number) == [7, 8, 0])
         #expect(r.root.at("rest")?.children.count == 1)
         #expect(r.root.at("at_last")?.number == 0x42)
-        #expect(r.root.at("at_last")?.range == 7..<8)
+        #expect(r.root.at("at_last")?.range == 7 ..< 8)
     }
 
     /// process routines produce a sub-stream.
     @Test func processRoutines() throws {
         let plain = Array("geheim".utf8)
         let xored = plain.map { $0 ^ 0x5A }
-        let rolled = plain.map { ($0 << 3) | ($0 >> 5) }      // rol 3 when writing → ror 3 to read
-        let r = try parse(Data([UInt8(xored.count)] + xored + [UInt8(rolled.count)] + rolled), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: len_a, type: u1}
-              - {id: a, size: len_a, type: str, encoding: ASCII, process: xor(0x5a)}
-              - {id: len_b, type: u1}
-              - {id: b, size: len_b, type: str, encoding: ASCII, process: ror(3)}
-            """)
+        let rolled = plain.map { ($0 << 3) | ($0 >> 5) }  // rol 3 when writing → ror 3 to read
+        let r = try parse(
+            Data([UInt8(xored.count)] + xored + [UInt8(rolled.count)] + rolled),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: len_a, type: u1}
+                  - {id: a, size: len_a, type: str, encoding: ASCII, process: xor(0x5a)}
+                  - {id: len_b, type: u1}
+                  - {id: b, size: len_b, type: str, encoding: ASCII, process: ror(3)}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("a")?.value == "\"geheim\"")
         #expect(r.root.at("b")?.value == "\"geheim\"")
     }
 
     @Test func validationFails() throws {
-        let r = try parse(Data([1, 2]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: magic, type: u1, valid: 0x7f}
-            """)
+        let r = try parse(
+            Data([1, 2]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: magic, type: u1, valid: 0x7f}
+                """)
         #expect(r.error?.message == L("Validation: expected %@, found %@", "127 (0x7F)", "1"))
         #expect(r.error?.path == "magic")
     }
 
     /// self-recursive type is stopped by the depth limit, no crash.
     @Test func recursionLimit() throws {
-        let r = try parse(Data(count: 2000), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: x, type: u1}
-              - {id: next, type: t}
-            """)
+        let r = try parse(
+            Data(count: 2000),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: x, type: u1}
+                  - {id: next, type: t}
+                """)
         #expect(r.error != nil)
     }
 
@@ -404,22 +438,22 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         var d = Data(le(UInt32(1_000_000)))
         d.reserveCapacity(4 + 2_000_000 + 4096)
         for i in 0 ..< 1_000_000 { d += le(UInt16(truncatingIfNeeded: i * 7)) }
-        d += Data((0 ..< 4096).map { UInt8($0 & 0xFF) })        // eos tail of u4be
+        d += Data((0 ..< 4096).map { UInt8($0 & 0xFF) })  // eos tail of u4be
         let yaml = """
-        meta: { id: big, endian: le }
-        seq:
-          - { id: count, type: u4 }
-          - { id: values, type: u2, repeat: expr, repeat-expr: count }
-          - { id: tail, type: u4be, repeat: eos }
-        instances:
-          probe: { value: 'values[123456] + values.size' }
-        """
+            meta: { id: big, endian: le }
+            seq:
+              - { id: count, type: u4 }
+              - { id: values, type: u2, repeat: expr, repeat-expr: count }
+              - { id: tail, type: u4be, repeat: eos }
+            instances:
+              probe: { value: 'values[123456] + values.size' }
+            """
         let start = Date()
         let r = try parse(d, yaml: yaml)
-        #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
+        #expect(Date().timeIntervalSince(start) < 60)  // hang guard only; CI under load is slow
         #expect(r.error == nil)
         #expect(r.nodeCount < 100)
-        #expect(r.lazyElementCount == 1_000_000 + 1024)     // #39: values and tail, shown next to the node count
+        #expect(r.lazyElementCount == 1_000_000 + 1024)  // #39: values and tail, shown next to the node count
         let values = try #require(r.root.at("values"))
         #expect(values.childCount == 1_000_000 && values.children.isEmpty && values.lazy != nil)
         let e = values.child(123456)
@@ -435,13 +469,13 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
 
     @Test func smallAndSpecialArraysStayEager() throws {
         let yaml = """
-        meta: { id: small, endian: le }
-        seq:
-          - { id: few, type: u1, repeat: expr, repeat-expr: 10 }
-          - { id: kinds, type: u1, enum: k, repeat: expr, repeat-expr: 2000 }
-        enums:
-          k: { 0: zero }
-        """
+            meta: { id: small, endian: le }
+            seq:
+              - { id: few, type: u1, repeat: expr, repeat-expr: 10 }
+              - { id: kinds, type: u1, enum: k, repeat: expr, repeat-expr: 2000 }
+            enums:
+              k: { 0: zero }
+            """
         let r = try parse(Data(repeating: 0, count: 2010), yaml: yaml)
         #expect(r.root.at("few")?.lazy == nil && r.root.at("few")?.children.count == 10)
         #expect(r.root.at("kinds")?.lazy == nil && r.root.at("kinds")?.children.count == 2000)
@@ -452,21 +486,23 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     /// made the display tree recurse until the stack overflowed (found by
     /// FuzzTests.randomYAML).
     @Test func valueInstanceReferringToEnclosingObject() throws {
-        let r = try parse(Data([1, 2]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: u1}
-              - {id: s, type: sub}
-            instances:
-              me: {value: _root}
-            types:
-              sub:
+        let r = try parse(
+            Data([1, 2]),
+            yaml: """
+                meta: {id: t}
                 seq:
-                  - {id: b, type: u1}
+                  - {id: a, type: u1}
+                  - {id: s, type: sub}
                 instances:
-                  up: {value: _parent}
-                  top: {value: _root}
-            """)
+                  me: {value: _root}
+                types:
+                  sub:
+                    seq:
+                      - {id: b, type: u1}
+                    instances:
+                      up: {value: _parent}
+                      top: {value: _root}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("me")?.value == L("(enclosing object)"))
         #expect(r.root.at("s.up")?.value == L("(enclosing object)"))
@@ -480,32 +516,35 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     @Test func sharedObjectsDoNotMultiply() throws {
         let ksy = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString).ksy")
         try """
-            meta: {id: t}
-            seq:
-              - {id: n, type: u1}
-              - {id: c, type: t, if: n != 0}
-            instances:
-              a: {value: c}
-              b: {value: c}
-            """.write(to: ksy, atomically: true, encoding: .utf8)
+        meta: {id: t}
+        seq:
+          - {id: n, type: u1}
+          - {id: c, type: t, if: n != 0}
+        instances:
+          a: {value: c}
+          b: {value: c}
+        """.write(to: ksy, atomically: true, encoding: .utf8)
         let url = try tempFile(Data(repeating: 1, count: 40) + [0])
         defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: ksy) }
         var limits = ParseLimits()
         limits.maxNodes = 10_000
         let start = Date()
-        let r = KaitaiInterpreter.parse(try Document(url: url, readOnly: true).snapshot(),
-                                        file: try KsyLoader().load(ksy), limits: limits)
-        #expect(Date().timeIntervalSince(start) < 30)   // hang guard only
+        let r = KaitaiInterpreter.parse(
+            try Document(url: url, readOnly: true).snapshot(),
+            file: try KsyLoader().load(ksy), limits: limits)
+        #expect(Date().timeIntervalSince(start) < 30)  // hang guard only
         func errors(_ n: ParseNode) -> [String] { [n.error].compactMap { $0 } + n.children.flatMap(errors) }
-        #expect(errors(r.root).contains(L("More than %@ nodes, aborted", "10000")))   // display stopped there
+        #expect(errors(r.root).contains(L("More than %@ nodes, aborted", "10000")))  // display stopped there
     }
 
     /// Yams force-unwraps mapping keys as strings: a sequence or mapping
     /// as key trapped while loading (found by FuzzTests.ksyLoading).
     @Test func nonScalarYAMLKeysAreRejected() throws {
-        for yaml in ["meta: {id: t, [a]: b}\n",
-                     "meta: {id: t}\n? [a, b]\n: c\n",
-                     "meta: {id: t}\nseq:\n  - {id: a, type: u1, {x: 1}: 2}\n"] {
+        for yaml in [
+            "meta: {id: t, [a]: b}\n",
+            "meta: {id: t}\n? [a, b]\n: c\n",
+            "meta: {id: t}\nseq:\n  - {id: a, type: u1, {x: 1}: 2}\n",
+        ] {
             #expect(throws: KaitaiError.self) { try parse(Data([1]), yaml: yaml) }
         }
     }
@@ -518,14 +557,16 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         }
         let start = Date()
         #expect(throws: KaitaiError.self) { try parse(Data(), yaml: yaml) }
-        #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
+        #expect(Date().timeIntervalSince(start) < 60)  // hang guard only; CI under load is slow
         // Ordinary aliases still work.
-        let r = try parse(Data([1, 2]), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: &t u1}
-              - {id: b, type: *t}
-            """)
+        let r = try parse(
+            Data([1, 2]),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: a, type: &t u1}
+                  - {id: b, type: *t}
+                """)
         #expect(r.error == nil && r.root.at("b")?.number == 2)
     }
 
@@ -534,16 +575,19 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     /// thread (512 KiB stack), like the app's loader used to.
     @Test func hostileExpressionsAreRejectedQuickly() throws {
         let start = Date()
-        for text in [String(repeating: "(", count: 1500) + "1" + String(repeating: ")", count: 1500),
-                     String(repeating: "(", count: 20_000) + "1" + String(repeating: ")", count: 20_000),
-                     String(repeating: "-", count: 20_000) + "1",
-                     String(repeating: "not ", count: 20_000) + "true",
-                     Array(repeating: "1", count: 30_000).joined(separator: "+")] {
+        for text in [
+            String(repeating: "(", count: 1500) + "1" + String(repeating: ")", count: 1500),
+            String(repeating: "(", count: 20_000) + "1" + String(repeating: ")", count: 20_000),
+            String(repeating: "-", count: 20_000) + "1",
+            String(repeating: "not ", count: 20_000) + "true",
+            Array(repeating: "1", count: 30_000).joined(separator: "+"),
+        ] {
             #expect(throws: KaitaiError.self) { try Expr.parse(text) }
         }
-        #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
+        #expect(Date().timeIntervalSince(start) < 60)  // hang guard only; CI under load is slow
         // Moderate nesting and chains just below the limit still work.
-        let ok = String(repeating: "(", count: 20) + "1" + String(repeating: ")", count: 20) + "+"
+        let ok =
+            String(repeating: "(", count: 20) + "1" + String(repeating: ")", count: 20) + "+"
             + Array(repeating: "2", count: 1899).joined(separator: "+")
         #expect(try value(ok) == "3799 (0xED7)")
     }
@@ -551,40 +595,44 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     /// Terminator scanning is blockwise now (#29): semantics across the
     /// 64 KiB read-ahead blocks and in processed (in-memory) streams.
     @Test func terminatorSemantics() throws {
-        var d = Data(repeating: 0x78, count: 70_000) + [0]            // a: strz across blocks
-        d += Data("xyA".utf8) + Data("B".utf8)                         // c, d (not consumed), e
-        d += Data([5, 0x10, 0x13, 0x21, 0x99, 0x98])                   // g: xor'ed 5 "12" 0 …
-        d += Data("tail".utf8)                                         // f: no 0x7f until eos
-        let r = try parse(d, yaml: """
-            meta: {id: t}
-            seq:
-              - {id: a, type: strz, encoding: ASCII}
-              - {id: c, terminator: 0x41, include: true}
-              - {id: d, terminator: 0x42, consume: false}
-              - {id: e, type: u1}
-              - {id: g, size: 6, process: xor(0x21), type: inner}
-              - {id: f, terminator: 0x7f, eos-error: false}
-            types:
-              inner:
+        var d = Data(repeating: 0x78, count: 70_000) + [0]  // a: strz across blocks
+        d += Data("xyA".utf8) + Data("B".utf8)  // c, d (not consumed), e
+        d += Data([5, 0x10, 0x13, 0x21, 0x99, 0x98])  // g: xor'ed 5 "12" 0 …
+        d += Data("tail".utf8)  // f: no 0x7f until eos
+        let r = try parse(
+            d,
+            yaml: """
+                meta: {id: t}
                 seq:
-                  - {id: n, type: u1}
-                  - {id: s, type: strz, encoding: ASCII}
-                  - {id: rest, terminator: 0xff, eos-error: false}
-            """)
+                  - {id: a, type: strz, encoding: ASCII}
+                  - {id: c, terminator: 0x41, include: true}
+                  - {id: d, terminator: 0x42, consume: false}
+                  - {id: e, type: u1}
+                  - {id: g, size: 6, process: xor(0x21), type: inner}
+                  - {id: f, terminator: 0x7f, eos-error: false}
+                types:
+                  inner:
+                    seq:
+                      - {id: n, type: u1}
+                      - {id: s, type: strz, encoding: ASCII}
+                      - {id: rest, terminator: 0xff, eos-error: false}
+                """)
         #expect(r.error == nil)
         #expect(r.root.at("a")?.range == 0 ..< 70_001)
         #expect(r.root.at("c")?.range == 70_001 ..< 70_004)
         #expect(r.root.at("d")?.range?.isEmpty == true)
         #expect(r.root.at("e")?.number == 0x42)
-        #expect(r.root.at("g.n")?.number == 0x24)                   // 5 ^ 0x21
+        #expect(r.root.at("g.n")?.number == 0x24)  // 5 ^ 0x21
         #expect(r.root.at("g.s")?.value == "\"12\"")
         #expect(r.root.at("g.rest")?.value == "B8 B9")
         #expect(r.root.at("f")?.range == UInt64(d.count - 4) ..< UInt64(d.count))
-        let bad = try parse(Data(repeating: 1, count: 100_000), yaml: """
-            meta: {id: t}
-            seq:
-              - {id: s, type: strz, encoding: ASCII}
-            """)
+        let bad = try parse(
+            Data(repeating: 1, count: 100_000),
+            yaml: """
+                meta: {id: t}
+                seq:
+                  - {id: s, type: strz, encoding: ASCII}
+                """)
         #expect(bad.error?.message == L("Terminator 0x%@ not found", "0"))
     }
 
@@ -613,7 +661,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         let start = Date()
         let r = KaitaiInterpreter.parse(snap, file: schema, limits: generous)
         #expect(r.error == nil && r.root.at("s")?.range == 0 ..< UInt64(50 << 20) + 1)
-        #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
+        #expect(Date().timeIntervalSince(start) < 60)  // hang guard only; CI under load is slow
     }
 
     /// Cancelling the calling task stops the parse (#28). The app used to
@@ -622,14 +670,14 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     @Test func asyncParseStopsWhenTaskIsCancelled() async throws {
         let ksy = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString).ksy")
         try """
-            meta: {id: t}
+        meta: {id: t}
+        seq:
+          - {id: items, type: item, repeat: eos}
+        types:
+          item:
             seq:
-              - {id: items, type: item, repeat: eos}
-            types:
-              item:
-                seq:
-                  - {id: b, type: u1}
-            """.write(to: ksy, atomically: true, encoding: .utf8)
+              - {id: b, type: u1}
+        """.write(to: ksy, atomically: true, encoding: .utf8)
         let url = try tempFile(Data(count: 64 << 20))
         defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: ksy) }
         let schema = try KsyLoader().load(ksy)
@@ -663,10 +711,11 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: ksy) }
         var limits = ParseLimits()
         limits.maxNodes = 1000
-        let r = KaitaiInterpreter.parse(try Document(url: url, readOnly: true).snapshot(),
-                                        file: try KsyLoader().load(ksy), limits: limits)
+        let r = KaitaiInterpreter.parse(
+            try Document(url: url, readOnly: true).snapshot(),
+            file: try KsyLoader().load(ksy), limits: limits)
         #expect(r.error?.message == L("More than %@ nodes, aborted", "1000"))
-        #expect(r.root.at("items")?.children.count == 500)      // 2 nodes per item
+        #expect(r.root.at("items")?.children.count == 500)  // 2 nodes per item
     }
 }
 

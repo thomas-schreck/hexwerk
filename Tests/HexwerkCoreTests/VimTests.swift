@@ -12,7 +12,7 @@ import Testing
         #expect(keys(&m, "12h") == [.moveBytes(-12)])
         #expect(keys(&m, "3w") == [.moveBytes(12)])
         #expect(keys(&m, "0") == [.rowStart])
-        #expect(keys(&m, "10") == [])                // count pending, 0 is a digit here
+        #expect(keys(&m, "10") == [])  // count pending, 0 is a digit here
         #expect(m.status == "NORMAL 10")
         #expect(keys(&m, "k") == [.moveRows(-10)])
         #expect(keys(&m, "gg") == [.top])
@@ -45,7 +45,8 @@ import Testing
         #expect(keys(&m, "rz") == [.beep])
         #expect(keys(&m, "ma") == [.setMark("a")])
         #expect(keys(&m, "'a") == [.jumpMark("a")])
-        #expect(keys(&m, "uPp/nN:") == [.undo, .paste(after: false), .paste(after: true), .search, .searchNext, .searchPrevious, .goToPrompt])
+        #expect(
+            keys(&m, "uPp/nN:") == [.undo, .paste(after: false), .paste(after: true), .search, .searchNext, .searchPrevious, .goToPrompt])
         #expect(m.key("r", control: true) == [.redo])
         #expect(keys(&m, "Q") == [.beep])
     }

@@ -17,8 +17,9 @@ public enum L10n {
 
     public static var language: Language { override ?? detected }
 
-    static let detected = resolve(environment: ProcessInfo.processInfo.environment,
-                                  preferred: Locale.preferredLanguages)
+    static let detected = resolve(
+        environment: ProcessInfo.processInfo.environment,
+        preferred: Locale.preferredLanguages)
 
     /// `HEXWERK_LANG`, then the POSIX locale variables (set in terminals),
     /// then the macOS language list (GUI apps get no LANG).
@@ -36,7 +37,7 @@ public enum L10n {
     static let tables: [Language: [String: String]] = [
         .de: deCore.merging(deKaitai) { a, _ in a }
             .merging(deCLI) { a, _ in a }
-            .merging(deApp) { a, _ in a },
+            .merging(deApp) { a, _ in a }
     ]
 
     public static func translate(_ key: String) -> String {

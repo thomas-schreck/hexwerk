@@ -19,7 +19,8 @@ final class YaraModel: ObservableObject {
 
     /// Rule files and folders, shared by all windows and kept across launches.
     @Published var ruleFiles: [URL] = (Settings.shared.stringArray(forKey: "yaraRules") ?? [])
-        .map { URL(fileURLWithPath: $0) } {
+        .map { URL(fileURLWithPath: $0) }
+    {
         didSet { Settings.shared.set(ruleFiles.map(\.path), forKey: "yaraRules") }
     }
     @Published var timeout: Int = Settings.shared.object(forKey: "yaraTimeout") as? Int ?? YaraX.defaultTimeout {
@@ -88,8 +89,10 @@ final class YaraModel: ObservableObject {
                 // The app only reads the rule files; compiling and scanning
                 // run in the sandboxed helper (#102).
                 let bundle = try YaraRuleBundle.collect(files: files)
-                switch try await HelperClient.shared.scan(snapshot, rules: bundle, range: range, timeout: timeout,
-                                                          maxMatchesPerPattern: cap) {
+                switch try await HelperClient.shared.scan(
+                    snapshot, rules: bundle, range: range, timeout: timeout,
+                    maxMatchesPerPattern: cap)
+                {
                 case .hits(let h, let w): hits = h; warn = w
                 case .compileErrors(let d): compileErrors = d
                 case .failed(let m, let w): failure = m; warn = w

@@ -20,7 +20,9 @@ import Testing
         s.cursor = 42
         s.selectionStart = 40; s.selectionEnd = 50
         s.offsetBase = 0x0800_0000
-        #expect(try ProjectStore.save(s, for: file, in: dir)?.deletingLastPathComponent().standardizedFileURL.path == dir.standardizedFileURL.path)
+        #expect(
+            try ProjectStore.save(s, for: file, in: dir)?.deletingLastPathComponent().standardizedFileURL.path
+                == dir.standardizedFileURL.path)
         // The same file under another spelling finds the same state.
         #expect(ProjectStore.load(for: URL(fileURLWithPath: "/nonexistent-hexwerk/a/firmware.bin"), in: dir) == s)
         #expect(ProjectStore.load(for: URL(fileURLWithPath: "/nonexistent-hexwerk/b.bin"), in: dir) == nil)
@@ -106,9 +108,9 @@ import Testing
     }
 
     @Test func editsAfterOrOverwritesLeaveIt() {
-        #expect(mark.adjustedForEdit(replacing: 0x110 ..< 0x110, newLength: 8) == mark)   // insert at end
+        #expect(mark.adjustedForEdit(replacing: 0x110 ..< 0x110, newLength: 8) == mark)  // insert at end
         #expect(mark.adjustedForEdit(replacing: 0x200 ..< 0x300, newLength: 0) == mark)
-        #expect(mark.adjustedForEdit(replacing: 0x0F0 ..< 0x120, newLength: 0x30) == mark) // same-length overwrite
+        #expect(mark.adjustedForEdit(replacing: 0x0F0 ..< 0x120, newLength: 0x30) == mark)  // same-length overwrite
     }
 
     @Test func deleteBeforeAndInside() {
@@ -116,7 +118,7 @@ import Testing
         #expect(mark.adjustedForEdit(replacing: 0x104 ..< 0x108, newLength: 0) == 0x100 ..< 0x10C)
         #expect(mark.adjustedForEdit(replacing: 0x0F8 ..< 0x104, newLength: 0) == 0x0F8 ..< 0x104)  // head cut off
         #expect(mark.adjustedForEdit(replacing: 0x108 ..< 0x200, newLength: 0) == 0x100 ..< 0x108)  // truncated
-        #expect(mark.adjustedForEdit(replacing: 0x0 ..< 0x200, newLength: 0) == nil)               // all gone
+        #expect(mark.adjustedForEdit(replacing: 0x0 ..< 0x200, newLength: 0) == nil)  // all gone
     }
 
     @Test func insertInsideGrowsIt() {

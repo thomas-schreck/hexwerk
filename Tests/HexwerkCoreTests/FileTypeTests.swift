@@ -59,7 +59,7 @@ import HexwerkMagic
 
     @Test func randomDataHasFewFalsePositives() throws {
         var rng = SplitMix(seed: 7)
-        let d = Data((0 ..< (4 << 20)).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        let d = Data((0 ..< (4 << 20)).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
         let (s, url) = try snap(d)
         defer { try? FileManager.default.removeItem(at: url) }
         // 4 MiB random: signatures need ≥4 fixed bytes or a check, so hits stay rare.

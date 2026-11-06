@@ -138,7 +138,9 @@ struct HitsTab: View {
             if let file = model.diffFile {
                 Section {
                     ForEach(Array(model.diffs.prefix(5000).enumerated()), id: \.offset) { _, d in
-                        Button { model.show(diff: d) } label: {
+                        Button {
+                            model.show(diff: d)
+                        } label: {
                             HStack(spacing: 6) {
                                 Circle().fill(Color(nsColor: model.diffHighlight(d).1.withAlphaComponent(1))).frame(width: 7, height: 7)
                                 Text(hex(d.a.lowerBound)).monospaced()
@@ -151,8 +153,9 @@ struct HitsTab: View {
                     }
                 } header: {
                     HStack {
-                        Text(L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count)
-                             + (model.diffsTruncated ? " (" + L("stopped after %ld hits", Search.maxHits) + ")" : ""))
+                        Text(
+                            L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count)
+                                + (model.diffsTruncated ? " (" + L("stopped after %ld hits", Search.maxHits) + ")" : ""))
                         Spacer()
                         Button(L("Close")) { model.clearDiff() }.buttonStyle(.link)
                     }
@@ -164,15 +167,18 @@ struct HitsTab: View {
                 }
                 // Long lists are capped; navigation via ⌘G still reaches all hits.
                 ForEach(Array(model.hits.prefix(5000).enumerated()), id: \.offset) { i, r in
-                    Button { model.select(hit: i) } label: {
+                    Button {
+                        model.select(hit: i)
+                    } label: {
                         HStack {
                             Text(hex(r.lowerBound)).monospaced()
                             Spacer()
                             Text(preview(r)).monospaced().foregroundStyle(.secondary).lineLimit(1)
                         }
                         .padding(.vertical, 1)
-                        .background(model.currentHit == i ? Color.accentColor.opacity(0.18) : .clear,
-                                    in: RoundedRectangle(cornerRadius: 4))
+                        .background(
+                            model.currentHit == i ? Color.accentColor.opacity(0.18) : .clear,
+                            in: RoundedRectangle(cornerRadius: 4))
                     }
                     .buttonStyle(.plain)
                 }
@@ -204,8 +210,10 @@ struct BookmarksTab: View {
                     Text("\(b.range.count) B").foregroundStyle(.secondary)
                     Button {
                         model.bookmarks.removeAll { $0.id == b.id }
-                    } label: { Image(systemName: "minus.circle") }
-                        .buttonStyle(.borderless)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
         }
@@ -257,8 +265,11 @@ struct ChecksumsTab: View {
 
     private func row(_ c: Checksum) -> some View {
         HStack(spacing: 6) {
-            Toggle(isOn: Binding(get: { model.checksumSelection.contains(c) },
-                                 set: { on in if on { model.checksumSelection.insert(c) } else { model.checksumSelection.remove(c) } })) {
+            Toggle(
+                isOn: Binding(
+                    get: { model.checksumSelection.contains(c) },
+                    set: { on in if on { model.checksumSelection.insert(c) } else { model.checksumSelection.remove(c) } })
+            ) {
                 Text(c.title)
             }
             .toggleStyle(.checkbox)
@@ -269,9 +280,11 @@ struct ChecksumsTab: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(v, forType: .string)
-                } label: { Image(systemName: "doc.on.doc") }
-                    .buttonStyle(.borderless)
-                    .help(L("Copy"))
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help(L("Copy"))
             }
         }
     }
@@ -328,8 +341,16 @@ struct FindBar: View {
                 }
 
                 ControlGroup {
-                    Button { model.previousHit() } label: { Image(systemName: "chevron.left") }
-                    Button { model.nextHit() } label: { Image(systemName: "chevron.right") }
+                    Button {
+                        model.previousHit()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    Button {
+                        model.nextHit()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
                 }
                 .frame(width: 60)
                 .disabled(model.findText.isEmpty)
@@ -338,10 +359,14 @@ struct FindBar: View {
                     .toggleStyle(.button)
                     .help(L("Replace"))
 
-                Button { model.findVisible = false } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .keyboardShortcut(.cancelAction)
+                Button {
+                    model.findVisible = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .keyboardShortcut(.cancelAction)
             }
             if model.showReplace {
                 HStack(spacing: 8) {
@@ -388,7 +413,9 @@ struct StatusBar: View {
     var body: some View {
         HStack(spacing: 0) {
             // Offset: click opens "go to".
-            Button { send(#selector(DocumentWindowController.goToOffset(_:))) } label: {
+            Button {
+                send(#selector(DocumentWindowController.goToOffset(_:)))
+            } label: {
                 field("Offset", "\(hex(model.cursor)) (\(model.cursor))")
             }
             .help(L("Go to Offset (⌘L)"))
@@ -413,7 +440,9 @@ struct StatusBar: View {
                 sep
             }
             if let t = analysis.typeDescription {
-                Button { send(#selector(DocumentWindowController.showAnalysis(_:))) } label: {
+                Button {
+                    send(#selector(DocumentWindowController.showAnalysis(_:)))
+                } label: {
                     Text(t.split(separator: ",").first.map(String.init) ?? t).lineLimit(1).truncationMode(.tail)
                         .foregroundStyle(.secondary)
                 }
@@ -422,11 +451,15 @@ struct StatusBar: View {
                 sep
             }
             if structure.parsing || structure.result != nil || structure.formatTitle != nil {
-                Button { send(#selector(DocumentWindowController.showStructure(_:))) } label: {
+                Button {
+                    send(#selector(DocumentWindowController.showStructure(_:)))
+                } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: structure.result?.error != nil || structure.loadError != nil
-                              ? "exclamationmark.triangle.fill" : "list.bullet.indent")
-                            .foregroundStyle(structure.result?.error != nil || structure.loadError != nil ? .orange : .secondary)
+                        Image(
+                            systemName: structure.result?.error != nil || structure.loadError != nil
+                                ? "exclamationmark.triangle.fill" : "list.bullet.indent"
+                        )
+                        .foregroundStyle(structure.result?.error != nil || structure.loadError != nil ? .orange : .secondary)
                         Text(structure.formatTitle ?? "Format")
                     }
                 }
@@ -434,7 +467,9 @@ struct StatusBar: View {
                 sep
             }
             if let r = yara.results {
-                Button { send(#selector(DocumentWindowController.showYara(_:))) } label: {
+                Button {
+                    send(#selector(DocumentWindowController.showYara(_:)))
+                } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "shield.lefthalf.filled").foregroundStyle(r.isEmpty ? Color.secondary : Color.pink)
                         Text(r.isEmpty ? L("YARA: nothing") : r.count == 1 ? L("YARA: %ld rule", r.count) : L("YARA: %ld rules", r.count))
@@ -448,7 +483,9 @@ struct StatusBar: View {
                     ForEach(TextEncodingView.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.inline)
-            } label: { Text(model.charset.rawValue) }
+            } label: {
+                Text(model.charset.rawValue)
+            }
             .menuStyle(.borderlessButton).fixedSize()
             .help(L("Character set of the text column"))
             sep
@@ -458,18 +495,24 @@ struct StatusBar: View {
                     Text("Big Endian").tag(Endian.big)
                 }
                 .pickerStyle(.inline)
-            } label: { Text(model.endian == .little ? "LE" : "BE") }
+            } label: {
+                Text(model.endian == .little ? "LE" : "BE")
+            }
             .menuStyle(.borderlessButton).fixedSize()
             .help(L("Byte order for inspector and number search"))
             sep
             if model.doc.isReadOnly {
                 Label(L("Read-Only"), systemImage: "lock.fill").foregroundStyle(.secondary)
             } else {
-                Button { model.insertMode.toggle() } label: {
+                Button {
+                    model.insertMode.toggle()
+                } label: {
                     Text(model.insertMode ? L("INS") : L("OVR")).fontWeight(.medium)
                 }
-                .help(model.insertMode ? L("Insert mode – click for overwrite (⌘I)")
-                                       : L("Overwrite mode – click for insert (⌘I)"))
+                .help(
+                    model.insertMode
+                        ? L("Insert mode – click for overwrite (⌘I)")
+                        : L("Overwrite mode – click for insert (⌘I)"))
             }
             sep
             Text(ByteCountFormatter.string(fromByteCount: Int64(model.doc.count), countStyle: .binary))
@@ -570,10 +613,13 @@ struct SaveProgressSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("Saving %@…", name)).font(.headline)
             ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
-            Text(L("%1$@ of %2$@",
-                   ByteCountFormatter.string(fromByteCount: Int64(progress.done), countStyle: .binary),
-                   ByteCountFormatter.string(fromByteCount: Int64(progress.total), countStyle: .binary)))
-                .foregroundStyle(.secondary).font(.callout).monospacedDigit()
+            Text(
+                L(
+                    "%1$@ of %2$@",
+                    ByteCountFormatter.string(fromByteCount: Int64(progress.done), countStyle: .binary),
+                    ByteCountFormatter.string(fromByteCount: Int64(progress.total), countStyle: .binary))
+            )
+            .foregroundStyle(.secondary).font(.callout).monospacedDigit()
             HStack {
                 Spacer()
                 Button(L("Cancel")) {

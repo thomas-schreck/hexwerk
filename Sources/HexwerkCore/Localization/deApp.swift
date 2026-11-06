@@ -6,9 +6,11 @@ extension L10n {
         "%@ is not a readable project file.": "%@ ist keine lesbare Projektdatei.",
         "The project's file is missing.": "Die Datei des Projekts fehlt.",
         "%@ has changed since the project was saved.": "%@ hat sich seit dem Projekt geändert.",
-        "Size then %1$llu bytes, now %2$llu bytes. Bookmarks may have shifted.": "Größe damals %1$llu Byte, jetzt %2$llu Byte. Lesezeichen können verschoben sein.",
+        "Size then %1$llu bytes, now %2$llu bytes. Bookmarks may have shifted.":
+            "Größe damals %1$llu Byte, jetzt %2$llu Byte. Lesezeichen können verschoben sein.",
         "%1$@ is %2$@.": "%1$@ ist %2$@.",
-        "Import shows the bytes at their addresses; Save writes %@ again.": "Importieren zeigt die Bytes an ihren Adressen; Sichern schreibt wieder %@.",
+        "Import shows the bytes at their addresses; Save writes %@ again.":
+            "Importieren zeigt die Bytes an ihren Adressen; Sichern schreibt wieder %@.",
         "Import": "Importieren",
         "Open as Text": "Als Text öffnen",
         "%@ cannot be imported.": "%@ lässt sich nicht importieren.",
@@ -112,7 +114,8 @@ extension L10n {
         "modified": "geändert",
         "Go to Offset": "Gehe zu Offset",
         "Address in decimal or hex (0x…), from %@. + or − for relative.": "Adresse dezimal oder hex (0x…), ab %@. Mit + oder − relativ.",
-        "Decimal or hex (0x…). + or − relative to the current position.": "Dezimal oder hex (0x…). Mit + oder − relativ zur aktuellen Position.",
+        "Decimal or hex (0x…). + or − relative to the current position.":
+            "Dezimal oder hex (0x…). Mit + oder − relativ zur aktuellen Position.",
         "Add Bookmark": "Lesezeichen setzen",
         "Selection: %1$ld bytes at %2$@": "Auswahl: %1$ld Byte ab %2$@",
         "Position %@": "Position %@",
@@ -122,21 +125,27 @@ extension L10n {
         "Choose a file to compare with %@": "Datei zum Vergleich mit %@ wählen",
         "Selection too large to copy (%@).": "Auswahl zu groß zum Kopieren (%@).",
         "Selection too large to fill (%@).": "Auswahl zu groß zum Füllen (%@).",
-        "Filling keeps the new bytes in memory until saving; this would exceed the available memory.": "Füllen hält die neuen Bytes bis zum Sichern im Speicher; das würde den verfügbaren Speicher übersteigen.",
+        "Filling keeps the new bytes in memory until saving; this would exceed the available memory.":
+            "Füllen hält die neuen Bytes bis zum Sichern im Speicher; das würde den verfügbaren Speicher übersteigen.",
         "Fill %@?": "%@ füllen?",
         "The new bytes are kept in memory until the file is saved.": "Die neuen Bytes bleiben bis zum Sichern im Speicher.",
-        "At most 4 MiB. Save larger ranges with File → Export Selection.": "Höchstens 4 MiB. Größere Bereiche mit Ablage → Auswahl exportieren sichern.",
+        "At most 4 MiB. Save larger ranges with File → Export Selection.":
+            "Höchstens 4 MiB. Größere Bereiche mit Ablage → Auswahl exportieren sichern.",
         "Save %1$ld bytes at %2$@ as raw data": "%1$ld Byte ab %2$@ als Rohdaten sichern",
-        "Ending .hex or .srec: save as Intel HEX or S-Record; any other ending: save the raw bytes": "Endung .hex oder .srec: als Intel HEX oder S-Record sichern; jede andere Endung: die rohen Bytes sichern",
+        "Ending .hex or .srec: save as Intel HEX or S-Record; any other ending: save the raw bytes":
+            "Endung .hex oder .srec: als Intel HEX oder S-Record sichern; jede andere Endung: die rohen Bytes sichern",
         "%@ was changed by another program.": "%@ wurde von einem anderen Programm geändert.",
-        "Saving overwrites the other program's version with yours.": "Beim Sichern wird die Fassung des anderen Programms durch Ihre überschrieben.",
+        "Saving overwrites the other program's version with yours.":
+            "Beim Sichern wird die Fassung des anderen Programms durch Ihre überschrieben.",
         "Saving %@…": "%@ wird gesichert …",
         "%1$@ of %2$@": "%1$@ von %2$@",
-        "It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost.": "Die Datei wurde direkt verändert, daher ist der angezeigte Inhalt nicht mehr verlässlich und kann nicht gesichert werden. hexwerk lädt sie neu von der Festplatte; nicht gesicherte Änderungen gehen verloren.",
+        "It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost.":
+            "Die Datei wurde direkt verändert, daher ist der angezeigte Inhalt nicht mehr verlässlich und kann nicht gesichert werden. hexwerk lädt sie neu von der Festplatte; nicht gesicherte Änderungen gehen verloren.",
         "Reload": "Neu laden",
         "%@ was replaced by another program.": "%@ wurde von einem anderen Programm ersetzt.",
         "%@ was moved or deleted by another program.": "%@ wurde von einem anderen Programm verschoben oder gelöscht.",
-        "Your version with the unsaved changes is still intact. Keep Mine continues editing; saving then overwrites the file on disk.": "Ihre Fassung mit den nicht gesicherten Änderungen ist noch vollständig. „Meine behalten“ arbeitet damit weiter; Sichern überschreibt dann die Datei auf der Festplatte.",
+        "Your version with the unsaved changes is still intact. Keep Mine continues editing; saving then overwrites the file on disk.":
+            "Ihre Fassung mit den nicht gesicherten Änderungen ist noch vollständig. „Meine behalten“ arbeitet damit weiter; Sichern überschreibt dann die Datei auf der Festplatte.",
         "Keep Mine": "Meine behalten",
         "Save Anyway": "Trotzdem sichern",
         "Cancel": "Abbrechen",
@@ -145,7 +154,8 @@ extension L10n {
         "Save changes to %@?": "Änderungen an %@ sichern?",
         "Your changes will be lost if you don't save them.": "Ohne Sichern gehen die Änderungen verloren.",
         "Don't Save": "Nicht sichern",
-        "Save bookmarks, format, YARA rules and position as a project file": "Lesezeichen, Format, YARA-Regeln und Position als Projektdatei sichern",
+        "Save bookmarks, format, YARA rules and position as a project file":
+            "Lesezeichen, Format, YARA-Regeln und Position als Projektdatei sichern",
         "Integers": "Ganzzahlen",
         "Floating Point": "Gleitkomma",
         "Time": "Zeit",
@@ -202,8 +212,10 @@ extension L10n {
         "Octal": "Oktal",
         "Binary": "Binär",
         "Go to Result": "Gehe zu Ergebnis",
-        "Move the cursor in the front document to this offset or address": "Cursor im vorderen Dokument auf diesen Offset bzw. diese Adresse setzen",
-        "Variables: pos, sel, size, u8, u16, u32, u64 (value under the cursor), ans. Operators: + − * / % ** << >> & | ^ ~": "Variablen: pos, sel, size, u8, u16, u32, u64 (Wert unter dem Cursor), ans. Operatoren: + − * / % ** << >> & | ^ ~",
+        "Move the cursor in the front document to this offset or address":
+            "Cursor im vorderen Dokument auf diesen Offset bzw. diese Adresse setzen",
+        "Variables: pos, sel, size, u8, u16, u32, u64 (value under the cursor), ans. Operators: + − * / % ** << >> & | ^ ~":
+            "Variablen: pos, sel, size, u8, u16, u32, u64 (Wert unter dem Cursor), ans. Operatoren: + − * / % ** << >> & | ^ ~",
         "Choose Format": "Format wählen",
         "Color fields in the hex grid": "Felder im Hex-Raster einfärben",
         "Content changed": "Inhalt geändert",
@@ -229,7 +241,8 @@ extension L10n {
         "Open Own .ksy…": "Eigene .ksy öffnen …",
         "Choose a Kaitai Struct description (.ksy)": "Kaitai-Struct-Beschreibung (.ksy) wählen",
         "No format chosen": "Kein Format gewählt",
-        "Choose a format from the Kaitai collection or your own .ksy above.": "Oben ein Format aus der Kaitai-Sammlung oder eine eigene .ksy wählen.",
+        "Choose a format from the Kaitai collection or your own .ksy above.":
+            "Oben ein Format aus der Kaitai-Sammlung oder eine eigene .ksy wählen.",
         "%1$@, %2$ld bytes": "%1$@, %2$ld Byte",
         "computed": "berechnet",
         "Entire File": "Datei",
@@ -277,14 +290,16 @@ extension L10n {
         "Signature: %@": "Signatur: %@",
         "Embedded Files": "Eingebettete Dateien",
         "Search": "Suchen",
-        "Search for signatures of known formats at every offset (like binwalk)": "Signaturen bekannter Formate an jeder Stelle suchen (wie binwalk)",
+        "Search for signatures of known formats at every offset (like binwalk)":
+            "Signaturen bekannter Formate an jeder Stelle suchen (wie binwalk)",
         "Nothing found": "Nichts gefunden",
         "… %ld more": "… %ld weitere",
         "Whole File": "Ganze Datei",
         "Recompute": "Neu berechnen",
         "Entropy": "Entropie",
         "per %@": "je %@",
-        "High (> 7.5): compressed or encrypted. Low: padding, tables, text.": "Hoch (> 7,5): komprimiert oder verschlüsselt. Niedrig: Füllbytes, Tabellen, Text.",
+        "High (> 7.5): compressed or encrypted. Low: padding, tables, text.":
+            "Hoch (> 7,5): komprimiert oder verschlüsselt. Niedrig: Füllbytes, Tabellen, Text.",
         "%.4f bits/byte": "%.4f Bit/Byte",
         "Distinct": "Verschiedene",
         "%ld of 256": "%ld von 256",
@@ -304,8 +319,10 @@ extension L10n {
         "Find printable strings, like strings.": "Druckbare Zeichenketten finden, wie strings.",
         // Sandboxed helper (#102)
         "Invalid request: %@": "Ungültige Anfrage: %@",
-        "The helper process stopped unexpectedly. hexwerk keeps running; the next run starts a new helper.": "Der Hilfsprozess wurde unerwartet beendet. hexwerk läuft weiter; der nächste Lauf startet einen neuen Hilfsprozess.",
-        "The helper process did not answer in time and was stopped.": "Der Hilfsprozess hat nicht rechtzeitig geantwortet und wurde beendet.",
+        "The helper process stopped unexpectedly. hexwerk keeps running; the next run starts a new helper.":
+            "Der Hilfsprozess wurde unerwartet beendet. hexwerk läuft weiter; der nächste Lauf startet einen neuen Hilfsprozess.",
+        "The helper process did not answer in time and was stopped.":
+            "Der Hilfsprozess hat nicht rechtzeitig geantwortet und wurde beendet.",
         "Only .ksy files can be read": "Nur .ksy-Dateien können gelesen werden",
     ]
 }

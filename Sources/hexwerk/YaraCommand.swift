@@ -20,8 +20,7 @@ struct Yara: ParsableCommand {
     func run() throws {
         let files = try ruleFiles()
         let compiled: YaraRules
-        do { compiled = try YaraRules.compile(files: files) }
-        catch let e as YaraCompileError {
+        do { compiled = try YaraRules.compile(files: files) } catch let e as YaraCompileError {
             for d in e.diagnostics { FileHandle.standardError.write(Data("\(d.report.isEmpty ? d.description : d.report)\n".utf8)) }
             throw ExitCode(2)
         }
@@ -35,8 +34,7 @@ struct Yara: ParsableCommand {
         }
         let end = length.map { start + min($0.value, snap.count - start) } ?? snap.count
         let hits: [YaraRuleMatch]
-        do { hits = try compiled.scan(snap, range: start ..< end, timeout: timeout) }
-        catch let e as YaraScanError {
+        do { hits = try compiled.scan(snap, range: start ..< end, timeout: timeout) } catch let e as YaraScanError {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             if case .timeout = e { throw ExitCode(3) }
             throw ExitCode(1)
@@ -79,7 +77,7 @@ struct Yara: ParsableCommand {
     /// Printable ASCII as is, everything else as \xNN (like yr).
     private func escape(_ d: Data) -> String {
         d.map { b in
-            (0x20..<0x7F).contains(b) && b != 0x5C ? String(UnicodeScalar(b)) : String(format: "\\x%02x", b)
+            (0x20 ..< 0x7F).contains(b) && b != 0x5C ? String(UnicodeScalar(b)) : String(format: "\\x%02x", b)
         }.joined()
     }
 }

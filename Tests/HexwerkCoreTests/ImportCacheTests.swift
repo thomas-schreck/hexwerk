@@ -3,8 +3,9 @@ import Testing
 @testable import HexwerkCore
 
 @Suite struct ImportCacheTests {
-    let cache = ImportCache(root: FileManager.default.temporaryDirectory
-        .appendingPathComponent("hexwerk-import-\(UUID().uuidString)"))
+    let cache = ImportCache(
+        root: FileManager.default.temporaryDirectory
+            .appendingPathComponent("hexwerk-import-\(UUID().uuidString)"))
 
     /// Leftovers of earlier imports are removed on quit and at launch (#32).
     @Test func removeAllDeletesEveryImportFolder() throws {

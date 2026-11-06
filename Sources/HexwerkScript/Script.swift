@@ -70,9 +70,11 @@ public enum ScriptRunner {
     /// Runs `source` against `document` as one undo step; on an error all
     /// edits are rolled back. Blocks the calling thread (runs on its own
     /// large-stack thread). `isCancelled` is polled about every 0.2 s.
-    public static func run(_ source: String, name: String = "script.js", document: Document,
-                           context: ScriptContext, timeout: Double = defaultTimeout,
-                           isCancelled: @escaping @Sendable () -> Bool = { false }) -> ScriptResult {
+    public static func run(
+        _ source: String, name: String = "script.js", document: Document,
+        context: ScriptContext, timeout: Double = defaultTimeout,
+        isCancelled: @escaping @Sendable () -> Bool = { false }
+    ) -> ScriptResult {
         onLargeStack {
             let session = Session(document: document, context: context)
             do {
@@ -104,8 +106,10 @@ private final class Session {
         js = JSContext()!
     }
 
-    func evaluate(_ source: String, name: String, timeout: Double,
-                  isCancelled: @escaping @Sendable () -> Bool) throws {
+    func evaluate(
+        _ source: String, name: String, timeout: Double,
+        isCancelled: @escaping @Sendable () -> Bool
+    ) throws {
         install()
         let watchdog = Watchdog(deadline: Date().addingTimeInterval(timeout), isCancelled: isCancelled)
         watchdog.arm(js)
@@ -114,8 +118,9 @@ private final class Session {
         if let e = js.exception {
             js.exception = nil
             if watchdog.fired {
-                throw ScriptError(message: watchdog.cancelled ? L("Cancelled") : L("Time limit of %ld s exceeded", Int(timeout)),
-                                  line: nil, isTimeout: !watchdog.cancelled)
+                throw ScriptError(
+                    message: watchdog.cancelled ? L("Cancelled") : L("Time limit of %ld s exceeded", Int(timeout)),
+                    line: nil, isTimeout: !watchdog.cancelled)
             }
             let line = e.objectForKeyedSubscript("line")?.toNumber()?.intValue
             throw ScriptError(message: e.toString() ?? L("Error"), line: line == 0 ? nil : line)
@@ -136,65 +141,100 @@ private final class Session {
         js.evaluateScript("var console = { log: print, error: print, warn: print };")
 
         fn("size", { [unowned self] in Double(self.document.count) } as @convention(block) () -> Double)
-        fn("read", { [unowned self] (off: JSValue, len: JSValue) -> JSValue? in
-            guard let r = self.range(off, len) else { return nil }
-            return self.typedArray(self.document.read(r))
-        } as @convention(block) (JSValue, JSValue) -> JSValue?)
-        fn("write", { [unowned self] (off: JSValue, bytes: JSValue) in
-            self.edit { guard let o = self.offset(off), let b = self.bytes(bytes) else { return }
-                try self.document.overwrite(at: o, with: b) }
-        } as @convention(block) (JSValue, JSValue) -> Void)
-        fn("insert", { [unowned self] (off: JSValue, bytes: JSValue) in
-            self.edit { guard let o = self.offset(off), let b = self.bytes(bytes) else { return }
-                try self.document.insert(b, at: o) }
-        } as @convention(block) (JSValue, JSValue) -> Void)
-        fn("remove", { [unowned self] (off: JSValue, len: JSValue) in
-            self.edit { guard let r = self.range(off, len) else { return }
-                try self.document.delete(r) }
-        } as @convention(block) (JSValue, JSValue) -> Void)
-
-        for (name, size, signed) in [("u8", 1, false), ("u16", 2, false), ("u32", 4, false), ("u64", 8, false),
-                                     ("i8", 1, true), ("i16", 2, true), ("i32", 4, true), ("i64", 8, true)] {
-            fn(name, { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
-                guard let raw = self.integer(off, size, le) else { return nil }
-                return self.number(raw, size: size, signed: signed)
+        fn(
+            "read",
+            { [unowned self] (off: JSValue, len: JSValue) -> JSValue? in
+                guard let r = self.range(off, len) else { return nil }
+                return self.typedArray(self.document.read(r))
             } as @convention(block) (JSValue, JSValue) -> JSValue?)
+        fn(
+            "write",
+            { [unowned self] (off: JSValue, bytes: JSValue) in
+                self.edit {
+                    guard let o = self.offset(off), let b = self.bytes(bytes) else { return }
+                    try self.document.overwrite(at: o, with: b)
+                }
+            } as @convention(block) (JSValue, JSValue) -> Void)
+        fn(
+            "insert",
+            { [unowned self] (off: JSValue, bytes: JSValue) in
+                self.edit {
+                    guard let o = self.offset(off), let b = self.bytes(bytes) else { return }
+                    try self.document.insert(b, at: o)
+                }
+            } as @convention(block) (JSValue, JSValue) -> Void)
+        fn(
+            "remove",
+            { [unowned self] (off: JSValue, len: JSValue) in
+                self.edit {
+                    guard let r = self.range(off, len) else { return }
+                    try self.document.delete(r)
+                }
+            } as @convention(block) (JSValue, JSValue) -> Void)
+
+        for (name, size, signed) in [
+            ("u8", 1, false), ("u16", 2, false), ("u32", 4, false), ("u64", 8, false),
+            ("i8", 1, true), ("i16", 2, true), ("i32", 4, true), ("i64", 8, true),
+        ] {
+            fn(
+                name,
+                { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
+                    guard let raw = self.integer(off, size, le) else { return nil }
+                    return self.number(raw, size: size, signed: signed)
+                } as @convention(block) (JSValue, JSValue) -> JSValue?)
         }
-        fn("f32", { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
-            guard let raw = self.integer(off, 4, le) else { return nil }
-            return JSValue(double: Double(Float(bitPattern: UInt32(raw))), in: self.js)
-        } as @convention(block) (JSValue, JSValue) -> JSValue?)
-        fn("f64", { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
-            guard let raw = self.integer(off, 8, le) else { return nil }
-            return JSValue(double: Double(bitPattern: raw), in: self.js)
-        } as @convention(block) (JSValue, JSValue) -> JSValue?)
-        fn("str", { [unowned self] (off: JSValue, len: JSValue) -> String? in
-            guard let r = self.range(off, len) else { return nil }
-            return String(decoding: self.document.read(r), as: UTF8.self)
-        } as @convention(block) (JSValue, JSValue) -> String?)
-        fn("hex", { [unowned self] (off: JSValue, len: JSValue) -> String? in
-            guard let r = self.range(off, len) else { return nil }
-            return self.document.read(r).map { String(format: "%02X", $0) }.joined(separator: " ")
-        } as @convention(block) (JSValue, JSValue) -> String?)
-        fn("find", { [unowned self] (pattern: String, start: JSValue, end: JSValue) -> [Double]? in
-            guard let p = SearchPattern.hex(pattern) else { self.fail(L("invalid hex pattern: %@", pattern)); return nil }
-            return self.find(p, start, end)
-        } as @convention(block) (String, JSValue, JSValue) -> [Double]?)
-        fn("findText", { [unowned self] (text: String, start: JSValue, end: JSValue) -> [Double]? in
-            guard let p = SearchPattern.text(text, encoding: .utf8) else { return [] }
-            return self.find(p, start, end)
-        } as @convention(block) (String, JSValue, JSValue) -> [Double]?)
-        fn("select", { [unowned self] (start: JSValue, end: JSValue) in
-            guard let s = self.offset(start), let e = self.offset(end), s <= e else { return }
-            self.result.select = s ..< e
-        } as @convention(block) (JSValue, JSValue) -> Void)
-        fn("goto", { [unowned self] (off: JSValue) in
-            if let o = self.offset(off) { self.result.goTo = o }
-        } as @convention(block) (JSValue) -> Void)
+        fn(
+            "f32",
+            { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
+                guard let raw = self.integer(off, 4, le) else { return nil }
+                return JSValue(double: Double(Float(bitPattern: UInt32(raw))), in: self.js)
+            } as @convention(block) (JSValue, JSValue) -> JSValue?)
+        fn(
+            "f64",
+            { [unowned self] (off: JSValue, le: JSValue) -> JSValue? in
+                guard let raw = self.integer(off, 8, le) else { return nil }
+                return JSValue(double: Double(bitPattern: raw), in: self.js)
+            } as @convention(block) (JSValue, JSValue) -> JSValue?)
+        fn(
+            "str",
+            { [unowned self] (off: JSValue, len: JSValue) -> String? in
+                guard let r = self.range(off, len) else { return nil }
+                return String(decoding: self.document.read(r), as: UTF8.self)
+            } as @convention(block) (JSValue, JSValue) -> String?)
+        fn(
+            "hex",
+            { [unowned self] (off: JSValue, len: JSValue) -> String? in
+                guard let r = self.range(off, len) else { return nil }
+                return self.document.read(r).map { String(format: "%02X", $0) }.joined(separator: " ")
+            } as @convention(block) (JSValue, JSValue) -> String?)
+        fn(
+            "find",
+            { [unowned self] (pattern: String, start: JSValue, end: JSValue) -> [Double]? in
+                guard let p = SearchPattern.hex(pattern) else { self.fail(L("invalid hex pattern: %@", pattern)); return nil }
+                return self.find(p, start, end)
+            } as @convention(block) (String, JSValue, JSValue) -> [Double]?)
+        fn(
+            "findText",
+            { [unowned self] (text: String, start: JSValue, end: JSValue) -> [Double]? in
+                guard let p = SearchPattern.text(text, encoding: .utf8) else { return [] }
+                return self.find(p, start, end)
+            } as @convention(block) (String, JSValue, JSValue) -> [Double]?)
+        fn(
+            "select",
+            { [unowned self] (start: JSValue, end: JSValue) in
+                guard let s = self.offset(start), let e = self.offset(end), s <= e else { return }
+                self.result.select = s ..< e
+            } as @convention(block) (JSValue, JSValue) -> Void)
+        fn(
+            "goto",
+            { [unowned self] (off: JSValue) in
+                if let o = self.offset(off) { self.result.goTo = o }
+            } as @convention(block) (JSValue) -> Void)
 
         hw.setObject(Double(context.cursor), forKeyedSubscript: "cursor" as NSString)
-        hw.setObject(context.selection.map { ["start": Double($0.lowerBound), "end": Double($0.upperBound)] } ?? NSNull(),
-                     forKeyedSubscript: "selection" as NSString)
+        hw.setObject(
+            context.selection.map { ["start": Double($0.lowerBound), "end": Double($0.upperBound)] } ?? NSNull(),
+            forKeyedSubscript: "selection" as NSString)
         hw.setObject(context.fileName, forKeyedSubscript: "fileName" as NSString)
         js.setObject(hw, forKeyedSubscript: "hw" as NSString)
     }
@@ -227,7 +267,8 @@ private final class Session {
     private func bytes(_ v: JSValue) -> Data? {
         let ctx = js.jsGlobalContextRef
         if JSValueGetTypedArrayType(ctx, v.jsValueRef, nil) != kJSTypedArrayTypeNone,
-           let obj = JSValueToObject(ctx, v.jsValueRef, nil) {
+            let obj = JSValueToObject(ctx, v.jsValueRef, nil)
+        {
             let n = JSObjectGetTypedArrayByteLength(ctx, obj, nil)
             let off = JSObjectGetTypedArrayByteOffset(ctx, obj, nil)
             guard let p = JSObjectGetTypedArrayBytesPtr(ctx, obj, nil) else { return Data() }
@@ -237,7 +278,7 @@ private final class Session {
         if v.isArray, let a = v.toArray() {
             var out = Data(capacity: a.count)
             for x in a {
-                guard let n = x as? NSNumber, (0...255).contains(n.intValue), n.doubleValue == Double(n.intValue) else {
+                guard let n = x as? NSNumber, (0 ... 255).contains(n.intValue), n.doubleValue == Double(n.intValue) else {
                     fail(L("Byte array may only contain numbers 0–255")); return nil
                 }
                 out.append(UInt8(n.intValue))

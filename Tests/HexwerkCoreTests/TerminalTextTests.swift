@@ -32,14 +32,16 @@ import Testing
 
     @Test func cliStringsAndParseOutputIsEscaped() throws {
         let url = try tempFile(Data(Self.hostile.utf8) + Data([0]))
-        let ksy = try tempFile(Data("""
-            meta:
-              id: hostile
-            seq:
-              - id: s
-                type: strz
-                encoding: UTF-8
-            """.utf8))
+        let ksy = try tempFile(
+            Data(
+                """
+                meta:
+                  id: hostile
+                seq:
+                  - id: s
+                    type: strz
+                    encoding: UTF-8
+                """.utf8))
         defer { for u in [url, ksy] { try? FileManager.default.removeItem(at: u) } }
         let cli = CLITests()
         let (s1, strings) = try cli.run(["strings", "-e", "utf8", "-n", "3", url.path])

@@ -21,7 +21,11 @@ public enum Calculator {
     enum Tok: Equatable, CustomStringConvertible {
         case num(UInt64), ident(String), op(String)
         var description: String {
-            switch self { case .num(let n): "\(n)"; case .ident(let s): s; case .op(let s): s }
+            switch self {
+            case .num(let n): "\(n)";
+            case .ident(let s): s;
+            case .op(let s): s
+            }
         }
     }
 
@@ -37,11 +41,18 @@ public enum Calculator {
                 while j < c.count, c[j].isLetter || c[j].isNumber || c[j] == "_" { j += 1 }
                 let raw = String(c[i ..< j]).lowercased().replacingOccurrences(of: "_", with: "")
                 let v: UInt64?
-                if raw.hasPrefix("0x") { v = UInt64(raw.dropFirst(2), radix: 16) }
-                else if raw.hasPrefix("0b") { v = UInt64(raw.dropFirst(2), radix: 2) }
-                else if raw.hasPrefix("0o") { v = UInt64(raw.dropFirst(2), radix: 8) }
-                else if raw.hasSuffix("h"), let h = UInt64(raw.dropLast(), radix: 16) { v = h }   // 1Fh
-                else { v = UInt64(raw) }
+                if raw.hasPrefix("0x") {
+                    v = UInt64(raw.dropFirst(2), radix: 16)
+                } else if raw.hasPrefix("0b") {
+                    v = UInt64(raw.dropFirst(2), radix: 2)
+                } else if raw.hasPrefix("0o") {
+                    v = UInt64(raw.dropFirst(2), radix: 8)
+                } else if raw.hasSuffix("h"), let h = UInt64(raw.dropLast(), radix: 16) {
+                    v = h
+                }  // 1Fh
+                else {
+                    v = UInt64(raw)
+                }
                 guard let v else { throw CalcError(message: L("invalid number %@", raw)) }
                 out.append(.num(v))
                 i = j
@@ -167,7 +178,7 @@ public enum Calculator {
                 return String(padded[s ..< padded.index(s, offsetBy: 4, limitedBy: padded.endIndex)!])
             }.joined(separator: " ")
             let bytes = (0 ..< bits / 8).reversed().map { UInt8(m >> UInt64(8 * $0) & 0xFF) }
-            ascii = String(bytes.map { (0x20..<0x7F).contains($0) ? Character(UnicodeScalar($0)) : "·" })
+            ascii = String(bytes.map { (0x20 ..< 0x7F).contains($0) ? Character(UnicodeScalar($0)) : "·" })
             float32 = "\(Float(bitPattern: UInt32(truncatingIfNeeded: m)))"
             float64 = "\(Double(bitPattern: m))"
         }
