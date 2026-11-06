@@ -73,6 +73,88 @@ import Testing
         #expect(doc.isModified)
     }
 
+    /// #17: with many pieces (after a Replace All), each further edit must
+    /// only keep the few pieces it touched for undo, not a copy of the list.
+    @Test func undoStoresOnlyChangedPieces() throws {
+        let url = try tempFile(Data(count: 200_000))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        let hits = stride(from: UInt64(0), to: 200_000, by: 20).map { $0 ..< $0 + 2 }
+        try doc.replaceAll(hits, with: Data([0xAB]))          // ~20k pieces
+        let afterReplaceAll = doc.undoFootprint
+        for i in 0 ..< 1000 { try doc.overwrite(at: UInt64(i * 7), with: Data([UInt8(i & 0xFF)])) }
+        // Each overwrite touches at most a handful of pieces.
+        #expect(doc.undoFootprint - afterReplaceAll < 1000 * 8)
+        let edited = doc.read(0 ..< doc.count)
+        for _ in 0 ..< 1000 { doc.undo() }
+        for _ in 0 ..< 1000 { doc.redo() }
+        #expect(doc.read(0 ..< doc.count) == edited)
+        while doc.canUndo { doc.undo() }
+        #expect(doc.read(0 ..< doc.count) == Data(count: 200_000))
+        #expect(!doc.isModified)
+    }
+
+    /// Undo/redo in any order, grouped steps and replace-all must always
+    /// give back exactly the content of that point in history.
+    @Test(arguments: 1...10) func undoRedoMatchHistory(seed: Int) throws {
+        var rng = SplitMix(seed: UInt64(seed) &* 7919)
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        var history = [original], at = 0       // content after each undo step
+
+        func randomEdit(_ model: inout Data) throws {
+            let n = UInt64(model.count)
+            let a = UInt64.random(in: 0...n, using: &rng)
+            let b = min(n, a + UInt64.random(in: 0...16, using: &rng))
+            let bytes = Data((0..<Int.random(in: 1...8, using: &rng)).map { _ in UInt8.random(in: 0...255, using: &rng) })
+            try doc.replace(a..<b, with: bytes)
+            model.replaceSubrange(Int(a)..<Int(b), with: bytes)
+        }
+
+        for _ in 0..<300 {
+            var model = history[at]
+            switch Int.random(in: 0..<10, using: &rng) {
+            case 0, 1:
+                guard doc.canUndo else { continue }
+                doc.undo(); at -= 1
+            case 2:
+                guard doc.canRedo else { continue }
+                doc.redo(); at += 1
+            case 3:
+                // Grouped: several edits, one undo step.
+                try doc.grouped { for _ in 0..<3 { try randomEdit(&model) } }
+                history.removeSubrange(at + 1 ..< history.count); history.append(model); at += 1
+            case 4:
+                // Grouped that fails: everything rolled back, no undo step.
+                let steps = doc.canUndo
+                #expect(throws: DocumentError.self) {
+                    try doc.grouped {
+                        try randomEdit(&model)
+                        try doc.insert(Data([1]), at: doc.count + 1)
+                    }
+                }
+                #expect(doc.read(0..<doc.count) == history[at])
+                #expect(doc.canUndo == steps)
+                continue
+            case 5:
+                let len = UInt64(model.count)
+                guard len > 64 else { continue }
+                let starts = Set((0..<5).map { _ in UInt64.random(in: 0..<len / 8, using: &rng) * 8 })
+                let ranges = starts.sorted().map { $0 ..< $0 + 4 }
+                try doc.replaceAll(ranges, with: Data([0xEE]))
+                for r in ranges.reversed() { model.replaceSubrange(Int(r.lowerBound)..<Int(r.upperBound), with: [0xEE]) }
+                history.removeSubrange(at + 1 ..< history.count); history.append(model); at += 1
+            default:
+                try randomEdit(&model)
+                history.removeSubrange(at + 1 ..< history.count); history.append(model); at += 1
+            }
+            #expect(doc.read(0..<doc.count) == history[at])
+            #expect(doc.count == UInt64(history[at].count))
+            #expect(doc.isModified == (at != 0))
+        }
+    }
+
     @Test func readOnlyRejectsEdits() throws {
         let url = try tempFile(Data([1, 2, 3]))
         defer { try? FileManager.default.removeItem(at: url) }
