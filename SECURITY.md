@@ -32,10 +32,13 @@ tracked in public issues labeled `type: security`.
   update PRs for GitHub Actions and Swift packages go through CI.
 - **Pinned actions:** workflows reference actions by commit SHA and check out
   without persisted credentials.
-- **Statically linked code:** release builds fail if the Homebrew YARA-X
-  differs from the version in `THIRD_PARTY_NOTICES.md`
-  (`scripts/check-dependency-versions.sh`). `cargo audit` checks YARA-X's
-  Rust crates against the RustSec database weekly and before every release.
+- **Statically linked code:** CI and release builds compile YARA-X from
+  source at exactly the version in `THIRD_PARTY_NOTICES.md`
+  (`scripts/build-yara-x.sh`), independent of the Homebrew bottle on the
+  runner; `scripts/check-dependency-versions.sh` refuses a mismatch.
+- **RustSec audit:** `scripts/audit-yara-x.py` checks the crates YARA-X links
+  into hexwerk weekly and before every release. Accepted advisories are
+  listed with their reason in `security/audit-ignore.txt`.
 - **Releases:** only the maintainer can create `v*` tags (repository
   ruleset). Release artifacts carry build provenance attestations:
 

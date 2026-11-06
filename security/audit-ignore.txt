@@ -1,0 +1,5 @@
+# RustSec advisories accepted for the crates YARA-X links into hexwerk.
+# Format: <advisory id> <reason>. Review on every YARA-X update.
+RUSTSEC-2023-0071 rsa: Marvin timing attack needs RSA decryption with a private key; YARA-X only verifies PE signatures with public keys.
+RUSTSEC-2026-0387 crypto-bigint: timing variability matters for secret operands; only public-key signature verification uses it here.
+RUSTSEC-2026-0385 ctutils: non-constant-time comparisons matter for secrets; only public-key signature verification uses it here.

@@ -12,6 +12,8 @@ on:
     paths:
       - THIRD_PARTY_NOTICES.md
       - .github/workflows/audit.yml
+      - scripts/audit-yara-x.py
+      - security/audit-ignore.txt
 
 permissions:
   contents: read
@@ -35,5 +37,5 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked --quiet
 
-      - name: Audit Cargo.lock
-        run: cargo audit --file "$RUNNER_TEMP/yara-x/Cargo.lock"
+      - name: Audit the crates linked into hexwerk
+        run: scripts/audit-yara-x.py "$RUNNER_TEMP/yara-x"

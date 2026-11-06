@@ -27,11 +27,8 @@ jobs:
           xcode-select -p
           swift --version
 
-      - name: Dependencies (YARA-X, libmagic)
-        run: brew install yara-x libmagic
-
-      - name: Linked versions match the license notices
-        run: scripts/check-dependency-versions.sh
+      - name: Dependencies (YARA-X from source, libmagic)
+        uses: ./.github/actions/deps
 
       - name: Build
         run: swift build
