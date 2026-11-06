@@ -27,6 +27,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.tabbingMode = .preferred
         window.tabbingIdentifier = "hexwerk.document"
         window.toolbarStyle = .unified
+        // Tab out of the grid reaches the find bar and the sidebar controls.
+        window.autorecalculatesKeyViewLoop = true
         super.init(window: window)
         window.delegate = self
         buildContent(in: window)

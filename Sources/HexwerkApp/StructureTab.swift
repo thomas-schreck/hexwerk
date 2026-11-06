@@ -150,28 +150,36 @@ private struct NodeRow: View {
             if !structure.hasChildren(n) {
                 Color.clear.frame(width: 14)
             } else {
+                let expanded = structure.isExpanded(n.id)
                 Button { structure.toggle(n.id) } label: {
-                    Image(systemName: structure.isExpanded(n.id) ? "chevron.down" : "chevron.right")
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
                         .frame(width: 14, height: 14)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel(expanded ? L("Collapse %@", n.name) : L("Expand %@", n.name))
             }
-            if n.error != nil {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption)
-                    .help(n.error ?? "")
+            // The rest of the row selects; a separate button so the
+            // disclosure button above is not nested inside it.
+            HStack(spacing: 4) {
+                if n.error != nil {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption)
+                        .help(n.error ?? "")
+                        .accessibilityLabel(n.error ?? "")
+                }
+                Text(n.name).fontWeight(structure.hasChildren(n) ? .medium : .regular).lineLimit(1)
+                if !n.typeName.isEmpty {
+                    Text(n.typeName).foregroundStyle(.tertiary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if let v = n.value {
+                    Text(v).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.tail)
+                }
             }
-            Text(n.name).fontWeight(structure.hasChildren(n) ? .medium : .regular).lineLimit(1)
-            if !n.typeName.isEmpty {
-                Text(n.typeName).foregroundStyle(.tertiary).lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            if let v = n.value {
-                Text(v).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                    .lineLimit(1).truncationMode(.tail)
-            }
+            .rowButton(selected: isSelected, onSelect)
         }
         .font(.system(size: 12))
         .padding(.leading, CGFloat(row.depth) * 14 + 6)
@@ -179,8 +187,6 @@ private struct NodeRow: View {
         .frame(height: 22)
         .background(isSelected ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
         .padding(.horizontal, 4)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onSelect)
         .help(n.range.map { L("%1$@, %2$ld bytes", hex($0.lowerBound), $0.count) } ?? L("computed"))
     }
 }

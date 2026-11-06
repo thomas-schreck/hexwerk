@@ -120,8 +120,7 @@ struct StringsTab: View {
         .padding(.horizontal, 10).frame(height: 20)
         .background(strings.selected == s ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
         .padding(.horizontal, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .rowButton(selected: strings.selected == s) {
             strings.selected = s
             model.jump?(s.offset, s.range)
         }
