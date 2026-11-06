@@ -124,4 +124,15 @@ import Testing
         let all = try #require(Checksum.compute(Checksum.allCases, snap, range: 10 ..< 299_000))
         for a in Checksum.allCases { #expect(all[a] == Checksum.compute(a, d[10 ..< 299_000]), "\(a.rawValue)") }
     }
+
+    /// The app cancels a running checksum through the progress callback.
+    @Test func cancelStopsAfterFirstChunk() throws {
+        let url = try tempFile(Data(count: 9 << 20))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let snap = try Document(url: url).snapshot()
+        var calls = 0
+        let r = Checksum.compute([.sha256], snap) { _ in calls += 1; return false }
+        #expect(r == nil)
+        #expect(calls == 1)
+    }
 }
