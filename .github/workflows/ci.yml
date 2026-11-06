@@ -17,7 +17,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Toolchain
         run: |
@@ -27,6 +29,9 @@ jobs:
 
       - name: Dependencies (YARA-X, libmagic)
         run: brew install yara-x libmagic
+
+      - name: Linked versions match the license notices
+        run: scripts/check-dependency-versions.sh
 
       - name: Build
         run: swift build

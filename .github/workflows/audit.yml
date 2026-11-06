@@ -1,0 +1,39 @@
+name: Audit
+
+# Known vulnerabilities (RustSec) in the Rust crates that YARA-X links into
+# hexwerk. Weekly, before every release (called by release.yml) and when the
+# notices change.
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+  pull_request:
+    paths:
+      - THIRD_PARTY_NOTICES.md
+      - .github/workflows/audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: YARA-X version from the license notices
+        id: v
+        run: echo "version=$(sed -n 's/^## YARA-X \([0-9][0-9.]*\)$/\1/p' THIRD_PARTY_NOTICES.md | head -n 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch YARA-X source
+        run: git clone --quiet --depth 1 --branch "v${{ steps.v.outputs.version }}" https://github.com/VirusTotal/yara-x.git "$RUNNER_TEMP/yara-x"
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --quiet
+
+      - name: Audit Cargo.lock
+        run: cargo audit --file "$RUNNER_TEMP/yara-x/Cargo.lock"
