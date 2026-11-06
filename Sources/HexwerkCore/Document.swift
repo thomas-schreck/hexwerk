@@ -194,7 +194,9 @@ public final class Document {
         /// the original. The original is untouched until the rename.
         case atomic
         /// Write only the changed bytes into the file. Only allowed when the
-        /// length is unchanged; an interruption can leave a partly saved file.
+        /// length is unchanged and no original bytes were moved (every
+        /// unmodified byte is still at its offset in the file); an
+        /// interruption can leave a partly saved file.
         case inPlace
     }
 
@@ -213,6 +215,9 @@ public final class Document {
             try writeReplacement(at: url)
         case .inPlace:
             guard count == original.count else { throw DocumentError.lengthChanged }
+            // Only new bytes are written, so any original byte that moved
+            // (delete here, insert there) would never reach the disk.
+            guard originalBytesInPlace else { throw DocumentError.bytesMoved }
             try writeChangedBytesInPlace()
         }
         try reload(url)
@@ -261,6 +266,16 @@ public final class Document {
         guard fsync(fd) == 0 else { throw DocumentError.write(tmp.path, errno) }
         guard rename(tmp.path, target.path) == 0 else { throw DocumentError.write(target.path, errno) }
         ok = true
+    }
+
+    /// True if every piece taken from the file sits at its own file offset.
+    private var originalBytesInPlace: Bool {
+        var pos: UInt64 = 0
+        for p in pieces {
+            if p.source == .original, p.start != pos { return false }
+            pos += p.length
+        }
+        return true
     }
 
     private func writeChangedBytesInPlace() throws {
@@ -366,6 +381,7 @@ public enum DocumentError: Error, CustomStringConvertible {
     case readOnly
     case outOfRange
     case lengthChanged
+    case bytesMoved
     case changedMeanwhile
     case write(String, Int32)
 
@@ -374,6 +390,7 @@ public enum DocumentError: Error, CustomStringConvertible {
         case .readOnly: L("Document is read-only")
         case .outOfRange: L("Offset is past the end of the file")
         case .lengthChanged: L("Length changed: cannot save in place")
+        case .bytesMoved: L("Bytes were moved: cannot save in place")
         case .changedMeanwhile: L("Document was changed in the meantime")
         case .write(let p, let e): "\(p): \(String(cString: strerror(e)))"
         }
