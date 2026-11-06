@@ -31,12 +31,12 @@ struct FileType: ParsableCommand {
         print(L("Type       %@", desc ?? L("— (no libmagic database)")))
         if let mime { print("MIME       \(mime)") }
         if let s = sigs.first {
-            print(L("Signature  %@", s.name) + (s.kaitai.map { L(" → Kaitai format %@", $0) } ?? ""))
+            print(L("Signature  %@", s.title) + (s.kaitai.map { L(" → Kaitai format %@", $0) } ?? ""))
         }
         guard embedded else { return }
         print(emb.isEmpty ? L("Embedded: nothing found") : L("Embedded (%ld):", emb.count))
         for h in emb {
-            print("  0x" + String(h.offset, radix: 16, uppercase: true) + "  \(h.name)")
+            print("  0x" + String(h.offset, radix: 16, uppercase: true) + "  \(h.title)")
         }
     }
 }

@@ -14,7 +14,7 @@ import Testing
 
     /// All `L("…")` keys with file:line, unescaped like Swift does.
     static func keys() throws -> [(key: String, at: String)] {
-        let re = try NSRegularExpression(pattern: #"(?<![A-Za-z0-9_])L\(\s*"((?:[^"\\]|\\.)*)""#)
+        let re = try NSRegularExpression(pattern: #"(?<![A-Za-z0-9_])(?:L|LKey)\(\s*"((?:[^"\\]|\\.)*)""#)
         var out: [(String, String)] = []
         for f in swiftFiles() where !f.path.contains("/Localization/") {
             let text = try String(contentsOf: f, encoding: .utf8)

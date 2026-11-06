@@ -50,6 +50,13 @@ public func L(_ key: String) -> String {
     L10n.translate(key)
 }
 
+/// Marks an English literal as translatable without translating it yet:
+/// the value stays stable (e.g. for JSON output) and is translated at display
+/// time with `L10n.translate(_:)`. The tests treat it like `L("…")`.
+public func LKey(_ key: String) -> String {
+    key
+}
+
 public func L(_ key: String, _ args: any CVarArg...) -> String {
     // No locale on purpose: offsets and sizes must not get thousands
     // separators, and decimals keep the point in both languages.
