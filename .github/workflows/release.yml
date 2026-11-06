@@ -6,26 +6,37 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  # Known vulnerabilities in the Rust crates statically linked via YARA-X.
+  audit:
+    uses: ./.github/workflows/audit.yml
+
   release:
+    needs: audit
     runs-on: macos-latest
+    permissions:
+      contents: write        # create the release
+      id-token: write        # build provenance
+      attestations: write
     timeout-minutes: 60
     env:
       # Deploy key with write access to thomas-schreck/homebrew-tap; without
       # it the tap update is skipped.
       TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Toolchain
         run: |
           sw_vers
           swift --version
 
-      - name: Dependencies (YARA-X, libmagic)
-        run: brew install yara-x libmagic
+      - name: Dependencies (YARA-X from source, libmagic)
+        uses: ./.github/actions/deps
 
       - name: Test
         run: |
@@ -34,6 +45,14 @@ jobs:
 
       - name: Build artifacts
         run: make dist VERSION="${GITHUB_REF_NAME#v}" BUILD="${{ github.run_number }}"
+
+      - name: Build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/hexwerk-*.dmg
+            dist/hexwerk-*.zip
+            dist/hexwerk-cli-*.tar.gz
 
       - name: Release notes
         run: |
@@ -44,6 +63,9 @@ jobs:
           - **hexwerk-$v.dmg** / **hexwerk-$v.zip**: the app (Apple silicon, macOS $min or later)
           - **hexwerk-cli-$v-arm64.tar.gz**: the \`hexwerk\` command line tool; keep \`magic.mgc\` next to the binary
           - **SHA256SUMS**: checksums (\`shasum -a 256 -c SHA256SUMS\`)
+
+          Verify that a download was built by this repository's release workflow:
+          \`gh attestation verify hexwerk-$v.dmg -R thomas-schreck/hexwerk\`
 
           ## First start
           hexwerk is ad-hoc signed, not notarized. macOS blocks the first start of a downloaded copy:

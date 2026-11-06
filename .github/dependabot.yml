@@ -1,0 +1,13 @@
+# Weekly update PRs; each one goes through CI like any other change.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: ["type: build", "area: repo"]
+  - package-ecosystem: swift
+    directory: /
+    schedule:
+      interval: weekly
+    labels: ["type: build", "area: repo"]

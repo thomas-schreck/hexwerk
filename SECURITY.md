@@ -25,3 +25,23 @@ Only the latest release and `main` receive security fixes.
 
 Hostile-input robustness problems found before the first public release are
 tracked in public issues labeled `type: security`.
+
+## Supply chain
+
+- **Dependencies:** Dependabot alerts and security updates are on; weekly
+  update PRs for GitHub Actions and Swift packages go through CI.
+- **Pinned actions:** workflows reference actions by commit SHA and check out
+  without persisted credentials.
+- **Statically linked code:** CI and release builds compile YARA-X from
+  source at exactly the version in `THIRD_PARTY_NOTICES.md`
+  (`scripts/build-yara-x.sh`), independent of the Homebrew bottle on the
+  runner; `scripts/check-dependency-versions.sh` refuses a mismatch.
+- **RustSec audit:** `scripts/audit-yara-x.py` checks the crates YARA-X links
+  into hexwerk weekly and before every release. Accepted advisories are
+  listed with their reason in `security/audit-ignore.txt`.
+- **Releases:** only the maintainer can create `v*` tags (repository
+  ruleset). Release artifacts carry build provenance attestations:
+
+  ```sh
+  gh attestation verify hexwerk-<version>.dmg -R thomas-schreck/hexwerk
+  ```

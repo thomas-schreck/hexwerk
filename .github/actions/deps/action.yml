@@ -1,0 +1,25 @@
+name: hexwerk dependencies
+description: YARA-X built from source at the version of THIRD_PARTY_NOTICES.md (cached), libmagic from Homebrew; sets HOMEBREW_PREFIX for the build.
+runs:
+  using: composite
+  steps:
+    - name: libmagic
+      shell: bash
+      run: brew install libmagic
+    - name: YARA-X version
+      id: v
+      shell: bash
+      run: echo "version=$(sed -n 's/^## YARA-X \([0-9][0-9.]*\)$/\1/p' THIRD_PARTY_NOTICES.md | head -n 1)" >> "$GITHUB_OUTPUT"
+    - name: Cache YARA-X build
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/hexwerk-deps
+        key: yara-x-${{ steps.v.outputs.version }}-${{ runner.os }}-${{ runner.arch }}-macos26
+    - name: Build YARA-X
+      shell: bash
+      run: |
+        scripts/build-yara-x.sh "$HOME/hexwerk-deps"
+        echo "HOMEBREW_PREFIX=$HOME/hexwerk-deps" >> "$GITHUB_ENV"
+    - name: Linked versions match the license notices
+      shell: bash
+      run: HOMEBREW_PREFIX="$HOME/hexwerk-deps" scripts/check-dependency-versions.sh
