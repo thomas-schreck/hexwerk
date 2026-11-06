@@ -118,7 +118,8 @@ func doc(_ data: Data) throws -> (Document, URL) {
         _ = Search.find(.hex("00 11 22 33")!, in: d.snapshot())
         let mbps = 16 / Date().timeIntervalSince(t0)
         print("Suche: \(Int(mbps)) MB/s")
-        #expect(mbps > 100)   // debug build; release is checked by hand
+        // Debug build; release is checked by hand. Meaningless under a sanitizer.
+        if ProcessInfo.processInfo.environment["HEXWERK_SANITIZER"] == nil { #expect(mbps > 100) }
     }
 }
 

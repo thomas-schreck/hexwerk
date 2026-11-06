@@ -16,6 +16,10 @@ make app             # assemble dist/hexwerk.app
 make formats         # download the Kaitai Struct format collection
 ```
 
+Changes to input parsing should survive a longer fuzz run, e.g.
+`HEXWERK_FUZZ_SCALE=100 HEXWERK_FUZZ_SEED=random swift test --filter FuzzTests`
+(see "How hexwerk is tested" in [SECURITY.md](SECURITY.md)).
+
 See the README for details and known build limitations.
 
 ## Coverage, benchmarks, formatting

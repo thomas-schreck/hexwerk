@@ -174,6 +174,16 @@ public final class KaitaiInterpreter {
     private let limits: ParseLimits
     private let shouldContinue: () -> Bool
     private var nodes = 0
+    /// Objects whose instances `forceInstances` evaluated. Value instances
+    /// can reach an object many times (`_root`, `_parent`, two instances
+    /// with the same object); forcing each once keeps it linear.
+    private var forced = Set<ObjectIdentifier>()
+    /// Objects being turned into display nodes, root first: a value
+    /// instance like `_root` or `_parent` refers back to one of them.
+    private var displayPath = Set<ObjectIdentifier>()
+    /// Display nodes built; shared objects are shown once per reference,
+    /// which can multiply, so this has the same limit as parsing.
+    private var displayNodes = 0
     private var nextStreamID = 1
     private var deadline = Date()
     private var allObjects: [KObj] = []      // keeps weakly linked objects alive
@@ -651,7 +661,7 @@ public final class KaitaiInterpreter {
     }
 
     private func forceInstances(_ obj: KObj, depth: Int) {
-        guard depth < limits.maxDepth else { return }
+        guard depth < limits.maxDepth, forced.insert(ObjectIdentifier(obj)).inserted else { return }
         for spec in obj.type.instances { _ = try? instance(spec.id, of: obj) }
         let values = obj.type.seq.compactMap { obj.fields[$0.id] } + obj.type.instances.compactMap { obj.instanceValues[$0.id] }
         for v in values { forceChildren(v, depth: depth) }
@@ -1002,6 +1012,18 @@ public final class KaitaiInterpreter {
         let range: Range<UInt64>? = info.flatMap { i in i.stream.fileBase.map { ($0 + i.start) ..< ($0 + i.end) } }
         switch value {
         case .obj(let o):
+            let objRange = o.io.fileBase.map { ($0 + o.start) ..< ($0 + o.end) }
+            displayNodes += 1
+            guard displayNodes <= limits.maxNodes else {
+                return ParseNode(id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
+                                 children: [], error: L("More than %@ nodes, aborted", "\(limits.maxNodes)"), number: nil)
+            }
+            // Expanding it again would recurse until the stack overflows.
+            guard displayPath.insert(ObjectIdentifier(o)).inserted else {
+                return ParseNode(id: myID, name: name, typeName: o.type.name, value: L("(enclosing object)"),
+                                 range: range ?? objRange, children: [], error: nil, number: nil)
+            }
+            defer { displayPath.remove(ObjectIdentifier(o)) }
             var children: [ParseNode] = []
             for p in o.type.params { if let v = o.params[p] { children.append(node(name: p, value: v, info: nil, typeName: "param", id: &id)) } }
             for a in o.type.seq {
@@ -1017,7 +1039,6 @@ public final class KaitaiInterpreter {
                     children.append(ParseNode(id: id, name: a.id, typeName: "", value: nil, range: nil, children: [], error: e.description, number: nil))
                 }
             }
-            let objRange = o.io.fileBase.map { ($0 + o.start) ..< ($0 + o.end) }
             return ParseNode(id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
                              children: children, error: o.failed?.message, number: nil)
         case .array(let items):

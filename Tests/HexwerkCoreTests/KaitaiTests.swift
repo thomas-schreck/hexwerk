@@ -448,6 +448,68 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.lazyElementCount == 0)
     }
 
+    /// A value instance returning an enclosing object (`_root`, `_parent`)
+    /// made the display tree recurse until the stack overflowed (found by
+    /// FuzzTests.randomYAML).
+    @Test func valueInstanceReferringToEnclosingObject() throws {
+        let r = try parse(Data([1, 2]), yaml: """
+            meta: {id: t}
+            seq:
+              - {id: a, type: u1}
+              - {id: s, type: sub}
+            instances:
+              me: {value: _root}
+            types:
+              sub:
+                seq:
+                  - {id: b, type: u1}
+                instances:
+                  up: {value: _parent}
+                  top: {value: _root}
+            """)
+        #expect(r.error == nil)
+        #expect(r.root.at("me")?.value == L("(enclosing object)"))
+        #expect(r.root.at("s.up")?.value == L("(enclosing object)"))
+        #expect(r.root.at("s.top")?.value == L("(enclosing object)"))
+        #expect(r.root.at("s.b")?.number == 2)
+    }
+
+    /// Two instances returning the same child object, nested: evaluating
+    /// and displaying every reference grew as 3^depth (found by
+    /// FuzzTests.randomYAML as a hang).
+    @Test func sharedObjectsDoNotMultiply() throws {
+        let ksy = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString).ksy")
+        try """
+            meta: {id: t}
+            seq:
+              - {id: n, type: u1}
+              - {id: c, type: t, if: n != 0}
+            instances:
+              a: {value: c}
+              b: {value: c}
+            """.write(to: ksy, atomically: true, encoding: .utf8)
+        let url = try tempFile(Data(repeating: 1, count: 40) + [0])
+        defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: ksy) }
+        var limits = ParseLimits()
+        limits.maxNodes = 10_000
+        let start = Date()
+        let r = KaitaiInterpreter.parse(try Document(url: url, readOnly: true).snapshot(),
+                                        file: try KsyLoader().load(ksy), limits: limits)
+        #expect(Date().timeIntervalSince(start) < 30)   // hang guard only
+        func errors(_ n: ParseNode) -> [String] { [n.error].compactMap { $0 } + n.children.flatMap(errors) }
+        #expect(errors(r.root).contains(L("More than %@ nodes, aborted", "10000")))   // display stopped there
+    }
+
+    /// Yams force-unwraps mapping keys as strings: a sequence or mapping
+    /// as key trapped while loading (found by FuzzTests.ksyLoading).
+    @Test func nonScalarYAMLKeysAreRejected() throws {
+        for yaml in ["meta: {id: t, [a]: b}\n",
+                     "meta: {id: t}\n? [a, b]\n: c\n",
+                     "meta: {id: t}\nseq:\n  - {id: a, type: u1, {x: 1}: 2}\n"] {
+            #expect(throws: KaitaiError.self) { try parse(Data([1]), yaml: yaml) }
+        }
+    }
+
     /// Nested aliases used to expand to gigabytes in Yams.load (#11).
     @Test func yamlAliasBombIsRejected() throws {
         var yaml = "meta: {id: t}\nx0: &a0 [lol, lol, lol, lol, lol, lol, lol, lol, lol, lol]\n"
@@ -544,8 +606,12 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         let late = KaitaiInterpreter.parse(snap, file: schema, limits: limits)
         #expect(late.error?.message == L("Time limit of %ld s exceeded", 0))
 
+        // Generous parse limit: sanitizer builds are many times slower; the
+        // hang guard below stays.
+        var generous = ParseLimits()
+        generous.maxSeconds = 600
         let start = Date()
-        let r = KaitaiInterpreter.parse(snap, file: schema)
+        let r = KaitaiInterpreter.parse(snap, file: schema, limits: generous)
         #expect(r.error == nil && r.root.at("s")?.range == 0 ..< UInt64(50 << 20) + 1)
         #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
     }

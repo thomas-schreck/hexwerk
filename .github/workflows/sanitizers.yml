@@ -1,0 +1,42 @@
+name: Sanitizers
+
+on:
+  pull_request:
+  schedule:
+    - cron: "41 2 * * 2"      # weekly, Tuesday 02:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanitizers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  address-sanitizer:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dependencies (YARA-X from source, libmagic)
+        uses: ./.github/actions/deps
+
+      - name: Build
+        run: swift build
+
+      # hostileExpressionsAreRejectedQuickly checks that the deepest allowed
+      # expression parses on a 512 KiB Swift task stack. ASan's redzones make
+      # every frame several times larger, so under ASan that stack overflows
+      # at about 27 of the 32 allowed nesting levels. Not a memory error in
+      # hexwerk; the test runs in the normal CI job.
+      - name: Test under Address Sanitizer
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1
+          HEXWERK_SANITIZER: address   # tests skip their speed assertions
+        # Serial: in parallel, the CPU-heavy fuzz targets starve the in-process
+        # helper tests under ASan until they hit the helper watchdog.
+        run: swift test --sanitize=address --no-parallel --skip hostileExpressionsAreRejectedQuickly
