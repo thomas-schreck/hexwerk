@@ -18,15 +18,32 @@ final class ImageModel: ObservableObject {
     /// First byte shown. With `follow` it only moves when the cursor leaves
     /// the shown range, so clicking a pixel does not shift the picture.
     var start: UInt64 = 0
-    @Published var hover: UInt64?
+    /// Separate object, so hovering redraws only the offset label and not
+    /// the whole tab (which would render the picture again).
+    let hover = ImageHover()
 
     /// Enough rows to fill the panel, capped so a render stays cheap.
     static let maxBytes = 4 << 20
     static let rows = 512
 
-    func image(_ doc: HexwerkCore.Document, cursor: UInt64) -> (NSImage, Int, Int)? {
+    /// What the last picture was made from; the tab body runs on every
+    /// cursor move and model change, rendering only when this changes.
+    private struct Key: Equatable {
+        let start: UInt64, format: PixelFormat, width: Int, revision: Int
+    }
+    private var cached: (key: Key, image: (NSImage, Int, Int)?)?
+
+    func image(_ doc: HexwerkCore.Document, cursor: UInt64, revision: Int) -> (NSImage, Int, Int)? {
         let n = min(Self.maxBytes, format.bytes(forPixels: width * Self.rows))
         if follow, cursor < start || cursor >= start + UInt64(n) { start = cursor }
+        let key = Key(start: start, format: format, width: width, revision: revision)
+        if let cached, cached.key == key { return cached.image }
+        let image = render(doc, bytes: n)
+        cached = (key, image)
+        return image
+    }
+
+    private func render(_ doc: HexwerkCore.Document, bytes n: Int) -> (NSImage, Int, Int)? {
         let origin = start
         let data = doc.read(origin ..< origin + UInt64(n))
         guard !data.isEmpty else { return nil }
@@ -43,6 +60,19 @@ final class ImageModel: ObservableObject {
     /// File offset of the pixel at (x, y) in image coordinates.
     func offset(x: Int, y: Int) -> UInt64 {
         start + UInt64(format.byteOffset(ofPixel: y * width + x))
+    }
+}
+
+/// File offset under the mouse in the image tab.
+@MainActor
+final class ImageHover: ObservableObject {
+    @Published var offset: UInt64?
+}
+
+private struct HoverOffsetLabel: View {
+    @ObservedObject var hover: ImageHover
+    var body: some View {
+        if let h = hover.offset { Text(hex(h)).monospaced().foregroundStyle(.secondary) }
     }
 }
 
@@ -77,14 +107,14 @@ struct ImageTab: View {
                 HStack {
                     Toggle(L("Follows the Cursor"), isOn: $image.follow).toggleStyle(.checkbox)
                     Spacer()
-                    if let h = image.hover { Text(hex(h)).monospaced().foregroundStyle(.secondary) }
+                    HoverOffsetLabel(hover: image.hover)
                 }
                 .font(.caption)
             }
             .padding(10)
             Divider()
-            // Re-render on cursor moves and edits.
-            if let (img, w, h) = image.image(model.doc, cursor: model.cursor) {
+            // Cached: renders again only for a new start, format, width or edit.
+            if let (img, w, h) = image.image(model.doc, cursor: model.cursor, revision: model.revision) {
                 ScrollView([.vertical, .horizontal]) {
                     Image(nsImage: img)
                         .interpolation(.none)
@@ -92,8 +122,8 @@ struct ImageTab: View {
                         .frame(width: CGFloat(w * image.zoom), height: CGFloat(h * image.zoom))
                         .onContinuousHover { phase in
                             if case .active(let p) = phase {
-                                image.hover = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
-                            } else { image.hover = nil }
+                                image.hover.offset = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
+                            } else { image.hover.offset = nil }
                         }
                         .onTapGesture { p in
                             let off = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
