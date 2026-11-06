@@ -548,3 +548,43 @@ struct PromptSheet: View {
         .frame(width: 380)
     }
 }
+
+/// Progress of a background save (#79).
+@MainActor final class SaveProgress: ObservableObject {
+    let total: UInt64
+    let cancellable: Bool
+    @Published var done: UInt64 = 0
+    @Published var cancelled = false
+    init(total: UInt64, cancellable: Bool) {
+        self.total = total
+        self.cancellable = cancellable
+    }
+}
+
+struct SaveProgressSheet: View {
+    let name: String
+    @ObservedObject var progress: SaveProgress
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Saving %@…", name)).font(.headline)
+            ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+            Text(L("%1$@ of %2$@",
+                   ByteCountFormatter.string(fromByteCount: Int64(progress.done), countStyle: .binary),
+                   ByteCountFormatter.string(fromByteCount: Int64(progress.total), countStyle: .binary)))
+                .foregroundStyle(.secondary).font(.callout).monospacedDigit()
+            HStack {
+                Spacer()
+                Button(L("Cancel")) {
+                    progress.cancelled = true
+                    cancel()
+                }
+                .keyboardShortcut(.cancelAction)
+                .disabled(!progress.cancellable || progress.cancelled)
+            }
+        }
+        .padding(20)
+        .frame(width: 380)
+    }
+}

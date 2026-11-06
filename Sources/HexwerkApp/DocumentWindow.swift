@@ -475,22 +475,24 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Saving
 
-    @objc func saveDocument(_ sender: Any?) { _ = save() }
+    @objc func saveDocument(_ sender: Any?) { save { _ in } }
 
-    /// Returns false if saving failed or was cancelled.
-    private func save() -> Bool {
+    /// Saves; `done` gets false if saving failed or was cancelled. A large
+    /// save runs in the background, so `done` may come later.
+    private func save(done: @escaping (Bool) -> Void) {
+        guard !isSaving else { return done(false) }
         switch file.diskChange() {
         case .none: break
         case .modified:
             // Never save from a mapping whose file changed underneath.
             checkDisk()
-            return false
+            return done(false)
         case .replaced:
-            guard confirmOverwrite(file.url) else { return false }
+            guard confirmOverwrite(file.url) else { return done(false) }
             file.keepAfterReplace()
         }
         if let i = model.importInfo, let stamp = importStamp, (try? DiskStamp(i.source)) != stamp {
-            guard confirmOverwrite(i.source) else { return false }
+            guard confirmOverwrite(i.source) else { return done(false) }
         }
         do {
             // Write-back first: saving the cache image clears isModified, so a
@@ -499,14 +501,70 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
                 try writeBack(i)
                 importStamp = try? DiskStamp(i.source)
             }
-            try file.save(mode: .automatic)
-            hexView.reload()
-            watchFile()
-            return true
+            guard let job = try file.prepareSave(mode: .automatic) else { return done(true) }
+            write(job, done: done)
         } catch {
             showError(error)
-            return false
+            done(false)
         }
+    }
+
+    // MARK: Background save (#79)
+
+    /// Smaller saves are written right away, without a progress sheet.
+    private static let backgroundSaveMinimum: UInt64 = 32 << 20
+    private var saveTask: Task<Void, Never>?
+    /// Told when the running save ended (true: saved).
+    private var afterSave: [(Bool) -> Void] = []
+    var isSaving: Bool { saveTask != nil }
+
+    /// Writes a prepared save. A large one runs off the main thread behind
+    /// a progress sheet with Cancel; the sheet also keeps the window from
+    /// taking edits, and the document refuses them until the save ends.
+    private func write(_ job: SaveJob, done: @escaping (Bool) -> Void) {
+        guard job.byteCount >= Self.backgroundSaveMinimum, let window else {
+            let result = Result { try job.write() }
+            return saveEnded(job, result, done: done)
+        }
+        let progress = SaveProgress(total: job.byteCount, cancellable: job.isCancellable)
+        let sheet = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        sheet.contentViewController = NSHostingController(rootView: SaveProgressSheet(
+            name: job.target.lastPathComponent, progress: progress) { [weak self] in self?.saveTask?.cancel() })
+        window.beginSheet(sheet)
+        afterSave.append(done)
+        saveTask = Task.detached(priority: .userInitiated) { [weak self] in
+            var throttle = ProgressThrottle()
+            let result = Result {
+                try job.write(progress: { n in
+                    guard throttle.shouldReport() else { return }
+                    Task { @MainActor in progress.done = n }
+                }, isCancelled: { Task.isCancelled })
+            }
+            await MainActor.run {
+                window.endSheet(sheet)
+                guard let self else { return }
+                self.saveTask = nil
+                let waiting = self.afterSave
+                self.afterSave = []
+                self.saveEnded(job, result) { ok in waiting.forEach { $0(ok) } }
+            }
+        }
+    }
+
+    private func saveEnded(_ job: SaveJob, _ result: Result<Void, Error>, done: (Bool) -> Void) {
+        do {
+            try result.get()
+            try file.finishSave(job)
+        } catch {
+            file.abandonSave()
+            if !(error is CancellationError) { showError(error) }
+            refresh()
+            return done(false)
+        }
+        hexView.reload()
+        refresh()
+        watchFile()
+        done(true)
     }
 
     private func confirmOverwrite(_ url: URL) -> Bool {
@@ -547,7 +605,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// `Document.DiskChange.modified`). A replaced file leaves the mapping
     /// intact, so the user may keep their version.
     func checkDisk() {
-        guard !askingAboutDisk else { return }
+        // A running save changes the file itself; watchFile() re-arms after.
+        guard !askingAboutDisk, !isSaving else { return }
         let change = file.diskChange()
         if change == .none { return }
         let name = file.url.lastPathComponent
@@ -641,10 +700,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             do {
-                if let i = model.importInfo { try saveImport(i, as: url) } else { try file.save(as: url) }
-                hexView.reload()
-                refresh()
-                watchFile()
+                if let i = model.importInfo {
+                    try saveImport(i, as: url)
+                    hexView.reload()
+                    refresh()
+                    watchFile()
+                } else {
+                    write(try file.prepareSave(as: url)) { _ in }
+                }
             } catch {
                 showError(error)
             }
@@ -675,7 +738,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
-        case #selector(saveDocument(_:)): return !file.isReadOnly && file.isModified
+        case #selector(saveDocument(_:)): return !file.isReadOnly && file.isModified && !isSaving
         case #selector(toggleInsertMode(_:)):
             item.state = model.insertMode ? .on : .off
             return !file.isReadOnly
@@ -701,9 +764,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Closing
 
-    /// Asks about unsaved changes. Returns true if the window may close.
-    func confirmClose() -> Bool {
-        guard file.isModified else { return true }
+    enum CloseDecision { case now, cancel, afterSave }
+
+    /// Asks about unsaved changes. `.afterSave`: a save runs in the
+    /// background; `whenSaved` is told once it ended (true: saved, close).
+    func confirmClose(whenSaved: @escaping (Bool) -> Void) -> CloseDecision {
+        if isSaving {
+            afterSave.append(whenSaved)
+            return .afterSave
+        }
+        guard file.isModified else { return .now }
         let a = NSAlert()
         a.messageText = L("Save changes to %@?", file.url.lastPathComponent)
         a.informativeText = L("Your changes will be lost if you don't save them.")
@@ -711,13 +781,23 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         a.addButton(withTitle: L("Cancel"))
         a.addButton(withTitle: L("Don't Save"))
         switch a.runModal() {
-        case .alertFirstButtonReturn: return save()
-        case .alertThirdButtonReturn: return true
-        default: return false
+        case .alertFirstButtonReturn:
+            var now: Bool?
+            var returned = false
+            save { ok in
+                if returned { whenSaved(ok) } else { now = ok }
+            }
+            returned = true
+            if let now { return now ? .now : .cancel }
+            return .afterSave
+        case .alertThirdButtonReturn: return .now
+        default: return .cancel
         }
     }
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool { confirmClose() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        confirmClose { [weak sender] ok in if ok { sender?.close() } } == .now
+    }
 
     // MARK: Project state
 

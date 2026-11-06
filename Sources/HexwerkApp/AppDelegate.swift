@@ -26,11 +26,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Background saves a quit waits for (#79); nil when no quit waits.
+    private var quitWaitsForSaves: Int?
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        for c in controllers where !c.confirmClose() { return .terminateCancel }
+        var waiting = 0
+        quitWaitsForSaves = nil
+        for c in controllers {
+            switch c.confirmClose(whenSaved: { [weak self] ok in self?.saveEndedDuringQuit(ok) }) {
+            case .now: break
+            case .cancel: return .terminateCancel
+            case .afterSave: waiting += 1
+            }
+        }
+        guard waiting == 0 else {
+            quitWaitsForSaves = waiting
+            return .terminateLater
+        }
+        prepareQuit()
+        return .terminateNow
+    }
+
+    private func saveEndedDuringQuit(_ ok: Bool) {
+        guard let n = quitWaitsForSaves else { return }
+        guard ok else {
+            quitWaitsForSaves = nil
+            NSApp.reply(toApplicationShouldTerminate: false)
+            return
+        }
+        quitWaitsForSaves = n - 1
+        guard n == 1 else { return }
+        quitWaitsForSaves = nil
+        prepareQuit()
+        NSApp.reply(toApplicationShouldTerminate: true)
+    }
+
+    private func prepareQuit() {
         for c in controllers { c.saveProject() }
         Settings.shared.flush()
-        return .terminateNow
     }
 
     /// Windows do not close on quit, so their onClose cleanup does not run.
