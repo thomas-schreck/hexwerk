@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import HexwerkCore
 
 // MARK: - Public result
@@ -206,6 +207,30 @@ public final class KaitaiInterpreter {
         thread.start()
         done.wait()
         return box.result!
+    }
+
+    /// Async variant for Swift concurrency callers: suspends instead of
+    /// blocking a pool thread, and cancelling the calling task stops the
+    /// parse (it ends with a "Cancelled" error). A `shouldContinue` closure
+    /// cannot do that: it runs on the parser's own thread, outside any task,
+    /// where `Task.isCancelled` is always false.
+    public static func parse(_ snapshot: Snapshot, file: KsyFile,
+                             limits: ParseLimits = ParseLimits()) async -> ParseResult {
+        final class Job: @unchecked Sendable {      // file is only used on the parser thread
+            let snapshot: Snapshot
+            let file: KsyFile
+            let cancelled = Atomic(false)
+            init(_ snapshot: Snapshot, _ file: KsyFile) { self.snapshot = snapshot; self.file = file }
+        }
+        let job = Job(snapshot, file)
+        return await withTaskCancellationHandler {
+            await onLargeStackAsync {
+                run(job.snapshot, file: job.file, limits: limits,
+                    shouldContinue: { !job.cancelled.load(ordering: .relaxed) })
+            }
+        } onCancel: {
+            job.cancelled.store(true, ordering: .relaxed)
+        }
     }
 
     private static func run(_ snapshot: Snapshot, file: KsyFile, limits: ParseLimits,

@@ -551,6 +551,37 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(Date().timeIntervalSince(start) < 60)   // hang guard only; CI under load is slow
     }
 
+    /// Cancelling the calling task stops the parse (#28). The app used to
+    /// pass `{ !Task.isCancelled }`, which the parser thread evaluates
+    /// outside any task, so it never became true.
+    @Test func asyncParseStopsWhenTaskIsCancelled() async throws {
+        let ksy = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString).ksy")
+        try """
+            meta: {id: t}
+            seq:
+              - {id: items, type: item, repeat: eos}
+            types:
+              item:
+                seq:
+                  - {id: b, type: u1}
+            """.write(to: ksy, atomically: true, encoding: .utf8)
+        let url = try tempFile(Data(count: 64 << 20))
+        defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: ksy) }
+        let schema = try KsyLoader().load(ksy)
+        let snap = try Document(url: url, readOnly: true).snapshot()
+        var limits = ParseLimits()
+        limits.maxNodes = .max
+        limits.maxSeconds = 120
+        nonisolated(unsafe) let file = schema
+        let task = Task.detached { await KaitaiInterpreter.parse(snap, file: file, limits: limits) }
+        try await Task.sleep(for: .milliseconds(300))
+        let start = Date()
+        task.cancel()
+        let r = await task.value
+        #expect(r.error?.message == L("Cancelled"))
+        #expect(Date().timeIntervalSince(start) < 10)
+    }
+
     @Test func nodeLimit() throws {
         let schema = """
             meta: {id: t}

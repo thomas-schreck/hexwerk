@@ -31,3 +31,15 @@ private final class StackJob {
     var run: (() -> Void)?
     init(_ run: @escaping () -> Void) { self.run = run }
 }
+
+/// Async variant of `onLargeStack`: the caller suspends instead of blocking
+/// while `body` runs on its own thread. Blocking waits (join, semaphore) on
+/// Swift concurrency threads starve the small cooperative pool.
+public func onLargeStackAsync<R: Sendable>(_ stackSize: Int = 64 << 20,
+                                           _ body: @escaping @Sendable () -> R) async -> R {
+    await withCheckedContinuation { continuation in
+        let thread = Thread { continuation.resume(returning: body()) }
+        thread.stackSize = stackSize
+        thread.start()
+    }
+}
