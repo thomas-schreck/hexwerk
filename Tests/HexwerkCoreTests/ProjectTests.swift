@@ -66,3 +66,53 @@ import Testing
         #expect(ProjectStore.load(URL(fileURLWithPath: "/nonexistent/x.json")) == nil)
     }
 }
+
+/// #30: bookmarks follow their data across inserts and deletes.
+@Suite struct BookmarkShiftTests {
+    let mark: Range<UInt64> = 0x100 ..< 0x110
+
+    @Test func insertBeforeMovesIt() {
+        #expect(mark.adjustedForEdit(replacing: 0 ..< 0, newLength: 4) == 0x104 ..< 0x114)
+        // Insert exactly at the start pushes it back too.
+        #expect(mark.adjustedForEdit(replacing: 0x100 ..< 0x100, newLength: 2) == 0x102 ..< 0x112)
+    }
+
+    @Test func editsAfterOrOverwritesLeaveIt() {
+        #expect(mark.adjustedForEdit(replacing: 0x110 ..< 0x110, newLength: 8) == mark)   // insert at end
+        #expect(mark.adjustedForEdit(replacing: 0x200 ..< 0x300, newLength: 0) == mark)
+        #expect(mark.adjustedForEdit(replacing: 0x0F0 ..< 0x120, newLength: 0x30) == mark) // same-length overwrite
+    }
+
+    @Test func deleteBeforeAndInside() {
+        #expect(mark.adjustedForEdit(replacing: 0 ..< 0x10, newLength: 0) == 0xF0 ..< 0x100)
+        #expect(mark.adjustedForEdit(replacing: 0x104 ..< 0x108, newLength: 0) == 0x100 ..< 0x10C)
+        #expect(mark.adjustedForEdit(replacing: 0x0F8 ..< 0x104, newLength: 0) == 0x0F8 ..< 0x104)  // head cut off
+        #expect(mark.adjustedForEdit(replacing: 0x108 ..< 0x200, newLength: 0) == 0x100 ..< 0x108)  // truncated
+        #expect(mark.adjustedForEdit(replacing: 0x0 ..< 0x200, newLength: 0) == nil)               // all gone
+    }
+
+    @Test func insertInsideGrowsIt() {
+        #expect(mark.adjustedForEdit(replacing: 0x108 ..< 0x108, newLength: 4) == 0x100 ..< 0x114)
+    }
+
+    @Test func clampAfterTruncation() {
+        #expect(mark.clampedToDocument(count: 0x108) == 0x100 ..< 0x108)
+        #expect(mark.clampedToDocument(count: 0x100) == nil)
+        #expect(mark.clampedToDocument(count: 0x1000) == mark)
+    }
+
+    /// The document reports each applied edit, so a mark follows it.
+    @Test func documentReportsEdits() throws {
+        let url = try tempFile(Data(count: 0x200))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        var b: Range<UInt64>? = mark
+        doc.didReplace = { r, n in b = b?.adjustedForEdit(replacing: r, newLength: n) }
+        try doc.insert(Data([1, 2, 3, 4]), at: 0)
+        #expect(b == 0x104 ..< 0x114)
+        try doc.replaceAll([0 ..< 2, 0x50 ..< 0x52], with: Data())
+        #expect(b == 0x100 ..< 0x110)
+        try doc.delete(0x108 ..< doc.count)
+        #expect(b == 0x100 ..< 0x108)
+    }
+}

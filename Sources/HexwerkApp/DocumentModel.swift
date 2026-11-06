@@ -133,6 +133,10 @@ final class DocumentModel: ObservableObject {
     init(doc: Document) {
         self.doc = doc
         refreshInspector()
+        // Edits arrive synchronously from main-thread code (hex view, inspector, replace).
+        doc.didReplace = { [weak self] range, n in
+            MainActor.assumeIsolated { self?.shiftBookmarks(replacing: range, newLength: n) }
+        }
     }
 
     /// Raw values are stored in settings.json ("sidebarTab").
@@ -215,6 +219,8 @@ final class DocumentModel: ObservableObject {
             cancelSearch()
             findMessage = L("Content changed – search again")
         }
+        // Undo/redo can shorten the file without telling us the range.
+        clampBookmarks()
         if !hits.isEmpty || currentHit != nil {
             hits = []
             currentHit = nil
@@ -458,6 +464,29 @@ final class DocumentModel: ObservableObject {
         bookmarks.append(Bookmark(name: name.isEmpty ? L("Bookmark %ld", bookmarks.count + 1) : name, range: range, color: color))
         bookmarks.sort { $0.range.lowerBound < $1.range.lowerBound }
         sidebarTab = .bookmarks
+    }
+
+    /// Keeps bookmarks on their data when bytes are inserted or deleted.
+    private func shiftBookmarks(replacing range: Range<UInt64>, newLength: UInt64) {
+        guard UInt64(range.count) != newLength else { return }      // overwrite: nothing moves
+        let moved = bookmarks.compactMap { b -> Bookmark? in
+            guard let r = b.range.adjustedForEdit(replacing: range, newLength: newLength) else { return nil }
+            var b = b
+            b.range = r
+            return b
+        }
+        if moved != bookmarks { bookmarks = moved }
+    }
+
+    private func clampBookmarks() {
+        let n = doc.count
+        guard bookmarks.contains(where: { $0.range.upperBound > n }) else { return }
+        bookmarks = bookmarks.compactMap { b in
+            guard let r = b.range.clampedToDocument(count: n) else { return nil }
+            var b = b
+            b.range = r
+            return b
+        }
     }
 
     // MARK: Highlights for drawing

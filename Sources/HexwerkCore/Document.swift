@@ -49,6 +49,10 @@ public final class Document {
         var after: Int
     }
     private var diskStamp: DiskStamp
+    /// Told about every replaced range and its new length (after clipping),
+    /// in the order applied, so marks such as bookmarks can follow the data.
+    /// Not called for undo/redo, which swap whole piece lists.
+    public var didReplace: ((_ range: Range<UInt64>, _ newLength: UInt64) -> Void)?
 
     public init(url: URL, readOnly: Bool = false) throws {
         self.url = url
@@ -221,7 +225,9 @@ public final class Document {
             let skip = p.length - (pos - r.upperBound)
             middle.append(Piece(source: p.source, start: p.start + skip, length: p.length - skip))
         }
-        return replacePieces(lo, hi - lo, with: middle)
+        let change = replacePieces(lo, hi - lo, with: middle)
+        didReplace?(r, UInt64(bytes.count))
+        return change
     }
 
     private func replacePieces(_ index: Int, _ n: Int, with new: [Piece]) -> Change {
