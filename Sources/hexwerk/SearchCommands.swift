@@ -62,7 +62,7 @@ struct Find: ParsableCommand {
 struct Diff: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Compare two files; detects inserted and deleted bytes."),
-        discussion: L("Output per difference: offset in A, offset in B, kind. Exit 1 if the files differ.")
+        discussion: L("Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.")
     )
 
     @Argument(help: .init(L("First file (A)"))) var a: String
@@ -71,7 +71,8 @@ struct Diff: ParsableCommand {
     @Flag(help: .init(L("Output as JSON"))) var json = false
 
     func run() throws {
-        let sa = try openSnapshot(a), sb = try openSnapshot(b)
+        // Like cmp/diff: 1 only means "files differ", trouble is 2.
+        let sa = try openSnapshot(a, failure: 2), sb = try openSnapshot(b, failure: 2)
         let ops = positional ? AlignedDiff.positional(sa, sb) : AlignedDiff.diff(sa, sb)
         if json {
             try printJSON(ops.map {
@@ -88,7 +89,6 @@ struct Diff: ParsableCommand {
                 print(String(format: "A 0x%08llx  B 0x%08llx  ", o.a.lowerBound, o.b.lowerBound) + what)
             }
         }
-        // Like cmp/diff: 1 means "files differ", not an error.
         if !ops.isEmpty { throw ExitCode(1) }
     }
 }

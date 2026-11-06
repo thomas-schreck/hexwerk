@@ -90,7 +90,7 @@ extension L10n {
 
         // diff
         "Compare two files; detects inserted and deleted bytes.": "Zwei Dateien vergleichen; erkennt eingefügte und gelöschte Bytes.",
-        "Output per difference: offset in A, offset in B, kind. Exit 1 if the files differ.": "Ausgabe je Unterschied: Offset in A, Offset in B, Art. Exit 1 bei Unterschieden.",
+        "Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.": "Ausgabe je Unterschied: Offset in A, Offset in B, Art. Exit 0 bei gleichen Dateien, 1 bei Unterschieden, 2 bei Fehlern.",
         "First file (A)": "Erste Datei (A)",
         "Second file (B)": "Zweite Datei (B)",
         "Compare at the same offsets only (no realignment)": "Nur an gleichen Offsets vergleichen (ohne Neuausrichtung)",

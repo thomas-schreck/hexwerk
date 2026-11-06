@@ -33,11 +33,12 @@ func openSource(_ path: String) throws -> ByteSource {
     }
 }
 
-func openSnapshot(_ path: String) throws -> Snapshot {
+/// `failure`: exit status when the file cannot be opened.
+func openSnapshot(_ path: String, failure: Int32 = 1) throws -> Snapshot {
     do { return try Document(url: URL(fileURLWithPath: path), readOnly: true).snapshot() }
     catch {
         FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
-        throw ExitCode(1)
+        throw ExitCode(failure)
     }
 }
 
