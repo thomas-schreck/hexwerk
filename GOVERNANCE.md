@@ -77,8 +77,14 @@ maintainer decides. The decision and its reasoning are recorded in the issue.
 ## Releases
 
 - Versions follow [Semantic Versioning](https://semver.org).
-- A release is prepared in an issue that lists the included changes, then
-  tagged `vX.Y.Z` on `main` with release notes.
+- A release is prepared in an issue that lists the included changes. The
+  maintainer then tags `main` and pushes the tag:
+  `git tag -a vX.Y.Z -m "hexwerk X.Y.Z" && git push origin vX.Y.Z`
+  (a tag with a suffix such as `v0.2.0-beta.1` becomes a pre-release).
+- The tag starts the *Release* workflow (`.github/workflows/release.yml`): it
+  runs the tests, builds the app (DMG and ZIP) and the CLI archive with
+  `make dist`, and publishes a GitHub release with checksums. The version in
+  the app comes from the tag.
 - Binary releases must ship `LICENSE` and `THIRD_PARTY_NOTICES.md`
   (`make app` does this). The notices are regenerated with
   `scripts/third-party-notices.py` whenever a bundled dependency changes.

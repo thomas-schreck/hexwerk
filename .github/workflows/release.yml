@@ -1,0 +1,61 @@
+name: Release
+
+# Push a tag vX.Y.Z (or vX.Y.Z-beta.1 for a pre-release) to build and publish.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+
+      - name: Dependencies (YARA-X, libmagic)
+        run: brew install yara-x libmagic
+
+      - name: Test
+        run: |
+          swift build
+          swift test
+
+      - name: Build artifacts
+        run: make dist VERSION="${GITHUB_REF_NAME#v}" BUILD="${{ github.run_number }}"
+
+      - name: Release notes
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          min=$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' dist/hexwerk.app/Contents/Info.plist)
+          cat > notes.md <<NOTES
+          ## Downloads
+          - **hexwerk-$v.dmg** / **hexwerk-$v.zip**: the app (Apple silicon, macOS $min or later)
+          - **hexwerk-cli-$v-arm64.tar.gz**: the \`hexwerk\` command line tool; keep \`magic.mgc\` next to the binary
+          - **SHA256SUMS**: checksums (\`shasum -a 256 -c SHA256SUMS\`)
+
+          ## First start
+          hexwerk is ad-hoc signed, not notarized. macOS blocks the first start of a downloaded copy:
+          open it once, then allow it under *System Settings → Privacy & Security → Open Anyway*.
+          Alternatively: \`xattr -dr com.apple.quarantine /Applications/hexwerk.app\`.
+
+          Third-party licenses are in \`THIRD_PARTY_NOTICES.md\` (in the app under Contents/Resources and in the CLI archive).
+          NOTES
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          [[ "$GITHUB_REF_NAME" == *-* ]] && pre="--prerelease"
+          v="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" $pre --verify-tag \
+            --title "hexwerk $v" --notes-file notes.md --generate-notes \
+            "dist/hexwerk-$v.dmg" "dist/hexwerk-$v.zip" "dist/hexwerk-cli-$v-arm64.tar.gz" dist/SHA256SUMS
