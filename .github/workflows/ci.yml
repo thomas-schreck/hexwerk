@@ -35,3 +35,8 @@ jobs:
 
       - name: Test
         run: swift test
+
+      # The release SBOM generator, checked on every change; the SBOM itself
+      # is validated structurally before it is written.
+      - name: SBOM
+        run: make sbom VERSION=0.0.0-ci
