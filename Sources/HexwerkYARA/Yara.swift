@@ -62,7 +62,7 @@ public final class YaraRules: @unchecked Sendable {
     // each scan gets its own scanner.
     let ptr: OpaquePointer
     public let count: Int
-    public let warnings: [YaraDiagnostic]
+    public internal(set) var warnings: [YaraDiagnostic]
 
     private init(ptr: OpaquePointer, warnings: [YaraDiagnostic]) {
         self.ptr = ptr

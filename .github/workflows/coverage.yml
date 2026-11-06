@@ -1,0 +1,56 @@
+name: Coverage
+
+# Line coverage per module in the job summary. Informational only: not a
+# required check, no thresholds.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dependencies (YARA-X from source, libmagic)
+        uses: ./.github/actions/deps
+
+      - name: Build
+        run: swift build
+
+      - name: Test with coverage
+        run: swift test --enable-code-coverage
+
+      - name: Coverage summary
+        run: |
+          {
+            echo "## Line coverage"
+            echo
+            scripts/coverage.sh
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # swift-format check, non-blocking until the one-time reformat has landed.
+  lint:
+    runs-on: macos-26
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: swift-format lint
+        run: |
+          swift format --version
+          make lint

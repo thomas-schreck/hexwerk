@@ -22,6 +22,36 @@ Changes to input parsing should survive a longer fuzz run, e.g.
 
 See the README for details and known build limitations.
 
+## Coverage, benchmarks, formatting
+
+```sh
+make coverage        # swift test --enable-code-coverage + line coverage per module
+make bench           # benchmarks on a generated 256 MiB file vs. the baseline
+make bench BENCH_ARGS="--size-mib 64 --runs 1"   # quicker, not compared
+make lint            # swift-format check (config in .swift-format)
+make format          # swift-format in place
+```
+
+- **Coverage** runs in CI on every pull request (workflow *Coverage*); the
+  table is in the job summary. It is informational, there is no threshold.
+  Only code in the test bundle counts: the CLI and the app are not measured.
+- **Benchmarks** (`Benchmarks/main.swift`, executable `hexwerk-bench`) time
+  open, hex and regex search, saving in place and with a length change,
+  Kaitai parsing of large arrays and hashing. The *Benchmarks* workflow runs
+  weekly, by hand and on pull requests that touch `Benchmarks/`. It fails only
+  if a benchmark is more than 3× slower than `Benchmarks/baseline.json` *and*
+  at least 0.5 s slower. The baseline holds CI runner numbers, so a local
+  `make bench` (usually faster) is only a rough comparison. To update the
+  baseline after an intended change, download the `bench-results` artifact of
+  a workflow run on `main` and commit it as `Benchmarks/baseline.json` in the
+  pull request that explains the change.
+- **swift-format** uses the `swift format` command of the Swift 6 toolchain
+  (Xcode or Command Line Tools); with an older toolchain install it with
+  `brew install swift-format` and run `make lint SWIFT_FORMAT=swift-format`.
+  The existing sources are not formatted yet; that happens once in a
+  separate commit. Until then the CI lint job does not block, and please do
+  not reformat code you do not otherwise change.
+
 ## Workflow
 
 1. Find or open an issue and say that you are working on it.

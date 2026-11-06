@@ -37,6 +37,8 @@ public struct ScriptResult: Sendable {
     public var select: Range<UInt64>?
     public var goTo: UInt64?
     public var error: ScriptError?
+
+    public init() {}
 }
 
 public enum ScriptRunner {

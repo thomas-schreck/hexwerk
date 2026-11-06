@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Sandboxed helper (#102), signed with the Hardened Runtime. No network
+     and no file access: the document comes as a descriptor, .ksy files
+     through the app, YARA rules as text.
+     JIT: YARA-X (wasmtime) maps its compiled rules executable without
+     MAP_JIT and is killed without allow-unsigned-executable-memory;
+     allow-jit lets JavaScriptCore use its JIT (it falls back to the
+     interpreter without it). -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+</dict>
+</plist>

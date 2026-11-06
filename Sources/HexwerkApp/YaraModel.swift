@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import HexwerkCore
+import HexwerkHelper
 import HexwerkYARA
 
 /// YARA-X state of one document window: rule files, last scan, highlights.
@@ -84,10 +85,15 @@ final class YaraModel: ObservableObject {
             var compileErrors: [YaraDiagnostic] = []
             var failure: String?
             do {
-                let rules = try YaraRules.compile(files: files)
-                warn = rules.warnings
-                hits = try rules.scan(snapshot, range: range, timeout: timeout,
-                                      maxMatchesPerPattern: cap)
+                // The app only reads the rule files; compiling and scanning
+                // run in the sandboxed helper (#102).
+                let bundle = try YaraRuleBundle.collect(files: files)
+                switch try await HelperClient.shared.scan(snapshot, rules: bundle, range: range, timeout: timeout,
+                                                          maxMatchesPerPattern: cap) {
+                case .hits(let h, let w): hits = h; warn = w
+                case .compileErrors(let d): compileErrors = d
+                case .failed(let m, let w): failure = m; warn = w
+                }
             } catch let e as YaraCompileError {
                 compileErrors = e.diagnostics
             } catch {

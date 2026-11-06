@@ -69,16 +69,38 @@ let package = Package(
             ],
             swiftSettings: brewHeaders      // dependency scanning sees CYaraX/CMagic too
         ),
+        // Sandboxed helper (#102): runs the parsers for the app over XPC.
+        .target(
+            name: "HexwerkHelper",
+            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript"],
+            swiftSettings: brewHeaders
+        ),
+        // The helper's XPC service executable; `make app` wraps it into
+        // hexwerk.app/Contents/XPCServices.
+        .executableTarget(
+            name: "HexwerkParser",
+            dependencies: ["HexwerkHelper"],
+            swiftSettings: brewHeaders
+        ),
         // The macOS app. Built as a plain executable; `make app` wraps it into
         // hexwerk.app (no Xcode project).
         .executableTarget(
             name: "HexwerkApp",
-            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic"],
+            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
+                           "HexwerkHelper"],
             swiftSettings: brewHeaders
+        ),
+        // Timings on a large generated file: `make bench` (release build).
+        .executableTarget(
+            name: "hexwerk-bench",
+            dependencies: ["HexwerkCore", "HexwerkKaitai"],
+            path: "Benchmarks",
+            exclude: ["baseline.json"]
         ),
         .testTarget(
             name: "HexwerkCoreTests",
-            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic"],
+            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
+                           "HexwerkHelper"],
             resources: [.copy("Fixtures")],
             swiftSettings: brewHeaders + testSettings
         ),

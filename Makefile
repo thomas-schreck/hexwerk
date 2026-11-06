@@ -4,17 +4,39 @@ PREFIX ?= $(HOME)/.local
 HOMEBREW_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
 export HOMEBREW_PREFIX
 APP    := dist/hexwerk.app
+# Sandboxed helper for the parsers (#102); the name is its bundle identifier.
+XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
 # Release version and build number; the release workflow passes them from the tag.
 VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
 BUILD   ?= 1
 
-.PHONY: test build cli app install-app dist clean formats icon
+.PHONY: test build cli app install-app dist clean formats icon coverage bench format lint
 
 test:
 	swift test
 
 build:
 	swift build -c release
+
+# Tests with line coverage per module (Markdown table).
+coverage:
+	swift test --enable-code-coverage
+	@scripts/coverage.sh
+
+# Benchmarks on a generated 256 MiB file (BENCH_ARGS e.g. --size-mib 64 --runs 1),
+# compared against the checked-in baseline.
+BENCH_ARGS ?=
+bench:
+	swift run -c release hexwerk-bench --baseline Benchmarks/baseline.json $(BENCH_ARGS)
+
+# swift-format from the toolchain (Swift 6+); config in .swift-format.
+SWIFT_FORMAT ?= swift format
+FORMAT_PATHS := Package.swift Sources Tests Benchmarks
+format:
+	$(SWIFT_FORMAT) format --in-place --recursive --parallel $(FORMAT_PATHS)
+
+lint:
+	$(SWIFT_FORMAT) lint --strict --recursive --parallel $(FORMAT_PATHS)
 
 # CLI nach ~/.local/bin (Konvention aus ~/src/Makefile)
 cli: build
@@ -35,6 +57,14 @@ app: build
 	cp $(HOMEBREW_PREFIX)/share/misc/magic.mgc $(APP)/Contents/Resources/magic.mgc
 	cp THIRD_PARTY_NOTICES.md LICENSE $(APP)/Contents/Resources/
 	cp Resources/AppIcon.icns $(APP)/Contents/Resources/AppIcon.icns
+	# XPC service: signed first and with its own sandbox entitlements, then
+	# the app around it.
+	mkdir -p $(XPC)/Contents/MacOS
+	cp Resources/Parser-Info.plist $(XPC)/Contents/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
+		-c "Set :CFBundleVersion $(BUILD)" $(XPC)/Contents/Info.plist
+	cp .build/release/HexwerkParser $(XPC)/Contents/MacOS/HexwerkParser
+	codesign --force --sign - --options runtime --entitlements Resources/Parser.entitlements $(XPC)
 	codesign --force --sign - $(APP)
 	@echo "→ $(APP)"
 
