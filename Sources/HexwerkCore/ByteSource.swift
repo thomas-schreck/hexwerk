@@ -15,11 +15,18 @@ public final class ByteSource: @unchecked Sendable {
 
     public init(url: URL) throws {
         self.url = url
-        let fd = open(url.path, O_RDONLY)
+        // Check the type before opening: open() blocks on a FIFO until a
+        // writer shows up, and opening a device can have side effects.
+        var st = stat()
+        guard stat(url.path, &st) == 0 else { throw ByteSourceError.open(url.path, errno) }
+        guard (st.st_mode & S_IFMT) == S_IFREG else { throw ByteSourceError.notRegularFile(url.path) }
+
+        // O_NONBLOCK in case the path was swapped for a FIFO after the check;
+        // the fstat below catches that. It has no effect on regular files.
+        let fd = open(url.path, O_RDONLY | O_NONBLOCK | O_NOCTTY)
         guard fd >= 0 else { throw ByteSourceError.open(url.path, errno) }
         defer { close(fd) }   // the mapping stays valid after close
 
-        var st = stat()
         guard fstat(fd, &st) == 0 else { throw ByteSourceError.open(url.path, errno) }
         guard (st.st_mode & S_IFMT) == S_IFREG else { throw ByteSourceError.notRegularFile(url.path) }
         count = UInt64(st.st_size)
