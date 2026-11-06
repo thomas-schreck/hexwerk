@@ -20,7 +20,7 @@ struct AnalysisTab: View {
                 } else if !analysis.running {
                     VStack(spacing: 8) {
                         Image(systemName: "waveform.path.ecg").font(.largeTitle).foregroundStyle(.tertiary)
-                        Text("Entropie und Byte-Verteilung berechnen.").foregroundStyle(.secondary)
+                        Text(L("Compute entropy and byte distribution.")).foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity).padding(.top, 30)
                 }
@@ -34,32 +34,32 @@ struct AnalysisTab: View {
 
     private var typeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Dateityp").font(.headline)
+            Text(L("File Type")).font(.headline)
             Text(analysis.typeDescription ?? "…").font(.callout).textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let m = analysis.mime { Text(m).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
             if let s = analysis.signature {
-                Text("Signatur: \(s.name)" + (s.kaitai.map { " · Kaitai \($0)" } ?? ""))
+                Text(L("Signature: %@", s.title) + (s.kaitai.map { " · Kaitai \($0)" } ?? ""))
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
-                Text("Eingebettete Dateien").font(.subheadline.weight(.semibold))
+                Text(L("Embedded Files")).font(.subheadline.weight(.semibold))
                 Spacer()
                 if analysis.embeddedRunning { ProgressView().controlSize(.small) }
-                Button("Suchen") { analysis.scanEmbedded(model.doc.snapshot()) }
+                Button(L("Search")) { analysis.scanEmbedded(model.doc.snapshot()) }
                     .controlSize(.small).disabled(analysis.embeddedRunning)
-                    .help("Signaturen bekannter Formate an jeder Stelle suchen (wie binwalk)")
+                    .help(L("Search for signatures of known formats at every offset (like binwalk)"))
             }
             .padding(.top, 4)
             if let e = analysis.embedded {
                 if e.isEmpty {
-                    Text("Nichts gefunden").font(.caption).foregroundStyle(.secondary)
+                    Text(L("Nothing found")).font(.caption).foregroundStyle(.secondary)
                 } else {
                     ForEach(Array(e.prefix(500).enumerated()), id: \.offset) { _, h in
                         Button { model.jump?(h.offset, nil) } label: {
                             HStack {
                                 Text(hex(h.offset)).monospaced()
-                                Text(h.name)
+                                Text(h.title)
                                 Spacer()
                                 if h.kaitai != nil { Image(systemName: "list.bullet.indent").foregroundStyle(.tertiary) }
                             }
@@ -68,7 +68,7 @@ struct AnalysisTab: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    if e.count > 500 { Text("… \(e.count - 500) weitere").font(.caption).foregroundStyle(.tertiary) }
+                    if e.count > 500 { Text(L("… %ld more", e.count - 500)).font(.caption).foregroundStyle(.tertiary) }
                 }
             }
         }
@@ -79,10 +79,10 @@ struct AnalysisTab: View {
             HStack {
                 if analysis.running {
                     ProgressView(value: analysis.progress).controlSize(.small)
-                    Button("Abbrechen") { analysis.cancel() }.controlSize(.small)
+                    Button(L("Cancel")) { analysis.cancel() }.controlSize(.small)
                 } else {
-                    Button { run(selection: false) } label: { Label("Ganze Datei", systemImage: "waveform.path.ecg") }
-                    Button("Auswahl") { run(selection: true) }.disabled(model.selection == nil)
+                    Button { run(selection: false) } label: { Label(L("Whole File"), systemImage: "waveform.path.ecg") }
+                    Button(L("Selection")) { run(selection: true) }.disabled(model.selection == nil)
                     Spacer()
                 }
             }
@@ -90,9 +90,9 @@ struct AnalysisTab: View {
             if analysis.stale {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.clockwise").foregroundStyle(.orange)
-                    Text("Inhalt geändert").font(.callout)
+                    Text(L("Content changed")).font(.callout)
                     Spacer()
-                    Button("Neu berechnen") { run(selection: false) }.controlSize(.small)
+                    Button(L("Recompute")) { run(selection: false) }.controlSize(.small)
                 }
                 .padding(8)
                 .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
@@ -109,14 +109,14 @@ struct AnalysisTab: View {
     private func entropySection(_ p: EntropyProfile) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Entropie").font(.headline)
+                Text(L("Entropy")).font(.headline)
                 Spacer()
                 if let i = analysis.hoverBlock, p.blocks.indices.contains(i) {
                     let r = p.range(ofBlock: i, total: analysis.end)
                     Text("\(hex(r.lowerBound)): \(String(format: "%.2f", p.blocks[i]))")
                         .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 } else {
-                    Text("je \(ByteCountFormatter.string(fromByteCount: Int64(p.blockSize), countStyle: .binary))")
+                    Text(L("per %@", ByteCountFormatter.string(fromByteCount: Int64(p.blockSize), countStyle: .binary)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -138,7 +138,7 @@ struct AnalysisTab: View {
                 Text(hex(p.start)); Spacer(); Text(hex(analysis.end))
             }
             .font(.caption2).monospaced().foregroundStyle(.tertiary)
-            Text("Hoch (> 7,5): komprimiert oder verschlüsselt. Niedrig: Füllbytes, Tabellen, Text.")
+            Text(L("High (> 7.5): compressed or encrypted. Low: padding, tables, text."))
                 .font(.caption2).foregroundStyle(.tertiary)
         }
     }
@@ -186,11 +186,11 @@ struct AnalysisTab: View {
 
     private func statsSection(_ s: ByteStats) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-            row("Entropie", String(format: "%.4f Bit/Byte", s.entropy))
+            row(L("Entropy"), L("%.4f bits/byte", s.entropy))
             row("Bytes", "\(s.count)")
-            row("Verschiedene", "\(s.distinct) von 256")
+            row(L("Distinct"), L("%ld of 256", s.distinct))
             row("0x00", percent(s.zeroRatio))
-            row("Druckbar", percent(s.printableRatio))
+            row(L("Printable"), percent(s.printableRatio))
             row("≥ 0x80", percent(s.highRatio))
         }
         .font(.callout)
@@ -210,14 +210,14 @@ struct AnalysisTab: View {
     private func histogramSection(_ s: ByteStats) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Byte-Verteilung").font(.headline)
+                Text(L("Byte Distribution")).font(.headline)
                 Spacer()
                 if let b = analysis.hoverByte {
                     Text(String(format: "0x%02X: %llu", b, s.histogram[b])).font(.caption).monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
                 Toggle("log", isOn: $analysis.logScale).toggleStyle(.button).controlSize(.mini)
-                    .help("Logarithmische Skala")
+                    .help(L("Logarithmic scale"))
             }
             GeometryReader { geo in
                 Canvas { ctx, size in drawHistogram(ctx, size, s) }

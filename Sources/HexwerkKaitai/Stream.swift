@@ -53,7 +53,7 @@ final class KStream {
     var isEof: Bool { bitsLeft == 0 && pos >= size }
 
     func seek(_ p: UInt64) throws {
-        guard p <= size else { throw KaitaiError("Position \(p) hinter Stream-Ende (\(size))") }
+        guard p <= size else { throw KaitaiError(L("Position %@ past end of stream (%@)", "\(p)", "\(size)")) }
         alignToByte()
         pos = p
     }
@@ -84,7 +84,7 @@ final class KStream {
 
     private func rawRead(_ n: UInt64) throws -> [UInt8] {
         guard n <= size - min(pos, size) else {
-            throw KaitaiError("Ende des Streams erreicht: \(n) Byte gewünscht, \(size - min(pos, size)) übrig", offset: fileBase.map { $0 + pos })
+            throw KaitaiError(L("End of stream reached: %@ bytes requested, %@ left", "\(n)", "\(size - min(pos, size))"), offset: fileBase.map { $0 + pos })
         }
         let out = peek(pos, Int(n))
         pos += n
@@ -107,7 +107,7 @@ final class KStream {
         var out: [UInt8] = []
         while true {
             if pos >= size {
-                if eosError { throw KaitaiError("Terminator 0x\(String(term, radix: 16)) nicht gefunden", offset: fileBase.map { $0 + pos }) }
+                if eosError { throw KaitaiError(L("Terminator 0x%@ not found", String(term, radix: 16)), offset: fileBase.map { $0 + pos }) }
                 return out
             }
             let b = peek(pos, 1)[0]
@@ -168,7 +168,7 @@ final class KStream {
     func substream(_ n: UInt64, id: Int) throws -> KStream {
         alignToByte()
         guard n <= size - min(pos, size) else {
-            throw KaitaiError("Größe \(n) überschreitet das Stream-Ende (\(size - min(pos, size)) übrig)", offset: fileBase.map { $0 + pos })
+            throw KaitaiError(L("Size %@ exceeds the end of the stream (%@ left)", "\(n)", "\(size - min(pos, size))"), offset: fileBase.map { $0 + pos })
         }
         let s = KStream(parent: self, offset: pos, size: n, id: id)
         pos += n
@@ -183,7 +183,7 @@ enum Process {
     static func zlibInflate(_ input: [UInt8]) throws -> [UInt8] {
         var stream = z_stream()
         guard inflateInit_(&stream, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK else {
-            throw KaitaiError("zlib: Initialisierung fehlgeschlagen")
+            throw KaitaiError(L("zlib: initialization failed"))
         }
         defer { inflateEnd(&stream) }
         var out: [UInt8] = []
@@ -206,7 +206,7 @@ enum Process {
             } while r == Z_OK
             return r
         }
-        guard status == Z_STREAM_END else { throw KaitaiError("zlib: Daten fehlerhaft (Status \(status))") }
+        guard status == Z_STREAM_END else { throw KaitaiError(L("zlib: corrupt data (status %@)", "\(status)")) }
         return out
     }
 

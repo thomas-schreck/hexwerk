@@ -262,7 +262,7 @@ final class HexView: NSView, NSMenuItemValidation {
         NSRect(x: 0, y: headerH - 1, width: bounds.width, height: 1).fill()
         let attrs: [NSAttributedString.Key: Any] = [.font: headerFont, .foregroundColor: NSColor.secondaryLabelColor]
         let y = (headerH - headerFont.boundingRectForFont.height) / 2
-        ((model.offsetBase != 0 ? "Adresse" : model.decimalOffsets ? "Offset (dez)" : "Offset") as NSString).draw(at: NSPoint(x: inset, y: y), withAttributes: attrs)
+        ((model.offsetBase != 0 ? L("Address") : model.decimalOffsets ? L("Offset (dec)") : "Offset") as NSString).draw(at: NSPoint(x: inset, y: y), withAttributes: attrs)
         let cursorCol = Int(cursor % UInt64(bytesPerRow))
         for c in 0..<bytesPerRow {
             let label = String(format: "%02X", c)

@@ -55,7 +55,7 @@ struct ImageTab: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Picker("", selection: $image.format) {
-                        ForEach(PixelFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        ForEach(PixelFormat.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
                     .labelsHidden().fixedSize()
                     Spacer()
@@ -65,17 +65,17 @@ struct ImageTab: View {
                     .pickerStyle(.menu).fixedSize()
                 }
                 HStack {
-                    Text("Breite").foregroundStyle(.secondary)
+                    Text(L("Width")).foregroundStyle(.secondary)
                     TextField("", value: $image.width, format: .number)
                         .textFieldStyle(.roundedBorder).frame(width: 56).monospacedDigit()
                     Stepper("", value: $image.width, in: 1...4096).labelsHidden()
-                    Button("÷2") { image.width = max(1, image.width / 2) }.help("Halbieren")
-                    Button("×2") { image.width = min(4096, image.width * 2) }.help("Verdoppeln")
+                    Button("÷2") { image.width = max(1, image.width / 2) }.help(L("Halve"))
+                    Button("×2") { image.width = min(4096, image.width * 2) }.help(L("Double"))
                     Spacer(minLength: 0)
                 }
                 .controlSize(.small)
                 HStack {
-                    Toggle("Folgt dem Cursor", isOn: $image.follow).toggleStyle(.checkbox)
+                    Toggle(L("Follows the Cursor"), isOn: $image.follow).toggleStyle(.checkbox)
                     Spacer()
                     if let h = image.hover { Text(hex(h)).monospaced().foregroundStyle(.secondary) }
                 }
@@ -103,7 +103,7 @@ struct ImageTab: View {
                 }
                 .id(model.revision)
             } else {
-                Text("Keine Daten ab dem Cursor").foregroundStyle(.secondary).padding(10)
+                Text(L("No data at the cursor")).foregroundStyle(.secondary).padding(10)
                 Spacer()
             }
         }

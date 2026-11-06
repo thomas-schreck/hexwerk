@@ -4,18 +4,18 @@ import HexwerkCore
 
 struct Convert: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Zwischen Binärdatei, Intel HEX und Motorola S-Record umwandeln.",
-        discussion: "Formate werden an der Endung erkannt (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, sonst binär) oder mit --from/--to gesetzt."
+        abstract: L("Convert between binary, Intel HEX and Motorola S-Record."),
+        discussion: L("Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to.")
     )
 
     enum Fmt: String, ExpressibleByArgument, CaseIterable { case bin, ihex, srec }
 
-    @Argument(help: "Eingabe") var input: String
-    @Argument(help: "Ausgabe") var output: String
-    @Option(help: "Eingabeformat") var from: Fmt?
-    @Option(help: "Ausgabeformat") var to: Fmt?
-    @Option(help: "Startadresse beim Schreiben von HEX/S-Record aus binär") var base: Number?
-    @Option(help: "Füllbyte für Lücken beim Schreiben als binär (hex)") var fill: String = "FF"
+    @Argument(help: .init(L("Input"))) var input: String
+    @Argument(help: .init(L("Output"))) var output: String
+    @Option(help: .init(L("Input format"))) var from: Fmt?
+    @Option(help: .init(L("Output format"))) var to: Fmt?
+    @Option(help: .init(L("Start address when writing HEX/S-Record from binary"))) var base: Number?
+    @Option(help: .init(L("Fill byte for gaps when writing binary (hex)"))) var fill: String = "FF"
 
     static func guess(_ path: String) -> Fmt {
         switch (path as NSString).pathExtension.lowercased() {
@@ -35,11 +35,11 @@ struct Convert: ParsableCommand {
                 data = try Data(contentsOf: URL(fileURLWithPath: input))
             } else {
                 let image = try HexRecords.parse(try String(contentsOfFile: input, encoding: .ascii))
-                guard let f = UInt8(fill, radix: 16) else { throw ValidationError("--fill erwartet ein Hex-Byte") }
+                guard let f = UInt8(fill, radix: 16) else { throw ValidationError(L("--fill expects a hex byte")) }
                 data = try image.flatten(fill: f)
                 if base == nil { addr = image.base }
                 start = image.startAddress
-                FileHandle.standardError.write(Data("\(image.segments.count) Segment(e) ab 0x\(String(image.base, radix: 16, uppercase: true)), \(data.count) Byte, \(image.gaps.count) Lücke(n)\n".utf8))
+                FileHandle.standardError.write(Data((L("%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base, data.count, image.gaps.count) + "\n").utf8))
             }
             let out: Data = switch outFmt {
             case .bin: data

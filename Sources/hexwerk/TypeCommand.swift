@@ -6,12 +6,12 @@ import HexwerkMagic
 struct FileType: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "type",
-        abstract: "Dateityp erkennen (libmagic + Signaturen) und eingebettete Dateien suchen."
+        abstract: L("Detect the file type (libmagic + signatures) and search for embedded files.")
     )
 
-    @Argument(help: "Datei") var file: String
-    @Flag(name: .shortAndLong, help: "Auch eingebettete Dateien suchen (wie binwalk)") var embedded = false
-    @Flag(help: "Ausgabe als JSON") var json = false
+    @Argument(help: .init(L("File"))) var file: String
+    @Flag(name: .shortAndLong, help: .init(L("Also search for embedded files (like binwalk)"))) var embedded = false
+    @Flag(help: .init(L("Output as JSON"))) var json = false
 
     func run() throws {
         let snap = try openSnapshot(file)
@@ -28,15 +28,15 @@ struct FileType: ParsableCommand {
             try printJSON(obj)
             return
         }
-        print("Typ        \(desc ?? "— (keine libmagic-Datenbank)")")
+        print(L("Type       %@", desc ?? L("— (no libmagic database)")))
         if let mime { print("MIME       \(mime)") }
         if let s = sigs.first {
-            print("Signatur   \(s.name)" + (s.kaitai.map { " → Kaitai-Format \($0)" } ?? ""))
+            print(L("Signature  %@", s.title) + (s.kaitai.map { L(" → Kaitai format %@", $0) } ?? ""))
         }
         guard embedded else { return }
-        print(emb.isEmpty ? "Eingebettet: nichts gefunden" : "Eingebettet (\(emb.count)):")
+        print(emb.isEmpty ? L("Embedded: nothing found") : L("Embedded (%ld):", emb.count))
         for h in emb {
-            print("  0x" + String(h.offset, radix: 16, uppercase: true) + "  \(h.name)")
+            print("  0x" + String(h.offset, radix: 16, uppercase: true) + "  \(h.title)")
         }
     }
 }

@@ -122,11 +122,11 @@ public final class KsyLoader {
         catch { throw KaitaiError("\(url.lastPathComponent): \(error.localizedDescription)") }
         let any: Any?
         do { any = try Yams.load(yaml: text) }
-        catch { throw KaitaiError("\(url.lastPathComponent): YAML-Fehler: \(error)") }
-        guard let top = map(any) else { throw KaitaiError("\(url.lastPathComponent): kein YAML-Objekt") }
+        catch { throw KaitaiError(L("%@: YAML error: %@", url.lastPathComponent, "\(error)")) }
+        guard let top = map(any) else { throw KaitaiError(L("%@: not a YAML object", url.lastPathComponent)) }
 
         let meta = map(top["meta"]) ?? [:]
-        guard let id = str(meta["id"]) else { throw KaitaiError("\(url.lastPathComponent): meta.id fehlt") }
+        guard let id = str(meta["id"]) else { throw KaitaiError(L("%@: meta.id missing", url.lastPathComponent)) }
         let root = KsyType(name: id)
         let exts: [String] = (list(meta["file-extension"]) ?? []).compactMap(str) + [str(meta["file-extension"])].compactMap { $0 }
         let file = KsyFile(url: url, root: root, id: id, title: str(meta["title"]), fileExtensions: exts)
@@ -149,7 +149,7 @@ public final class KsyLoader {
                 + libraryRoots.map { $0.appendingPathComponent(name + ".ksy") }
         }
         guard let hit = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
-            throw KaitaiError("Import \(name) nicht gefunden (von \(from.lastPathComponent))")
+            throw KaitaiError(L("Import %@ not found (from %@)", "\(name)", from.lastPathComponent))
         }
         return hit
     }
@@ -164,12 +164,12 @@ public final class KsyLoader {
         t.encoding = str(meta["encoding"])
         t.params = (list(m["params"]) ?? []).compactMap { str(map($0)?["id"]) }
         t.seq = try (list(m["seq"]) ?? []).enumerated().map { i, a in
-            guard let am = map(a) else { throw KaitaiError("seq[\(i)] in \(t.name) ist kein Objekt") }
+            guard let am = map(a) else { throw KaitaiError(L("seq[%ld] in %@ is not an object", i, t.name)) }
             return try attr(am, fallbackID: "_unnamed\(i)")
         }
         if let inst = map(m["instances"]) {
             t.instances = try sortedBySource(Array(inst.keys)).map { key in
-                guard let am = map(inst[key]) else { throw KaitaiError("Instanz \(key) ist kein Objekt") }
+                guard let am = map(inst[key]) else { throw KaitaiError(L("Instance %@ is not an object", "\(key)")) }
                 var a = try attr(am, fallbackID: key)
                 a.id = key
                 return a
@@ -210,7 +210,7 @@ public final class KsyLoader {
 
     private func endianSpec(_ v: Any) throws -> EndianSpec {
         if let s = str(v) { return .fixed(s == "be" ? .big : .little) }
-        guard let m = map(v), let on = str(m["switch-on"]) else { throw KaitaiError("endian unverständlich") }
+        guard let m = map(v), let on = str(m["switch-on"]) else { throw KaitaiError(L("Cannot parse endian")) }
         let cases = try mapAnyKeys(m["cases"]).map { k, v in
             (try Expr.parse(keyString(k)), (str(v) == "be" ? Endian.big : Endian.little))
         }
@@ -260,7 +260,7 @@ public final class KsyLoader {
             }
             return .named(s, args: [])
         }
-        guard let m = map(v), let on = m["switch-on"] else { throw KaitaiError("type unverständlich") }
+        guard let m = map(v), let on = m["switch-on"] else { throw KaitaiError(L("Cannot parse type")) }
         let cases: [(key: Expr?, type: TypeRef)] = try mapAnyKeys(m["cases"]).map { k, t in
             let ks = keyString(k)
             return (ks == "_" ? nil : try Expr.parse(ks), try typeRef(t))
@@ -270,7 +270,7 @@ public final class KsyLoader {
 
     private func contents(_ v: Any) throws -> [UInt8] {
         if let s = v as? String { return Array(s.utf8) }
-        guard let l = v as? [Any] else { throw KaitaiError("contents unverständlich") }
+        guard let l = v as? [Any] else { throw KaitaiError(L("Cannot parse contents")) }
         var out: [UInt8] = []
         for e in l {
             if let s = e as? String { out += Array(s.utf8) }
@@ -281,14 +281,14 @@ public final class KsyLoader {
 
     private func process(_ s: String) throws -> ProcessSpec {
         if s == "zlib" { return .zlib }
-        guard let open = s.firstIndex(of: "("), s.hasSuffix(")") else { throw KaitaiError("process \(s) nicht unterstützt") }
+        guard let open = s.firstIndex(of: "("), s.hasSuffix(")") else { throw KaitaiError(L("process %@ not supported", "\(s)")) }
         let name = String(s[..<open])
         let arg = try Expr.parse(String(s[s.index(after: open)..<s.index(before: s.endIndex)]))
         switch name {
         case "xor": return .xor(arg)
         case "rol": return .rol(arg)
         case "ror": return .ror(arg)
-        default: throw KaitaiError("process \(name) nicht unterstützt")
+        default: throw KaitaiError(L("process %@ not supported", "\(name)"))
         }
     }
 

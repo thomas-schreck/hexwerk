@@ -7,8 +7,7 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 
 ![hexwerk showing a PNG file with its Kaitai Struct structure tree](docs/screenshot.png)
 
-> **Status:** early, single-maintainer project. The user interface and CLI
-> messages are in **German** for now. See the [open issues](https://github.com/thomas-schreck/hexwerk/issues)
+> **Status:** early, single-maintainer project. See the [open issues](https://github.com/thomas-schreck/hexwerk/issues)
 > for known problems — hexwerk is not yet hardened against all hostile input.
 
 ## Features
@@ -84,6 +83,15 @@ hexwerk script patch.js file.bin --write  # without --write: dry run
 | Per-file state (bookmarks, format, position) | `<file>.hexwerk` next to the file once it has bookmarks, otherwise `~/.config/hexwerk/projects` |
 
 `$XDG_CONFIG_HOME` is respected. hexwerk makes no network connections.
+
+## Language
+
+The app and the CLI speak **English and German** and follow the system
+language. To choose explicitly:
+
+- App: *hexwerk → Language* (takes effect after a restart), stored as
+  `"language": "en" | "de"` in `settings.json`
+- CLI: `HEXWERK_LANG=en hexwerk …` (otherwise `LC_ALL`, `LC_MESSAGES`, `LANG`)
 
 ## Contributing
 

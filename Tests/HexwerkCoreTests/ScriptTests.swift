@@ -54,7 +54,7 @@ import HexwerkScript
             #expect(r.error?.message.contains("0–255") == true)
             #expect(doc.read(0..<doc.count) == sample && !doc.canUndo && r.edits == 0)
             let r2 = ScriptRunner.run("hw.read(1000, 1)", document: doc, context: ScriptContext())
-            #expect(r2.error?.message.contains("ungültiger Offset") == true)
+            #expect(r2.error?.message.contains(L("invalid offset: %@ (size %@)", "1000", "\(sample.count)")) == true)
             let r3 = ScriptRunner.run("syntax error here(", document: doc, context: ScriptContext())
             #expect(r3.error != nil)
         }
@@ -68,7 +68,7 @@ import HexwerkScript
             #expect(Date().timeIntervalSince(t0) < 5)
             let r2 = ScriptRunner.run("hw.write(0,[0]); while (true) {}", document: doc, context: ScriptContext(),
                                       isCancelled: { true })
-            #expect(r2.error?.message == "Abgebrochen" && r2.error?.isTimeout == false)
+            #expect(r2.error?.message == L("Cancelled") && r2.error?.isTimeout == false)
             #expect(doc.read(0..<1) == Data([0x89]))
         }
     }
@@ -78,7 +78,7 @@ import HexwerkScript
         defer { try? FileManager.default.removeItem(at: url) }
         let doc = try Document(url: url, readOnly: true)
         let r = ScriptRunner.run("hw.write(0, [1])", document: doc, context: ScriptContext())
-        #expect(r.error?.message.contains("schreibgeschützt") == true)
+        #expect(r.error?.message.contains(L("Document is read-only")) == true)
     }
 
     /// The app runs scripts on a working copy and adopts the result.

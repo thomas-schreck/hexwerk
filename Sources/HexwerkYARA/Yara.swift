@@ -12,7 +12,7 @@ public enum YaraX {
     public static let defaultTimeout = 60
 
     static var lastError: String {
-        yrx_last_error().map { String(cString: $0) } ?? "unbekannter YARA-X-Fehler"
+        yrx_last_error().map { String(cString: $0) } ?? L("unknown YARA-X error")
     }
 }
 
@@ -45,7 +45,7 @@ public struct YaraDiagnostic: Sendable, Codable, CustomStringConvertible {
     public let report: String
 
     public var description: String {
-        var where_ = file.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Regel"
+        var where_ = file.map { URL(fileURLWithPath: $0).lastPathComponent } ?? L("rule")
         if let line { where_ += ":\(line)" }
         if let column { where_ += ":\(column)" }
         return "\(where_): \(message)"
@@ -77,7 +77,7 @@ public final class YaraRules: @unchecked Sendable {
             do { return try YaraSource(file: url) } catch {
                 throw YaraCompileError(diagnostics: [YaraDiagnostic(
                     file: url.path, line: nil, column: nil, code: "io",
-                    message: "lässt sich nicht lesen: \(error.localizedDescription)", report: "")])
+                    message: L("cannot be read: %@", error.localizedDescription), report: "")])
             }
         }
         // `include "x.yar"` resolves against the including file's folder.
@@ -142,7 +142,7 @@ public final class YaraRules: @unchecked Sendable {
                 (line, column) = lineColumn(text, byteOffset: start)
             }
             return YaraDiagnostic(file: file, line: line, column: column, code: d.code ?? "",
-                                  message: d.title ?? "Fehler", report: d.text ?? d.title ?? "")
+                                  message: d.title ?? L("Error"), report: d.text ?? d.title ?? "")
         }
     }
 
@@ -190,7 +190,7 @@ public enum YaraScanError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .timeout(let s): "Zeitlimit von \(s) s überschritten"
+        case .timeout(let s): L("Time limit of %ld s exceeded", s)
         case .failed(let m): m
         }
     }

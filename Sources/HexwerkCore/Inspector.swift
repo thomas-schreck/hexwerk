@@ -41,10 +41,10 @@ public enum Inspector {
         add("uint64", uint(8).map { String($0) })
         add("float32", uint(4).map { "\(Float(bitPattern: UInt32($0)))" })
         add("float64", uint(8).map { "\(Double(bitPattern: $0))" })
-        add("binär", b.first.map { String($0, radix: 2).leftPadded(to: 8) })
+        add("binary", b.first.map { String($0, radix: 2).leftPadded(to: 8) })
 
-        add("Unix-Zeit 32", uint(4).map { iso(Double(UInt32($0))) })
-        add("Unix-Zeit 64", uint(8).flatMap { v in
+        add("Unix time 32", uint(4).map { iso(Double(UInt32($0))) })
+        add("Unix time 64", uint(8).flatMap { v in
             let s = Int64(bitPattern: v)
             // Years 0001–9999; no abs(): abs(Int64.min) traps.
             return s > -62_135_596_800 && s < 253_402_300_800 ? iso(Double(s)) : nil
@@ -54,7 +54,7 @@ public enum Inspector {
             let secs = Double(v) / 10_000_000 - 11_644_473_600
             return secs < 253_402_300_800 ? iso(secs) : nil
         })
-        add("DOS-Datum/Zeit", le(4).flatMap(dosDateTime))
+        add("DOS date/time", le(4).flatMap(dosDateTime))
         add("GUID", b.count >= 16 ? guid(b) : nil)
 
         add("ULEB128", leb128(b, signed: false))
@@ -96,7 +96,7 @@ public enum Inspector {
             shift += 7
             if byte & 0x80 == 0 {
                 if signed && shift < 64 && byte & 0x40 != 0 { result |= ~0 << shift }
-                return "\(signed ? String(Int64(bitPattern: result)) : String(result)) (\(i + 1) Byte)"
+                return L("%@ (%ld bytes)", signed ? String(Int64(bitPattern: result)) : String(result), i + 1)
             }
         }
         return nil
@@ -130,5 +130,23 @@ public enum Inspector {
 extension String {
     func leftPadded(to n: Int, with c: Character = "0") -> String {
         count >= n ? self : String(repeating: c, count: n - count) + self
+    }
+}
+
+extension InspectorValue {
+    /// Localized label for display; `name` is the stable identifier used by
+    /// `Inspector.encode` and the app's grouping.
+    public var title: String { Inspector.title(of: name) }
+}
+
+extension Inspector {
+    public static func title(of id: String) -> String {
+        switch id {
+        case "binary": L("binary")
+        case "Unix time 32": L("Unix time 32")
+        case "Unix time 64": L("Unix time 64")
+        case "DOS date/time": L("DOS date/time")
+        default: id     // type names like int32, GUID, UTF-8 are not translated
+        }
     }
 }

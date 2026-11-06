@@ -5,20 +5,16 @@ import HexwerkScript
 
 struct Script: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "JavaScript-Skript auf eine Datei anwenden.",
-        discussion: """
-        Ohne --write werden Änderungen nur gezählt, nicht gespeichert. Exit 2 bei Skriptfehler, 3 bei Zeitlimit.
-
-        API (globales Objekt hw):
-        \(ScriptRunner.apiHelp)
-        """
+        abstract: L("Apply a JavaScript script to a file."),
+        discussion: L("Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.")
+            + "\n\n" + L("API (global object hw):") + "\n" + ScriptRunner.apiHelp
     )
 
-    @Argument(help: "Skriptdatei (.js); mit -e stattdessen Code") var script: String
-    @Argument(help: "Datei") var file: String
-    @Flag(name: .short, help: "Erstes Argument ist Code statt Dateiname") var eval = false
-    @Flag(help: "Änderungen in die Datei schreiben") var write = false
-    @Option(help: "Zeitlimit in Sekunden") var timeout: Double = ScriptRunner.defaultTimeout
+    @Argument(help: .init(L("Script file (.js); with -e, code instead"))) var script: String
+    @Argument(help: .init(L("File"))) var file: String
+    @Flag(name: .short, help: .init(L("First argument is code instead of a file name"))) var eval = false
+    @Flag(help: .init(L("Write changes to the file"))) var write = false
+    @Option(help: .init(L("Timeout in seconds"))) var timeout: Double = ScriptRunner.defaultTimeout
 
     func run() throws {
         let source: String
@@ -50,7 +46,7 @@ struct Script: ParsableCommand {
                 throw ExitCode(1)
             }
         } else {
-            FileHandle.standardError.write(Data("hexwerk: \(r.edits) Änderung(en) nicht gespeichert (--write)\n".utf8))
+            FileHandle.standardError.write(Data(("hexwerk: " + L("%ld change(s) not saved (--write)", r.edits) + "\n").utf8))
         }
     }
 }

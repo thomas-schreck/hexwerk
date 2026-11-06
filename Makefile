@@ -22,6 +22,9 @@ cli: build
 app: build
 	rm -rf $(APP)
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
+	# Leere .lproj-Ordner: daran wählt AppKit die Sprache seiner eigenen Texte.
+	mkdir -p $(APP)/Contents/Resources/en.lproj $(APP)/Contents/Resources/de.lproj
+	printf '"Any File" = "Beliebige Datei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	cp .build/release/HexwerkApp $(APP)/Contents/MacOS/HexwerkApp
 	cp $(HOMEBREW_PREFIX)/share/misc/magic.mgc $(APP)/Contents/Resources/magic.mgc

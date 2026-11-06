@@ -3,7 +3,7 @@ import HexwerkCore
 import UniformTypeIdentifiers
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var controllers: [DocumentWindowController] = []
     private var openedAtLaunch = false
 
@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.title = readOnly ? "Schreibgeschützt öffnen" : "Öffnen"
+        panel.title = readOnly ? L("Open Read-Only") : L("Open")
         guard panel.runModal() == .OK else { return }
         for url in panel.urls { open(url, readOnly: readOnly) }
     }
@@ -83,14 +83,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openProject(_ url: URL) {
         guard let s = ProjectStore.load(url) else {
             let a = NSAlert()
-            a.messageText = "\(url.lastPathComponent) ist keine lesbare Projektdatei."
+            a.messageText = L("%@ is not a readable project file.", url.lastPathComponent)
             a.runModal()
             return
         }
         let target = ProjectStore.target(of: url, s)
         guard FileManager.default.fileExists(atPath: target.path) else {
             let a = NSAlert()
-            a.messageText = "Die Datei des Projekts fehlt."
+            a.messageText = L("The project's file is missing.")
             a.informativeText = s.filePath
             a.runModal()
             return
@@ -100,8 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let c {
             if c.file.count != s.fileSize {
                 let a = NSAlert()
-                a.messageText = "\(target.lastPathComponent) hat sich seit dem Projekt geändert."
-                a.informativeText = "Größe damals \(s.fileSize) Byte, jetzt \(c.file.count) Byte. Lesezeichen können verschoben sein."
+                a.messageText = L("%@ has changed since the project was saved.", target.lastPathComponent)
+                a.informativeText = L("Size then %1$llu bytes, now %2$llu bytes. Bookmarks may have shifted.", s.fileSize, c.file.count)
                 a.runModal()
             }
             c.apply(s)
@@ -117,10 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let text = try? String(contentsOf: url, encoding: .ascii),
               let format = HexRecords.Format.detect(text[...]) else { return false }
         let a = NSAlert()
-        a.messageText = "\(url.lastPathComponent) ist \(format.rawValue)."
-        a.informativeText = "Importieren zeigt die Bytes an ihren Adressen; Sichern schreibt wieder \(format.rawValue)."
-        a.addButton(withTitle: "Importieren")
-        a.addButton(withTitle: "Als Text öffnen")
+        a.messageText = L("%1$@ is %2$@.", url.lastPathComponent, format.rawValue)
+        a.informativeText = L("Import shows the bytes at their addresses; Save writes %@ again.", format.rawValue)
+        a.addButton(withTitle: L("Import"))
+        a.addButton(withTitle: L("Open as Text"))
         guard a.runModal() == .alertFirstButtonReturn else { return false }
         do {
             let image = try HexRecords.parse(text)
@@ -145,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
         } catch {
             let e = NSAlert()
-            e.messageText = "\(url.lastPathComponent) lässt sich nicht importieren."
+            e.messageText = L("%@ cannot be imported.", url.lastPathComponent)
             e.informativeText = String(describing: error)
             e.runModal()
         }
@@ -173,7 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
         } catch {
             let a = NSAlert()
-            a.messageText = "\(url.lastPathComponent) lässt sich nicht öffnen."
+            a.messageText = L("%@ cannot be opened.", url.lastPathComponent)
             a.informativeText = String(describing: error)
             a.runModal()
         }
@@ -185,103 +185,138 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let main = NSMenu()
 
         let app = NSMenu()
-        app.addItem(withTitle: "Über hexwerk", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: L("About hexwerk"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
-        app.addItem(withTitle: "hexwerk ausblenden", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        app.addItem(withTitle: "hexwerk beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        app.addItem(submenu(languageMenu(), L("Language")))
+        app.addItem(.separator())
+        app.addItem(withTitle: L("Hide hexwerk"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        app.addItem(withTitle: L("Quit hexwerk"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         main.addItem(submenu(app, "hexwerk"))
 
-        let file = NSMenu(title: "Ablage")
-        file.addItem(withTitle: "Öffnen …", action: #selector(openDocument(_:)), keyEquivalent: "o")
-        let ro = file.addItem(withTitle: "Schreibgeschützt öffnen …", action: #selector(openDocumentReadOnly(_:)), keyEquivalent: "o")
+        let file = NSMenu()
+        file.addItem(withTitle: L("Open…"), action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let ro = file.addItem(withTitle: L("Open Read-Only…"), action: #selector(openDocumentReadOnly(_:)), keyEquivalent: "o")
         ro.keyEquivalentModifierMask = [.command, .shift]
         file.addItem(.separator())
-        file.addItem(withTitle: "Schließen", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        file.addItem(withTitle: "Sichern", action: #selector(DocumentWindowController.saveDocument(_:)), keyEquivalent: "s")
-        let saveAs = file.addItem(withTitle: "Sichern unter …", action: #selector(DocumentWindowController.saveDocumentAs(_:)), keyEquivalent: "s")
+        file.addItem(withTitle: L("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        file.addItem(withTitle: L("Save"), action: #selector(DocumentWindowController.saveDocument(_:)), keyEquivalent: "s")
+        let saveAs = file.addItem(withTitle: L("Save As…"), action: #selector(DocumentWindowController.saveDocumentAs(_:)), keyEquivalent: "s")
         saveAs.keyEquivalentModifierMask = [.command, .shift]
         file.addItem(.separator())
-        file.addItem(withTitle: "Projekt exportieren …", action: #selector(DocumentWindowController.exportProject(_:)), keyEquivalent: "")
-        file.addItem(withTitle: "Auswahl exportieren …", action: #selector(DocumentWindowController.exportSelection(_:)), keyEquivalent: "")
+        file.addItem(withTitle: L("Export Project…"), action: #selector(DocumentWindowController.exportProject(_:)), keyEquivalent: "")
+        file.addItem(withTitle: L("Export Selection…"), action: #selector(DocumentWindowController.exportSelection(_:)), keyEquivalent: "")
         for (i, f) in HexRecords.Format.allCases.enumerated() {
-            file.addItem(withTitle: "Als \(f.rawValue) exportieren …", action: #selector(DocumentWindowController.exportHexRecords(_:)), keyEquivalent: "").tag = i
+            file.addItem(withTitle: L("Export as %@…", f.rawValue), action: #selector(DocumentWindowController.exportHexRecords(_:)), keyEquivalent: "").tag = i
         }
-        main.addItem(submenu(file, "Ablage"))
+        main.addItem(submenu(file, L("File")))
 
-        let edit = NSMenu(title: "Bearbeiten")
-        edit.addItem(withTitle: "Widerrufen", action: #selector(HexView.undo(_:)), keyEquivalent: "z")
-        let redo = edit.addItem(withTitle: "Wiederholen", action: #selector(HexView.redo(_:)), keyEquivalent: "z")
+        let edit = NSMenu()
+        edit.addItem(withTitle: L("Undo"), action: #selector(HexView.undo(_:)), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: L("Redo"), action: #selector(HexView.redo(_:)), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Ausschneiden", action: #selector(HexView.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "Kopieren", action: #selector(HexView.copy(_:)), keyEquivalent: "c")
-        let copyAs = NSMenu(title: "Kopieren als")
+        edit.addItem(withTitle: L("Cut"), action: #selector(HexView.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L("Copy"), action: #selector(HexView.copy(_:)), keyEquivalent: "c")
+        let copyAs = NSMenu()
         for (i, f) in ExportFormat.allCases.enumerated() {
             copyAs.addItem(withTitle: f.title, action: #selector(DocumentWindowController.copyAs(_:)), keyEquivalent: "").tag = i
         }
         copyAs.items.first?.keyEquivalent = "c"
         copyAs.items.first?.keyEquivalentModifierMask = [.command, .shift]
-        edit.addItem(submenu(copyAs, "Kopieren als"))
-        edit.addItem(withTitle: "Einsetzen", action: #selector(HexView.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "Alles auswählen", action: #selector(HexView.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(submenu(copyAs, L("Copy As")))
+        edit.addItem(withTitle: L("Paste"), action: #selector(HexView.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L("Select All"), action: #selector(HexView.selectAll(_:)), keyEquivalent: "a")
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Einfügemodus", action: #selector(DocumentWindowController.toggleInsertMode(_:)), keyEquivalent: "i")
-        edit.addItem(withTitle: "Auswahl füllen …", action: #selector(DocumentWindowController.fillSelection(_:)), keyEquivalent: "")
-        edit.addItem(withTitle: "Gehe zu Offset …", action: #selector(DocumentWindowController.goToOffset(_:)), keyEquivalent: "l")
-        edit.addItem(withTitle: "Lesezeichen setzen …", action: #selector(DocumentWindowController.addBookmark(_:)), keyEquivalent: "d")
-        main.addItem(submenu(edit, "Bearbeiten"))
+        edit.addItem(withTitle: L("Insert Mode"), action: #selector(DocumentWindowController.toggleInsertMode(_:)), keyEquivalent: "i")
+        edit.addItem(withTitle: L("Fill Selection…"), action: #selector(DocumentWindowController.fillSelection(_:)), keyEquivalent: "")
+        edit.addItem(withTitle: L("Go to Offset…"), action: #selector(DocumentWindowController.goToOffset(_:)), keyEquivalent: "l")
+        edit.addItem(withTitle: L("Add Bookmark…"), action: #selector(DocumentWindowController.addBookmark(_:)), keyEquivalent: "d")
+        main.addItem(submenu(edit, L("Edit")))
 
-        let find = NSMenu(title: "Suchen")
-        find.addItem(withTitle: "Suchen …", action: #selector(DocumentWindowController.showFind(_:)), keyEquivalent: "f")
-        find.addItem(withTitle: "Weitersuchen", action: #selector(DocumentWindowController.findNext(_:)), keyEquivalent: "g")
-        let prev = find.addItem(withTitle: "Rückwärts suchen", action: #selector(DocumentWindowController.findPrevious(_:)), keyEquivalent: "g")
+        let find = NSMenu()
+        find.addItem(withTitle: L("Find…"), action: #selector(DocumentWindowController.showFind(_:)), keyEquivalent: "f")
+        find.addItem(withTitle: L("Find Next"), action: #selector(DocumentWindowController.findNext(_:)), keyEquivalent: "g")
+        let prev = find.addItem(withTitle: L("Find Previous"), action: #selector(DocumentWindowController.findPrevious(_:)), keyEquivalent: "g")
         prev.keyEquivalentModifierMask = [.command, .shift]
         find.addItem(.separator())
-        find.addItem(withTitle: "Mit Datei vergleichen …", action: #selector(DocumentWindowController.compareWithFile(_:)), keyEquivalent: "")
-        find.addItem(withTitle: "Nächster Unterschied", action: #selector(DocumentWindowController.nextDifference(_:)), keyEquivalent: "]")
-        find.addItem(withTitle: "Vorheriger Unterschied", action: #selector(DocumentWindowController.previousDifference(_:)), keyEquivalent: "[")
-        main.addItem(submenu(find, "Suchen"))
+        find.addItem(withTitle: L("Compare with File…"), action: #selector(DocumentWindowController.compareWithFile(_:)), keyEquivalent: "")
+        find.addItem(withTitle: L("Next Difference"), action: #selector(DocumentWindowController.nextDifference(_:)), keyEquivalent: "]")
+        find.addItem(withTitle: L("Previous Difference"), action: #selector(DocumentWindowController.previousDifference(_:)), keyEquivalent: "[")
+        main.addItem(submenu(find, L("Find")))
 
-        let tools = NSMenu(title: "Werkzeuge")
-        let yara = tools.addItem(withTitle: "YARA-Scan", action: #selector(DocumentWindowController.scanYara(_:)), keyEquivalent: "y")
+        let tools = NSMenu()
+        let yara = tools.addItem(withTitle: L("YARA Scan"), action: #selector(DocumentWindowController.scanYara(_:)), keyEquivalent: "y")
         yara.keyEquivalentModifierMask = [.command, .shift]
-        tools.addItem(withTitle: "Skript ausführen", action: #selector(DocumentWindowController.runScript(_:)), keyEquivalent: "r")
-        let calc = tools.addItem(withTitle: "Rechner", action: #selector(toggleCalculator(_:)), keyEquivalent: "k")
+        tools.addItem(withTitle: L("Run Script"), action: #selector(DocumentWindowController.runScript(_:)), keyEquivalent: "r")
+        let calc = tools.addItem(withTitle: L("Calculator"), action: #selector(toggleCalculator(_:)), keyEquivalent: "k")
         calc.keyEquivalentModifierMask = [.command, .shift]
-        tools.addItem(withTitle: "Entropie und Byte-Verteilung", action: #selector(DocumentWindowController.showAnalysis(_:)), keyEquivalent: "")
-        main.addItem(submenu(tools, "Werkzeuge"))
+        tools.addItem(withTitle: L("Entropy and Byte Distribution"), action: #selector(DocumentWindowController.showAnalysis(_:)), keyEquivalent: "")
+        main.addItem(submenu(tools, L("Tools")))
 
-        let view = NSMenu(title: "Darstellung")
-        let bpr = NSMenu(title: "Bytes pro Zeile")
-        for (title, tag) in [("8", 8), ("16", 16), ("32", 32), ("An Fenster anpassen", 0)] {
+        let view = NSMenu()
+        let bpr = NSMenu()
+        for (title, tag) in [("8", 8), ("16", 16), ("32", 32), (L("Fit to Window"), 0)] {
             bpr.addItem(withTitle: title, action: #selector(DocumentWindowController.setBytesPerRow(_:)), keyEquivalent: "").tag = tag
         }
-        view.addItem(submenu(bpr, "Bytes pro Zeile"))
-        view.addItem(withTitle: "Offsets dezimal", action: #selector(DocumentWindowController.toggleDecimalOffsets(_:)), keyEquivalent: "")
-        view.addItem(withTitle: "Vim-Tastenkürzel", action: #selector(DocumentWindowController.toggleVim(_:)), keyEquivalent: "")
-        let cs = NSMenu(title: "Zeichensatz")
+        view.addItem(submenu(bpr, L("Bytes per Row")))
+        view.addItem(withTitle: L("Decimal Offsets"), action: #selector(DocumentWindowController.toggleDecimalOffsets(_:)), keyEquivalent: "")
+        view.addItem(withTitle: L("Vim Key Bindings"), action: #selector(DocumentWindowController.toggleVim(_:)), keyEquivalent: "")
+        let cs = NSMenu()
         for (i, enc) in TextEncodingView.allCases.enumerated() {
             cs.addItem(withTitle: enc.rawValue, action: #selector(DocumentWindowController.setCharset(_:)), keyEquivalent: "").tag = i
         }
-        view.addItem(submenu(cs, "Zeichensatz"))
+        view.addItem(submenu(cs, L("Character Set")))
         view.addItem(.separator())
-        let insp = view.addItem(withTitle: "Inspektor ein-/ausblenden", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
+        let insp = view.addItem(withTitle: L("Show/Hide Inspector"), action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
         insp.keyEquivalentModifierMask = [.command, .option]
-        main.addItem(submenu(view, "Darstellung"))
+        main.addItem(submenu(view, L("View")))
 
-        let window = NSMenu(title: "Fenster")
-        window.addItem(withTitle: "Im Dock ablegen", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let window = NSMenu()
+        window.addItem(withTitle: L("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         window.addItem(.separator())
-        window.addItem(withTitle: "Neuer Tab …", action: #selector(newWindowForTab(_:)), keyEquivalent: "t")
-        let nextTab = window.addItem(withTitle: "Nächster Tab", action: #selector(NSWindow.selectNextTab(_:)), keyEquivalent: "]")
+        window.addItem(withTitle: L("New Tab…"), action: #selector(newWindowForTab(_:)), keyEquivalent: "t")
+        let nextTab = window.addItem(withTitle: L("Show Next Tab"), action: #selector(NSWindow.selectNextTab(_:)), keyEquivalent: "]")
         nextTab.keyEquivalentModifierMask = [.command, .shift]
-        let prevTab = window.addItem(withTitle: "Vorheriger Tab", action: #selector(NSWindow.selectPreviousTab(_:)), keyEquivalent: "[")
+        let prevTab = window.addItem(withTitle: L("Show Previous Tab"), action: #selector(NSWindow.selectPreviousTab(_:)), keyEquivalent: "[")
         prevTab.keyEquivalentModifierMask = [.command, .shift]
-        window.addItem(withTitle: "Tab in neues Fenster bewegen", action: #selector(NSWindow.moveTabToNewWindow(_:)), keyEquivalent: "")
-        window.addItem(withTitle: "Alle Fenster zusammenführen", action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")
-        main.addItem(submenu(window, "Fenster"))
+        window.addItem(withTitle: L("Move Tab to New Window"), action: #selector(NSWindow.moveTabToNewWindow(_:)), keyEquivalent: "")
+        window.addItem(withTitle: L("Merge All Windows"), action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")
+        main.addItem(submenu(window, L("Window")))
         NSApp.windowsMenu = window
         return main
+    }
+
+    // MARK: Language
+
+    /// Values of the "language" setting, in menu order (tag = index).
+    private static let languages = ["system", "en", "de"]
+
+    private func languageMenu() -> NSMenu {
+        let menu = NSMenu()
+        // Language names stay in their own language.
+        for (i, title) in [L("System"), "English", "Deutsch"].enumerated() {
+            menu.addItem(withTitle: title, action: #selector(setLanguage(_:)), keyEquivalent: "").tag = i
+            if i == 0 { menu.addItem(.separator()) }
+        }
+        return menu
+    }
+
+    /// Stored in settings.json; main.swift applies it at the next launch.
+    @objc func setLanguage(_ sender: NSMenuItem) {
+        let lang = Self.languages[sender.tag]
+        guard lang != (Settings.shared.string(forKey: "language") ?? "system") else { return }
+        Settings.shared.set(lang, forKey: "language")
+        let a = NSAlert()
+        a.messageText = L("The language changes after restarting hexwerk.")
+        a.runModal()
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(setLanguage(_:)) {
+            let current = Settings.shared.string(forKey: "language") ?? "system"
+            item.state = Self.languages[item.tag] == current ? .on : .off
+        }
+        return true
     }
 
     private func submenu(_ menu: NSMenu, _ title: String) -> NSMenuItem {

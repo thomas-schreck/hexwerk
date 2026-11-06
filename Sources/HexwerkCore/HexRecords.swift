@@ -37,7 +37,7 @@ public enum HexRecords {
         /// gaps are filled with `fill` (0xFF = erased flash).
         public func flatten(fill: UInt8 = 0xFF, maxSize: UInt64 = 256 << 20) throws -> Data {
             guard let lo = segments.map(\.address).min(), let hi = segments.map(\.end).max() else { return Data() }
-            guard hi - lo <= maxSize else { throw HexRecordError(line: 0, message: "Adressbereich zu groß (\(hi - lo) Byte)") }
+            guard hi - lo <= maxSize else { throw HexRecordError(line: 0, message: L("Address range too large (%@ bytes)", "\(hi - lo)")) }
             var out = Data(repeating: fill, count: Int(hi - lo))
             for s in segments { out.replaceSubrange(Int(s.address - lo) ..< Int(s.end - lo), with: s.data) }
             return out
@@ -59,7 +59,7 @@ public enum HexRecords {
     public struct HexRecordError: Error, CustomStringConvertible {
         public let line: Int
         public let message: String
-        public var description: String { line > 0 ? "Zeile \(line): \(message)" : message }
+        public var description: String { line > 0 ? L("Line %ld: %@", line, message) : message }
     }
 
     // MARK: Parsing
@@ -68,13 +68,13 @@ public enum HexRecords {
         switch Format.detect(text[...]) {
         case .intelHex: try parseIntelHex(text)
         case .srec: try parseSRecord(text)
-        case nil: throw HexRecordError(line: 1, message: "weder Intel HEX noch S-Record")
+        case nil: throw HexRecordError(line: 1, message: L("neither Intel HEX nor S-Record"))
         }
     }
 
     static func bytes(_ hex: Substring, line: Int) throws -> [UInt8] {
         let chars = Array(hex.utf8)
-        guard chars.count % 2 == 0 else { throw HexRecordError(line: line, message: "ungerade Anzahl Hex-Ziffern") }
+        guard chars.count % 2 == 0 else { throw HexRecordError(line: line, message: L("odd number of hex digits")) }
         var out: [UInt8] = []
         out.reserveCapacity(chars.count / 2)
         func nib(_ c: UInt8) throws -> UInt8 {
@@ -82,7 +82,7 @@ public enum HexRecords {
             case 0x30...0x39: c - 0x30
             case 0x41...0x46: c - 0x37
             case 0x61...0x66: c - 0x57
-            default: throw HexRecordError(line: line, message: "ungültiges Zeichen")
+            default: throw HexRecordError(line: line, message: L("invalid character"))
             }
         }
         var i = 0
@@ -110,30 +110,30 @@ public enum HexRecords {
             let lineNo = n + 1
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
-            if sawEOF { throw HexRecordError(line: lineNo, message: "Daten nach dem Ende-Record") }
-            guard line.hasPrefix(":") else { throw HexRecordError(line: lineNo, message: "Zeile beginnt nicht mit ':'") }
+            if sawEOF { throw HexRecordError(line: lineNo, message: L("data after the end record")) }
+            guard line.hasPrefix(":") else { throw HexRecordError(line: lineNo, message: L("line does not start with ':'")) }
             let b = try bytes(line.dropFirst()[...], line: lineNo)
-            guard b.count >= 5, b.count == Int(b[0]) + 5 else { throw HexRecordError(line: lineNo, message: "Längenangabe passt nicht") }
-            guard b.reduce(0, &+) == 0 else { throw HexRecordError(line: lineNo, message: "Prüfsumme falsch") }
+            guard b.count >= 5, b.count == Int(b[0]) + 5 else { throw HexRecordError(line: lineNo, message: L("length field does not match")) }
+            guard b.reduce(0, &+) == 0 else { throw HexRecordError(line: lineNo, message: L("checksum mismatch")) }
             let addr = UInt64(b[1]) << 8 | UInt64(b[2])
             let data = Array(b[4 ..< 4 + Int(b[0])])
             switch b[3] {
             case 0x00: append(&segs, upper + addr, data)
             case 0x01: sawEOF = true
             case 0x02:
-                guard data.count == 2 else { throw HexRecordError(line: lineNo, message: "Typ 02 braucht 2 Byte") }
+                guard data.count == 2 else { throw HexRecordError(line: lineNo, message: L("type 02 needs 2 bytes")) }
                 upper = (UInt64(data[0]) << 8 | UInt64(data[1])) << 4
             case 0x04:
-                guard data.count == 2 else { throw HexRecordError(line: lineNo, message: "Typ 04 braucht 2 Byte") }
+                guard data.count == 2 else { throw HexRecordError(line: lineNo, message: L("type 04 needs 2 bytes")) }
                 upper = (UInt64(data[0]) << 8 | UInt64(data[1])) << 16
             case 0x03:
-                guard data.count == 4 else { throw HexRecordError(line: lineNo, message: "Typ 03 braucht 4 Byte") }
+                guard data.count == 4 else { throw HexRecordError(line: lineNo, message: L("type 03 needs 4 bytes")) }
                 start = (UInt64(data[0]) << 8 | UInt64(data[1])) << 4 + (UInt64(data[2]) << 8 | UInt64(data[3]))
             case 0x05:
-                guard data.count == 4 else { throw HexRecordError(line: lineNo, message: "Typ 05 braucht 4 Byte") }
+                guard data.count == 4 else { throw HexRecordError(line: lineNo, message: L("type 05 needs 4 bytes")) }
                 start = data.reduce(0) { $0 << 8 | UInt64($1) }
             default:
-                throw HexRecordError(line: lineNo, message: "unbekannter Record-Typ \(b[3])")
+                throw HexRecordError(line: lineNo, message: L("unknown record type %@", "\(b[3])"))
             }
         }
         return Image(segments: segs, startAddress: start, header: nil)
@@ -149,19 +149,19 @@ public enum HexRecords {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
             guard line.hasPrefix("S"), let type = line.dropFirst().first?.wholeNumberValue else {
-                throw HexRecordError(line: lineNo, message: "Zeile beginnt nicht mit S0–S9")
+                throw HexRecordError(line: lineNo, message: L("line does not start with S0–S9"))
             }
             let b = try bytes(line.dropFirst(2)[...], line: lineNo)
-            guard b.count >= 3, b.count == Int(b[0]) + 1 else { throw HexRecordError(line: lineNo, message: "Längenangabe passt nicht") }
-            guard b.dropLast().reduce(0, &+) ^ 0xFF == b.last! else { throw HexRecordError(line: lineNo, message: "Prüfsumme falsch") }
+            guard b.count >= 3, b.count == Int(b[0]) + 1 else { throw HexRecordError(line: lineNo, message: L("length field does not match")) }
+            guard b.dropLast().reduce(0, &+) ^ 0xFF == b.last! else { throw HexRecordError(line: lineNo, message: L("checksum mismatch")) }
             let addrLen: Int
             switch type {
             case 0, 1, 5, 9: addrLen = 2
             case 2, 6, 8: addrLen = 3
             case 3, 7: addrLen = 4
-            default: throw HexRecordError(line: lineNo, message: "unbekannter Record-Typ S\(type)")
+            default: throw HexRecordError(line: lineNo, message: L("unknown record type S%@", "\(type)"))
             }
-            guard b.count >= 2 + addrLen else { throw HexRecordError(line: lineNo, message: "Record zu kurz") }
+            guard b.count >= 2 + addrLen else { throw HexRecordError(line: lineNo, message: L("record too short")) }
             let addr = b[1 ..< 1 + addrLen].reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
             let data = Array(b[(1 + addrLen) ..< (b.count - 1)])
             switch type {
@@ -169,7 +169,7 @@ public enum HexRecords {
             case 1, 2, 3: append(&segs, addr, data); dataRecords += 1
             case 5, 6:
                 guard addr == UInt64(dataRecords) else {
-                    throw HexRecordError(line: lineNo, message: "Record-Zähler \(addr), gezählt \(dataRecords)")
+                    throw HexRecordError(line: lineNo, message: L("record count %@, counted %@", "\(addr)", "\(dataRecords)"))
                 }
             default: start = addr
             }

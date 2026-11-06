@@ -31,10 +31,10 @@ final class DocumentModel: ObservableObject {
     /// the offset column and accepted by "go to".
     @Published var offsetBase: UInt64 = 0
 
-    /// Vim key bindings (Darstellung → Vim-Tastenkürzel), app-wide.
+    /// Vim key bindings (View → Vim Key Bindings), app-wide.
     @Published var vimEnabled = Settings.shared.bool(forKey: "vimMode")
     var vim = VimMachine()
-    @Published private(set) var vimStatus = VimMode.normal.rawValue
+    @Published private(set) var vimStatus = VimMachine().status
     func vimStatusChanged() { vimStatus = vim.status }
 
     /// Set when the file was imported from Intel HEX / S-Record: saving
@@ -82,7 +82,7 @@ final class DocumentModel: ObservableObject {
     }
 
     /// Remembered across windows and launches.
-    @Published var sidebarTab: SidebarTab = SidebarTab(rawValue: Settings.shared.string(forKey: "sidebarTab") ?? "") ?? .data {
+    @Published var sidebarTab: SidebarTab = SidebarTab(stored: Settings.shared.string(forKey: "sidebarTab") ?? "") ?? .data {
         didSet { Settings.shared.set(sidebarTab.rawValue, forKey: "sidebarTab") }
     }
 
@@ -129,8 +129,35 @@ final class DocumentModel: ObservableObject {
         refreshInspector()
     }
 
+    /// Raw values are stored in settings.json ("sidebarTab").
     enum SidebarTab: String, CaseIterable {
-        case data = "Daten", structure = "Struktur", yara = "YARA", analysis = "Analyse", script = "Skript", strings = "Strings", image = "Bild", hits = "Treffer", bookmarks = "Lesezeichen", checksums = "Prüfsummen"
+        case data, structure, yara, analysis, script, strings, image, hits, bookmarks, checksums
+
+        /// Also accepts the German raw values stored before issue #40.
+        init?(stored: String) {
+            let legacy: [String: SidebarTab] = [
+                "Daten": .data, "Struktur": .structure, "YARA": .yara, "Analyse": .analysis, "Skript": .script,
+                "Strings": .strings, "Bild": .image, "Treffer": .hits, "Lesezeichen": .bookmarks,
+                "Pr\u{FC}fsummen": .checksums,
+            ]
+            guard let tab = SidebarTab(rawValue: stored) ?? legacy[stored] else { return nil }
+            self = tab
+        }
+
+        var title: String {
+            switch self {
+            case .data: L("Data")
+            case .structure: L("Structure")
+            case .yara: "YARA"
+            case .analysis: L("Analysis")
+            case .script: L("Script")
+            case .strings: L("Strings")
+            case .image: L("Image")
+            case .hits: L("Hits")
+            case .bookmarks: L("Bookmarks")
+            case .checksums: L("Checksums")
+            }
+        }
         var symbol: String {
             switch self {
             case .data: "number"
@@ -180,7 +207,7 @@ final class DocumentModel: ObservableObject {
         if !hits.isEmpty || currentHit != nil {
             hits = []
             currentHit = nil
-            findMessage = "Inhalt geändert – erneut suchen"
+            findMessage = L("Content changed – search again")
         }
         diffs = []
         diffFile = nil
@@ -206,7 +233,7 @@ final class DocumentModel: ObservableObject {
     func runSearch(thenSelect index: Int? = nil) {
         if findMode == .regex { runRegexSearch(thenSelect: index); return }
         guard let p = pattern(findText) else {
-            findMessage = findText.isEmpty ? nil : "Ungültiges Muster"
+            findMessage = findText.isEmpty ? nil : L("Invalid pattern")
             hits = []
             currentHit = nil
             return
@@ -227,8 +254,8 @@ final class DocumentModel: ObservableObject {
                 guard let self, !cancelled else { return }
                 self.searching = false
                 self.hits = found
-                self.findMessage = found.isEmpty ? "Keine Treffer"
-                    : found.count >= Search.maxHits ? "mehr als \(Search.maxHits) Treffer" : nil
+                self.findMessage = found.isEmpty ? L("No hits")
+                    : found.count >= Search.maxHits ? L("more than %ld hits", Search.maxHits) : nil
                 // First hit at or after the cursor, like a text editor.
                 let i = index ?? found.firstIndex { $0.lowerBound >= start } ?? 0
                 if !found.isEmpty { self.select(hit: min(i, found.count - 1)) }
@@ -240,7 +267,7 @@ final class DocumentModel: ObservableObject {
     private func runRegexSearch(thenSelect index: Int?) {
         guard !findText.isEmpty else { hits = []; currentHit = nil; findMessage = nil; return }
         do { _ = try NSRegularExpression(pattern: findText) } catch {
-            findMessage = "Ungültiger Ausdruck"
+            findMessage = L("Invalid expression")
             hits = []
             currentHit = nil
             return
@@ -260,8 +287,8 @@ final class DocumentModel: ObservableObject {
                 guard let self, !cancelled else { return }
                 self.searching = false
                 self.hits = found
-                self.findMessage = found.isEmpty ? "Keine Treffer"
-                    : found.count >= Search.maxHits ? "mehr als \(Search.maxHits) Treffer" : nil
+                self.findMessage = found.isEmpty ? L("No hits")
+                    : found.count >= Search.maxHits ? L("more than %ld hits", Search.maxHits) : nil
                 let i = index ?? found.firstIndex { $0.lowerBound >= start } ?? 0
                 if !found.isEmpty { self.select(hit: min(i, found.count - 1)) }
             }
@@ -303,7 +330,7 @@ final class DocumentModel: ObservableObject {
 
     func replaceCurrent() {
         guard let i = currentHit, hits.indices.contains(i) else { return }
-        guard let bytes = replacementBytes() else { findMessage = "Ungültige Ersetzung"; return }
+        guard let bytes = replacementBytes() else { findMessage = L("Invalid replacement"); return }
         do {
             try doc.replace(hits[i], with: bytes)
             contentChanged()
@@ -314,13 +341,13 @@ final class DocumentModel: ObservableObject {
 
     func replaceAll() {
         guard !hits.isEmpty else { return }
-        guard let bytes = replacementBytes() else { findMessage = "Ungültige Ersetzung"; return }
+        guard let bytes = replacementBytes() else { findMessage = L("Invalid replacement"); return }
         do {
             let n = hits.count
             try doc.replaceAll(hits, with: bytes)
             contentChanged()
             reloadView?()                   // the file may have become shorter
-            findMessage = "\(n) ersetzt"
+            findMessage = L("%ld replaced", n)
         } catch { findMessage = String(describing: error) }
     }
 
@@ -377,7 +404,7 @@ final class DocumentModel: ObservableObject {
 
     func computeChecksums() {
         let range = selection ?? 0..<doc.count
-        checksumScope = selection == nil ? "Ganze Datei" : "Auswahl, \(range.count) Byte"
+        checksumScope = selection == nil ? L("Whole file") : L("Selection, %ld bytes", range.count)
         checksumRunning = true
         checksums = [:]
         let snapshot = doc.snapshot()
@@ -398,7 +425,7 @@ final class DocumentModel: ObservableObject {
     func addBookmark(name: String) {
         let range = selection ?? cursor ..< min(doc.count, cursor + 1)
         let color = Self.bookmarkColors[bookmarks.count % Self.bookmarkColors.count]
-        bookmarks.append(Bookmark(name: name.isEmpty ? "Lesezeichen \(bookmarks.count + 1)" : name, range: range, color: color))
+        bookmarks.append(Bookmark(name: name.isEmpty ? L("Bookmark %ld", bookmarks.count + 1) : name, range: range, color: color))
         bookmarks.sort { $0.range.lowerBound < $1.range.lowerBound }
         sidebarTab = .bookmarks
     }

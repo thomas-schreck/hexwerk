@@ -153,32 +153,32 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         switch id {
-        case Item.open: button(id, "Öffnen", "folder", #selector(tbOpen(_:)), "Datei öffnen (⌘O)")
-        case Item.save: button(id, "Sichern", "square.and.arrow.down", #selector(saveDocument(_:)), "Sichern (⌘S)")
-        case Item.undo: button(id, "Widerrufen", "arrow.uturn.backward", #selector(tbUndo(_:)), "Widerrufen (⌘Z)")
-        case Item.redo: button(id, "Wiederholen", "arrow.uturn.forward", #selector(tbRedo(_:)), "Wiederholen (⇧⌘Z)")
-        case Item.cut: button(id, "Ausschneiden", "scissors", #selector(tbCut(_:)), "Ausschneiden (⌘X)")
-        case Item.copy: button(id, "Kopieren", "doc.on.doc", #selector(tbCopy(_:)), "Kopieren (⌘C)")
-        case Item.paste: button(id, "Einsetzen", "doc.on.clipboard", #selector(tbPaste(_:)), "Einsetzen (⌘V)")
-        case Item.find: button(id, "Suchen", "magnifyingglass", #selector(showFind(_:)), "Suchen (⌘F)")
-        case Item.goTo: button(id, "Gehe zu", "arrow.right.to.line", #selector(goToOffset(_:)), "Gehe zu Offset (⌘L)")
-        case Item.bookmark: button(id, "Lesezeichen", "bookmark", #selector(addBookmark(_:)), "Lesezeichen setzen (⌘D)")
-        case Item.compare: button(id, "Vergleichen", "arrow.left.arrow.right", #selector(compareWithFile(_:)), "Mit Datei vergleichen")
-        case Item.fill: button(id, "Füllen", "rectangle.and.pencil.and.ellipsis", #selector(fillSelection(_:)), "Auswahl füllen")
+        case Item.open: button(id, L("Open"), "folder", #selector(tbOpen(_:)), L("Open File (⌘O)"))
+        case Item.save: button(id, L("Save"), "square.and.arrow.down", #selector(saveDocument(_:)), L("Save (⌘S)"))
+        case Item.undo: button(id, L("Undo"), "arrow.uturn.backward", #selector(tbUndo(_:)), L("Undo (⌘Z)"))
+        case Item.redo: button(id, L("Redo"), "arrow.uturn.forward", #selector(tbRedo(_:)), L("Redo (⇧⌘Z)"))
+        case Item.cut: button(id, L("Cut"), "scissors", #selector(tbCut(_:)), L("Cut (⌘X)"))
+        case Item.copy: button(id, L("Copy"), "doc.on.doc", #selector(tbCopy(_:)), L("Copy (⌘C)"))
+        case Item.paste: button(id, L("Paste"), "doc.on.clipboard", #selector(tbPaste(_:)), L("Paste (⌘V)"))
+        case Item.find: button(id, L("Find"), "magnifyingglass", #selector(showFind(_:)), L("Find (⌘F)"))
+        case Item.goTo: button(id, L("Go To"), "arrow.right.to.line", #selector(goToOffset(_:)), L("Go to Offset (⌘L)"))
+        case Item.bookmark: button(id, L("Bookmark"), "bookmark", #selector(addBookmark(_:)), L("Add Bookmark (⌘D)"))
+        case Item.compare: button(id, L("Compare"), "arrow.left.arrow.right", #selector(compareWithFile(_:)), L("Compare with File"))
+        case Item.fill: button(id, L("Fill"), "rectangle.and.pencil.and.ellipsis", #selector(fillSelection(_:)), L("Fill Selection"))
         case Item.mode: modeItem(id)
         default: nil
         }
     }
 
     private func modeItem(_ id: NSToolbarItem.Identifier) -> NSToolbarItem {
-        let seg = NSSegmentedControl(labels: ["Überschreiben", "Einfügen"], trackingMode: .selectOne,
+        let seg = NSSegmentedControl(labels: [L("Overwrite"), L("Insert")], trackingMode: .selectOne,
                                      target: self, action: #selector(modeChanged(_:)))
         seg.selectedSegment = model.insertMode ? 1 : 0
         let item = NSToolbarItem(itemIdentifier: id)
         item.view = seg
-        item.label = "Modus"
-        item.paletteLabel = "Überschreiben/Einfügen"
-        item.toolTip = "Überschreiben oder Einfügen (⌘I)"
+        item.label = L("Mode")
+        item.paletteLabel = L("Overwrite/Insert")
+        item.toolTip = L("Overwrite or Insert (⌘I)")
         return item
     }
 
@@ -281,9 +281,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let window else { return }
         window.title = displayURL.lastPathComponent
         var sub = [ByteCountFormatter.string(fromByteCount: Int64(file.count), countStyle: .binary)]
-        if let i = model.importInfo { sub.append("\(i.format.rawValue) ab \(hex(model.offsetBase))") }
-        if file.isReadOnly { sub.append("schreibgeschützt") }
-        if file.isModified { sub.append("geändert") }
+        if let i = model.importInfo { sub.append(L("%1$@ at %2$@", i.format.rawValue, hex(model.offsetBase))) }
+        if file.isReadOnly { sub.append(L("read-only")) }
+        if file.isModified { sub.append(L("modified")) }
         window.subtitle = sub.joined(separator: " · ")
         window.representedURL = displayURL
         window.isDocumentEdited = file.isModified
@@ -312,10 +312,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func previousDifference(_ sender: Any?) { model.jumpToDiff(forward: false) }
 
     @objc func goToOffset(_ sender: Any?) {
-        prompt(title: "Gehe zu Offset",
+        prompt(title: L("Go to Offset"),
                message: model.offsetBase != 0
-                   ? "Adresse dezimal oder hex (0x…), ab \(hex(model.offsetBase)). Mit + oder − relativ."
-                   : "Dezimal oder hex (0x…). Mit + oder − relativ zur aktuellen Position.",
+                   ? L("Address in decimal or hex (0x…), from %@. + or − for relative.", hex(model.offsetBase))
+                   : L("Decimal or hex (0x…). + or − relative to the current position."),
                placeholder: "0x1000", text: "",
                validate: { [unowned self] in parseOffset($0) != nil }) { [self] text in
             guard let text, let target = parseOffset(text) else { return }
@@ -343,10 +343,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     @objc func addBookmark(_ sender: Any?) {
-        prompt(title: "Lesezeichen setzen",
-               message: hexView.selection.map { "Auswahl: \($0.count) Byte ab \(hex($0.lowerBound))" }
-                   ?? "Position \(hex(hexView.cursor))",
-               placeholder: "Name", text: "", validate: { _ in true }) { [self] name in
+        prompt(title: L("Add Bookmark"),
+               message: hexView.selection.map { L("Selection: %1$ld bytes at %2$@", $0.count, hex($0.lowerBound)) }
+                   ?? L("Position %@", hex(hexView.cursor)),
+               placeholder: L("Name"), text: "", validate: { _ in true }) { [self] name in
             guard let name else { return }
             model.addBookmark(name: name)
         }
@@ -354,8 +354,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     @objc func fillSelection(_ sender: Any?) {
         guard hexView.selection != nil else { NSSound.beep(); return }
-        prompt(title: "Auswahl füllen", message: "Hex-Muster, wird über die Auswahl wiederholt.",
-               placeholder: "00 oder DE AD BE EF", text: "00",
+        prompt(title: L("Fill Selection"), message: L("Hex pattern, repeated over the selection."),
+               placeholder: L("00 or DE AD BE EF"), text: "00",
                validate: { Self.fixedBytes($0) != nil }) { [self] text in
             guard let text, let bytes = Self.fixedBytes(text) else { return }
             hexView.fillSelection(with: bytes)
@@ -371,7 +371,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func compareWithFile(_ sender: Any?) {
         guard let window else { return }
         let panel = NSOpenPanel()
-        panel.message = "Datei zum Vergleich mit \(file.url.lastPathComponent) wählen"
+        panel.message = L("Choose a file to compare with %@", file.url.lastPathComponent)
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             model.compare(with: url)
@@ -413,8 +413,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         // Text renderings grow 4–6×; beyond a few MB the clipboard is the wrong tool.
         guard r.count <= 4 << 20 else {
             let a = NSAlert()
-            a.messageText = "Auswahl zu groß zum Kopieren (\(ByteCountFormatter.string(fromByteCount: Int64(r.count), countStyle: .binary)))."
-            a.informativeText = "Höchstens 4 MiB. Größere Bereiche mit Ablage → Auswahl exportieren sichern."
+            a.messageText = L("Selection too large to copy (%@).", ByteCountFormatter.string(fromByteCount: Int64(r.count), countStyle: .binary))
+            a.informativeText = L("At most 4 MiB. Save larger ranges with File → Export Selection.")
             a.runModal()
             return
         }
@@ -428,7 +428,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let panel = NSSavePanel()
         panel.nameFieldStringValue = file.url.deletingPathExtension().lastPathComponent
             + "_\(String(r.lowerBound, radix: 16, uppercase: true))-\(String(r.upperBound, radix: 16, uppercase: true)).bin"
-        panel.message = "\(r.count) Byte ab \(hex(r.lowerBound)) als Rohdaten sichern"
+        panel.message = L("Save %1$ld bytes at %2$@ as raw data", r.count, hex(r.lowerBound))
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             do { try file.read(r).write(to: url, options: .atomic) } catch { showError(error) }
@@ -443,10 +443,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private func save() -> Bool {
         if file.hasChangedOnDisk() {
             let a = NSAlert()
-            a.messageText = "\(file.url.lastPathComponent) wurde außerhalb von hexwerk geändert."
-            a.informativeText = "Beim Sichern gehen diese Änderungen verloren."
-            a.addButton(withTitle: "Trotzdem sichern")
-            a.addButton(withTitle: "Abbrechen")
+            a.messageText = L("%@ was changed outside hexwerk.", file.url.lastPathComponent)
+            a.informativeText = L("Saving discards those changes.")
+            a.addButton(withTitle: L("Save Anyway"))
+            a.addButton(withTitle: L("Cancel"))
             guard a.runModal() == .alertFirstButtonReturn else { return false }
         }
         do {
@@ -476,7 +476,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let r = exportRange
         let panel = NSSavePanel()
         panel.nameFieldStringValue = displayURL.deletingPathExtension().lastPathComponent + "." + format.fileExtension
-        panel.message = "\(r.count) Byte als \(format.rawValue), Adresse ab \(hex(model.offsetBase + r.lowerBound))"
+        panel.message = L("%1$ld bytes as %2$@, address from %3$@", r.count, format.rawValue, hex(model.offsetBase + r.lowerBound))
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             let data = file.read(r), base = model.offsetBase + r.lowerBound
@@ -503,7 +503,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     private func showError(_ error: Error) {
         let a = NSAlert()
-        a.messageText = "Fehler"
+        a.messageText = L("Error")
         a.informativeText = String(describing: error)
         a.runModal()
     }
@@ -540,11 +540,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func confirmClose() -> Bool {
         guard file.isModified else { return true }
         let a = NSAlert()
-        a.messageText = "Änderungen an \(file.url.lastPathComponent) sichern?"
-        a.informativeText = "Ohne Sichern gehen die Änderungen verloren."
-        a.addButton(withTitle: "Sichern")
-        a.addButton(withTitle: "Abbrechen")
-        a.addButton(withTitle: "Nicht sichern")
+        a.messageText = L("Save changes to %@?", file.url.lastPathComponent)
+        a.informativeText = L("Your changes will be lost if you don't save them.")
+        a.addButton(withTitle: L("Save"))
+        a.addButton(withTitle: L("Cancel"))
+        a.addButton(withTitle: L("Don't Save"))
         switch a.runModal() {
         case .alertFirstButtonReturn: return save()
         case .alertThirdButtonReturn: return true
@@ -605,7 +605,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let panel = NSSavePanel()
         panel.nameFieldStringValue = ProjectStore.sidecar(for: displayURL).lastPathComponent
         panel.directoryURL = displayURL.deletingLastPathComponent()
-        panel.message = "Lesezeichen, Format, YARA-Regeln und Position als Projektdatei sichern"
+        panel.message = L("Save bookmarks, format, YARA rules and position as a project file")
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             do { try ProjectStore.write(projectState(), to: url) } catch { showError(error) }

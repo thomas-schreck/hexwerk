@@ -27,7 +27,7 @@ public struct ScriptError: Error, CustomStringConvertible, Sendable {
         self.isTimeout = isTimeout
     }
 
-    public var description: String { line.map { "Zeile \($0): \(message)" } ?? message }
+    public var description: String { line.map { L("Line %ld: %@", $0, message) } ?? message }
 }
 
 public struct ScriptResult: Sendable {
@@ -42,25 +42,28 @@ public struct ScriptResult: Sendable {
 public enum ScriptRunner {
     public static let defaultTimeout: Double = 30
 
-    public static let apiHelp = """
-    hw.size()                      Dateigröße
-    hw.read(off, len)              Bytes als Uint8Array
-    hw.write(off, bytes)           überschreiben (Array, Uint8Array oder String)
-    hw.insert(off, bytes)          einfügen
-    hw.remove(off, len)            löschen
-    hw.u8/u16/u32/u64(off, le)     vorzeichenlos lesen (le = true: Little Endian, Standard)
-    hw.i8/i16/i32/i64(off, le)     vorzeichenbehaftet; 64 Bit als BigInt
-    hw.f32/f64(off, le)            Gleitkomma
-    hw.str(off, len)               UTF-8-Text
-    hw.hex(off, len)               Hex-Text
-    hw.find(muster, start, ende)   Offsets eines Hex-Musters ("DE AD ?? EF")
-    hw.findText(text)              Offsets eines UTF-8-Texts
-    hw.select(start, ende)         Auswahl nach dem Lauf setzen
-    hw.goto(off)                   Cursor nach dem Lauf setzen
-    hw.cursor, hw.selection        Stand beim Start ({start, end} oder null)
-    hw.fileName                    Dateiname
-    print(...), console.log(...)   Ausgabe
-    """
+    /// One line per API call: signature, padded, then the localized description.
+    public static var apiHelp: String {
+        [
+            ("hw.size()", L("file size")),
+            ("hw.read(off, len)", L("bytes as Uint8Array")),
+            ("hw.write(off, bytes)", L("overwrite (Array, Uint8Array or String)")),
+            ("hw.insert(off, bytes)", L("insert")),
+            ("hw.remove(off, len)", L("delete")),
+            ("hw.u8/u16/u32/u64(off, le)", L("read unsigned (le = true: little endian, default)")),
+            ("hw.i8/i16/i32/i64(off, le)", L("signed; 64 bit as BigInt")),
+            ("hw.f32/f64(off, le)", L("floating point")),
+            ("hw.str(off, len)", L("UTF-8 text")),
+            ("hw.hex(off, len)", L("hex text")),
+            (L("hw.find(pattern, start, end)"), L("offsets of a hex pattern (\"DE AD ?? EF\")")),
+            ("hw.findText(text)", L("offsets of a UTF-8 text")),
+            (L("hw.select(start, end)"), L("set the selection after the run")),
+            ("hw.goto(off)", L("set the cursor after the run")),
+            ("hw.cursor, hw.selection", L("state at start ({start, end} or null)")),
+            ("hw.fileName", L("file name")),
+            ("print(...), console.log(...)", L("output")),
+        ].map { $0.0.padding(toLength: 31, withPad: " ", startingAt: 0) + $0.1 }.joined(separator: "\n")
+    }
 
     /// Runs `source` against `document` as one undo step; on an error all
     /// edits are rolled back. Blocks the calling thread (runs on its own
@@ -109,11 +112,11 @@ private final class Session {
         if let e = js.exception {
             js.exception = nil
             if watchdog.fired {
-                throw ScriptError(message: watchdog.cancelled ? "Abgebrochen" : "Zeitlimit von \(Int(timeout)) s überschritten",
+                throw ScriptError(message: watchdog.cancelled ? L("Cancelled") : L("Time limit of %ld s exceeded", Int(timeout)),
                                   line: nil, isTimeout: !watchdog.cancelled)
             }
             let line = e.objectForKeyedSubscript("line")?.toNumber()?.intValue
-            throw ScriptError(message: e.toString() ?? "Fehler", line: line == 0 ? nil : line)
+            throw ScriptError(message: e.toString() ?? L("Error"), line: line == 0 ? nil : line)
         }
     }
 
@@ -172,7 +175,7 @@ private final class Session {
             return self.document.read(r).map { String(format: "%02X", $0) }.joined(separator: " ")
         } as @convention(block) (JSValue, JSValue) -> String?)
         fn("find", { [unowned self] (pattern: String, start: JSValue, end: JSValue) -> [Double]? in
-            guard let p = SearchPattern.hex(pattern) else { self.fail("ungültiges Hex-Muster: \(pattern)"); return nil }
+            guard let p = SearchPattern.hex(pattern) else { self.fail(L("invalid hex pattern: %@", pattern)); return nil }
             return self.find(p, start, end)
         } as @convention(block) (String, JSValue, JSValue) -> [Double]?)
         fn("findText", { [unowned self] (text: String, start: JSValue, end: JSValue) -> [Double]? in
@@ -203,7 +206,7 @@ private final class Session {
     private func offset(_ v: JSValue) -> UInt64? {
         let d = v.isBigInt ? Double(v.toString() ?? "") ?? -1 : v.toDouble()
         guard v.isNumber || v.isBigInt, d >= 0, d <= Double(document.count), d == d.rounded() else {
-            fail("ungültiger Offset: \(v.toString() ?? "?") (Größe \(document.count))")
+            fail(L("invalid offset: %@ (size %@)", v.toString() ?? "?", "\(document.count)"))
             return nil
         }
         return UInt64(d)
@@ -212,7 +215,7 @@ private final class Session {
     private func range(_ off: JSValue, _ len: JSValue) -> Range<UInt64>? {
         guard let o = offset(off) else { return nil }
         let l = len.toDouble()
-        guard len.isNumber, l >= 0, l == l.rounded() else { fail("ungültige Länge"); return nil }
+        guard len.isNumber, l >= 0, l == l.rounded() else { fail(L("invalid length")); return nil }
         return o ..< min(document.count, o + UInt64(l))
     }
 
@@ -231,13 +234,13 @@ private final class Session {
             var out = Data(capacity: a.count)
             for x in a {
                 guard let n = x as? NSNumber, (0...255).contains(n.intValue), n.doubleValue == Double(n.intValue) else {
-                    fail("Byte-Array darf nur Zahlen 0–255 enthalten"); return nil
+                    fail(L("Byte array may only contain numbers 0–255")); return nil
                 }
                 out.append(UInt8(n.intValue))
             }
             return out
         }
-        fail("Bytes erwartet (Array, Uint8Array oder String)")
+        fail(L("Bytes expected (Array, Uint8Array or String)"))
         return nil
     }
 
@@ -253,7 +256,7 @@ private final class Session {
     private func integer(_ off: JSValue, _ size: Int, _ le: JSValue) -> UInt64? {
         guard let o = offset(off) else { return nil }
         let d = document.read(o ..< o + UInt64(size))
-        guard d.count == size else { fail("Lesen über das Dateiende bei \(o)"); return nil }
+        guard d.count == size else { fail(L("Read past the end of the file at %@", "\(o)")); return nil }
         let little = le.isUndefined || le.toBool()
         var v: UInt64 = 0
         for b in (little ? d.reversed() : Array(d)) { v = v << 8 | UInt64(b) }

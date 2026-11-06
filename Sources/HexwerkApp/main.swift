@@ -1,10 +1,18 @@
 import AppKit
 import HexwerkCore
 
+// UI language (app menu → Language), applied before any UI exists.
+// AppKit's own texts (alert buttons, system menu items) follow AppleLanguages.
+switch Settings.shared.string(forKey: "language") {
+case "en": L10n.override = .en; UserDefaults.standard.set(["en"], forKey: "AppleLanguages")
+case "de": L10n.override = .de; UserDefaults.standard.set(["de"], forKey: "AppleLanguages")
+default: UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+}
+
 // Offscreen rendering for checks without clicking through the app:
-//   HexwerkApp --snapshot <datei> <bild.png> [zeile]
+//   HexwerkApp --snapshot <file> <image.png> [row]
 //       hex view only, reports the drawing time (SPEC TC-1.8)
-//   HexwerkApp --window <datei> <bild.png> [hex-suche | :struct] [dark]
+//   HexwerkApp --window <file> <image.png> [hex-search | :struct] [dark]
 //       whole window content (find bar, grid, sidebar, status bar)
 let args = CommandLine.arguments
 if args.count >= 4, args[1] == "--snapshot" || args[1] == "--window" {
@@ -26,7 +34,7 @@ if args.count >= 4, args[1] == "--snapshot" || args[1] == "--window" {
                 for _ in 0..<runs { view.cacheDisplay(in: view.bounds, to: rep) }
                 let ms = Date().timeIntervalSince(t0) * 1000 / Double(runs)
                 try rep.representation(using: .png, properties: [:])!.write(to: out)
-                print(String(format: "Zeichnen einer Seite: %.2f ms (Mittel über %d)", ms, runs))
+                print(String(format: "Drawing one page: %.2f ms (mean of %d)", ms, runs))
                 withExtendedLifetime(model) {}
             } else {
                 let c = DocumentWindowController(file: doc)

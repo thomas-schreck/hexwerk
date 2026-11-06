@@ -30,22 +30,22 @@ import Testing
 
     @Test func times() {
         // 2026-11-05T00:00:00Z = 1793836800 = 0x6AEB_C700
-        #expect(value([0x00, 0xC7, 0xEB, 0x6A], "Unix-Zeit 32") == "2026-11-05T00:00:00Z")
+        #expect(value([0x00, 0xC7, 0xEB, 0x6A], "Unix time 32") == "2026-11-05T00:00:00Z")
         // FILETIME for 1970-01-01 = 116444736000000000 = 0x019DB1DED53E8000
         #expect(value([0x00, 0x80, 0x3E, 0xD5, 0xDE, 0xB1, 0x9D, 0x01], "FILETIME") == "1970-01-01T00:00:00Z")
         // DOS: 2026-11-05 13:45:30 → date 0x5D65, time 0x6DAF
-        #expect(value([0xAF, 0x6D, 0x65, 0x5D], "DOS-Datum/Zeit") == "2026-11-05 13:45:30")
+        #expect(value([0xAF, 0x6D, 0x65, 0x5D], "DOS date/time") == "2026-11-05 13:45:30")
     }
 
     @Test func guidAndBinary() {
         let b: [UInt8] = [0x33, 0x22, 0x11, 0x00, 0x55, 0x44, 0x77, 0x66, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]
         #expect(value(b, "GUID") == "{00112233-4455-6677-8899-AABBCCDDEEFF}")
-        #expect(value([0x05], "binär") == "00000101")
+        #expect(value([0x05], "binary") == "00000101")
     }
 
     @Test func leb128() {
-        #expect(value([0xE5, 0x8E, 0x26], "ULEB128") == "624485 (3 Byte)")
-        #expect(value([0xC0, 0xBB, 0x78], "SLEB128") == "-123456 (3 Byte)")
+        #expect(value([0xE5, 0x8E, 0x26], "ULEB128") == L("%@ (%ld bytes)", "624485", 3))
+        #expect(value([0xC0, 0xBB, 0x78], "SLEB128") == L("%@ (%ld bytes)", "-123456", 3))
     }
 
     @Test func strings() {

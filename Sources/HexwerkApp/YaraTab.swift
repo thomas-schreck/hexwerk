@@ -21,13 +21,13 @@ struct YaraTab: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Regeln").font(.headline)
+                Text(L("Rules")).font(.headline)
                 Spacer()
-                Button { addRules() } label: { Label("Hinzufügen", systemImage: "plus") }
+                Button { addRules() } label: { Label(L("Add"), systemImage: "plus") }
                     .controlSize(.small)
             }
             if yara.ruleFiles.isEmpty {
-                Text("Regeldateien (.yar) oder Ordner hinzufügen.").font(.caption).foregroundStyle(.secondary)
+                Text(L("Add rule files (.yar) or folders.")).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(yara.ruleFiles, id: \.self) { url in
                 HStack(spacing: 6) {
@@ -36,7 +36,7 @@ struct YaraTab: View {
                     Spacer()
                     Button { yara.removeRules(url) } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).foregroundStyle(.tertiary)
-                        .help("Aus der Liste entfernen")
+                        .help(L("Remove from the list"))
                 }
                 .font(.callout)
                 .help(url.path)
@@ -44,37 +44,37 @@ struct YaraTab: View {
 
             HStack {
                 Picker("", selection: $yara.scope) {
-                    ForEach(YaraModel.Scope.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(YaraModel.Scope.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
                 .disabled(model.selection == nil)
-                .help("Ganze Datei oder nur die Auswahl scannen")
+                .help(L("Scan the whole file or only the selection"))
                 Spacer()
-                Stepper("Zeitlimit \(yara.timeout) s", value: $yara.timeout, in: 5...600, step: 5)
+                Stepper(L("Time limit %ld s", yara.timeout), value: $yara.timeout, in: 5...600, step: 5)
                     .font(.caption).monospacedDigit().fixedSize()
-                    .help("Zeitlimit des Scans")
+                    .help(L("Time limit of the scan"))
             }
             HStack {
                 if yara.running {
                     ProgressView().controlSize(.small)
-                    Text("Scanne …").font(.caption).foregroundStyle(.secondary)
+                    Text(L("Scanning…")).font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Abbrechen") { yara.cancel() }
+                    Button(L("Cancel")) { yara.cancel() }
                 } else {
                     Button { scan() } label: {
-                        Label("Scannen", systemImage: "shield.lefthalf.filled").frame(maxWidth: .infinity)
+                        Label(L("Scan"), systemImage: "shield.lefthalf.filled").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(yara.ruleFiles.isEmpty)
                     .keyboardShortcut(.return, modifiers: [.command])
-                    .help("Mit allen Regeln scannen (⌘↩, im Menü ⇧⌘Y)")
+                    .help(L("Scan with all rules (⌘↩, in the menu ⇧⌘Y)"))
                 }
             }
             .onChange(of: model.selection == nil) { _, none in if none { yara.scope = .file } }
 
             if yara.stale {
-                banner("Inhalt geändert – Treffer evtl. verschoben", "arrow.clockwise", .orange,
-                       action: ("Neu scannen", scan))
+                banner(L("Content changed – hits may have shifted"), "arrow.clockwise", .orange,
+                       action: (L("Scan Again"), scan))
             }
             ForEach(Array(yara.compileErrors.enumerated()), id: \.offset) { _, d in
                 banner(d.description, "exclamationmark.triangle.fill", .red, action: nil)
@@ -84,7 +84,7 @@ struct YaraTab: View {
                 banner(e, "exclamationmark.triangle.fill", .red, action: nil)
             }
             if !yara.warnings.isEmpty {
-                DisclosureGroup("\(yara.warnings.count) Warnung\(yara.warnings.count == 1 ? "" : "en")") {
+                DisclosureGroup(yara.warnings.count == 1 ? L("1 warning") : L("%ld warnings", yara.warnings.count)) {
                     ForEach(Array(yara.warnings.enumerated()), id: \.offset) { _, w in
                         Text(w.description).font(.caption).foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading).help(w.report)
@@ -104,7 +104,7 @@ struct YaraTab: View {
     @ViewBuilder private var content: some View {
         if let results = yara.results {
             if results.isEmpty {
-                placeholder("checkmark.shield", "Keine Regel hat getroffen.")
+                placeholder("checkmark.shield", L("No rule matched."))
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -114,7 +114,7 @@ struct YaraTab: View {
                 }
             }
         } else if !yara.running {
-            placeholder("shield.lefthalf.filled", "Noch kein Scan.\nRegeln hinzufügen und „Scannen“ (⌘↩).")
+            placeholder("shield.lefthalf.filled", L("No scan yet.\nAdd rules and click “Scan” (⌘↩)."))
         } else {
             Spacer()
         }
@@ -132,7 +132,7 @@ struct YaraTab: View {
                     .background(Color.pink.opacity(0.18), in: Capsule())
             }
             Spacer(minLength: 6)
-            Text(r.matches.isEmpty ? "Bedingung" : "\(r.matches.count)")
+            Text(r.matches.isEmpty ? L("condition") : "\(r.matches.count)")
                 .font(.caption).foregroundStyle(.secondary).monospacedDigit()
         }
         .font(.system(size: 12))
@@ -152,7 +152,7 @@ struct YaraTab: View {
             // Long lists are capped in the view; markings show all matches.
             ForEach(r.matches.prefix(2000), id: \.self) { m in matchRow(m) }
             if r.matches.count > 2000 {
-                Text("… \(r.matches.count - 2000) weitere (im Raster markiert)")
+                Text(L("… %ld more (marked in the grid)", r.matches.count - 2000))
                     .font(.caption).foregroundStyle(.tertiary).padding(.leading, 30)
             }
         }
@@ -176,7 +176,7 @@ struct YaraTab: View {
             yara.selectedMatch = m
             model.jump?(m.offset, m.length > 0 ? m.range : nil)
         }
-        .help("\(m.length) Byte")
+        .help(L("%llu bytes", m.length))
     }
 
     private func preview(_ m: YaraPatternMatch) -> String {
@@ -194,7 +194,7 @@ struct YaraTab: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
-        panel.message = "YARA-Regeldateien oder Ordner wählen"
+        panel.message = L("Choose YARA rule files or folders")
         try? FileManager.default.createDirectory(at: YaraModel.rulesDir, withIntermediateDirectories: true)
         panel.directoryURL = YaraModel.rulesDir
         guard panel.runModal() == .OK else { return }
