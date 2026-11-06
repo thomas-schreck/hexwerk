@@ -29,6 +29,7 @@ struct Convert: ParsableCommand {
         let inFmt = from ?? Self.guess(input), outFmt = to ?? Self.guess(output)
         var segments: [HexRecords.Segment]
         var start: UInt64?
+        var startSegment: UInt32?
         do {
             if inFmt == .bin {
                 let data = try Data(contentsOf: URL(fileURLWithPath: input))
@@ -36,6 +37,8 @@ struct Convert: ParsableCommand {
             } else {
                 let image = try HexRecords.parse(try String(contentsOfFile: input, encoding: .ascii))
                 start = image.startAddress
+                startSegment = image.startSegment
+                for w in image.warnings { FileHandle.standardError.write(Data(("hexwerk: \(input): " + L("Warning: %@", w) + "\n").utf8)) }
                 FileHandle.standardError.write(Data((L("%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base, image.segments.reduce(0) { $0 + $1.data.count }, image.gaps.count) + "\n").utf8))
                 if outFmt == .bin {
                     // Only a flat binary needs the gaps filled.
@@ -57,7 +60,7 @@ struct Convert: ParsableCommand {
             }
             let out: Data = switch outFmt {
             case .bin: segments.first?.data ?? Data()
-            case .ihex: Data(try HexRecords.intelHex(segments, start: start).utf8)
+            case .ihex: Data(try HexRecords.intelHex(segments, start: start, startSegment: startSegment).utf8)
             case .srec: Data(try HexRecords.srec(segments, start: start).utf8)
             }
             try out.write(to: URL(fileURLWithPath: output), options: .atomic)

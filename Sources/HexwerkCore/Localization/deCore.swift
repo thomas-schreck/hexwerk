@@ -60,6 +60,7 @@ extension L10n {
         "Line %ld: %@": "Zeile %ld: %@",
         "Data at 0x%llX reaches past 0xFFFFFFFF, the limit of %@": "Daten ab 0x%llX reichen über 0xFFFFFFFF hinaus, die Grenze von %@",
         "Start address 0x%llX does not fit in 32 bits": "Startadresse 0x%llX passt nicht in 32 Bit",
+        "no end record (type 01): the file may be truncated": "kein Endesatz (Typ 01): die Datei ist womöglich abgeschnitten",
         "neither Intel HEX nor S-Record": "weder Intel HEX noch S-Record",
         "odd number of hex digits": "ungerade Anzahl Hex-Ziffern",
         "invalid character": "ungültiges Zeichen",
