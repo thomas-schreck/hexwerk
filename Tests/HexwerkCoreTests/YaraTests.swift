@@ -112,7 +112,7 @@ import HexwerkCore
         // Tests/HexwerkCoreTests/YaraTests.swift → package root → .build/debug/hexwerk
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let exe = root.appendingPathComponent(".build/debug/hexwerk")
-        try #require(FileManager.default.isExecutableFile(atPath: exe.path), "swift build --product hexwerk fehlt")
+        try #require(FileManager.default.isExecutableFile(atPath: exe.path), "swift build --product hexwerk missing")
         let ruleURL = try tempFile(Data(rules.utf8))
         let dataURL = try tempFile(data)
         defer {
@@ -122,6 +122,7 @@ import HexwerkCore
         let p = Process()
         p.executableURL = exe
         p.arguments = ["yara", ruleURL.path, dataURL.path] + extra
+        p.environment = ProcessInfo.processInfo.environment.merging(["HEXWERK_LANG": "en"]) { $1 }
         let out = Pipe()
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice

@@ -5,7 +5,7 @@ import HexwerkCore
 @main
 struct Hexwerk: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Hex-Werkzeug: Dateien ansehen, untersuchen, parsen.",
+        abstract: L("Hex tool: view, examine and parse files."),
         subcommands: [Dump.self, Inspect.self, Find.self, Diff.self, Hash.self, Parse.self, Yara.self, Entropy.self, Export.self, Script.self, FileType.self, StringsCmd.self, Convert.self, OpenCmd.self]
     )
 }
@@ -47,15 +47,15 @@ func printJSON(_ obj: Any) throws {
 }
 
 struct Dump: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Bereich als Hex-Dump ausgeben (Format wie hexdump -C).")
+    static let configuration = CommandConfiguration(abstract: L("Output a range as a hex dump (format like hexdump -C)."))
 
-    @Argument(help: "Datei") var file: String
-    @Option(help: "Start-Offset (dezimal oder 0x…)") var offset: Number = Number(argument: "0")!
-    @Option(help: "Anzahl Bytes (Standard: bis Dateiende)") var length: Number?
-    @Option(help: "Bytes pro Zeile") var width: Int = 16
+    @Argument(help: .init(L("File"))) var file: String
+    @Option(help: .init(L("Start offset (decimal or 0x…)"))) var offset: Number = Number(argument: "0")!
+    @Option(help: .init(L("Number of bytes (default: to end of file)"))) var length: Number?
+    @Option(help: .init(L("Bytes per line"))) var width: Int = 16
 
     func validate() throws {
-        guard (1...256).contains(width) else { throw ValidationError("--width muss zwischen 1 und 256 liegen") }
+        guard (1...256).contains(width) else { throw ValidationError(L("--width must be between 1 and 256")) }
     }
 
     func run() throws {
@@ -63,7 +63,7 @@ struct Dump: ParsableCommand {
         let start = offset.value
         let end = length.map { min(src.count, start + $0.value) } ?? src.count
         guard start <= src.count else {
-            FileHandle.standardError.write(Data("hexwerk: Offset \(start) liegt hinter dem Dateiende (\(src.count))\n".utf8))
+            FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
         // Stream in blocks so large ranges never sit in memory at once.
@@ -81,17 +81,17 @@ struct Dump: ParsableCommand {
 }
 
 struct Inspect: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Bytes an einem Offset als Datentypen deuten.")
+    static let configuration = CommandConfiguration(abstract: L("Interpret the bytes at an offset as data types."))
 
-    @Argument(help: "Datei") var file: String
-    @Argument(help: "Offset (dezimal oder 0x…)") var offset: Number
-    @Option(help: "Byte-Reihenfolge: little oder big") var endian: EndianArg = .little
-    @Flag(help: "Ausgabe als JSON") var json = false
+    @Argument(help: .init(L("File"))) var file: String
+    @Argument(help: .init(L("Offset (decimal or 0x…)"))) var offset: Number
+    @Option(help: .init(L("Byte order: little or big"))) var endian: EndianArg = .little
+    @Flag(help: .init(L("Output as JSON"))) var json = false
 
     func run() throws {
         let src = try openSource(file)
         guard offset.value < src.count else {
-            FileHandle.standardError.write(Data("hexwerk: Offset \(offset.value) liegt hinter dem Dateiende (\(src.count))\n".utf8))
+            FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", offset.value, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
         let values = Inspector.values(src.read(offset.value ..< offset.value + UInt64(Inspector.window)),
@@ -101,9 +101,9 @@ struct Inspect: ParsableCommand {
             let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
             print(String(decoding: data, as: UTF8.self))
         } else {
-            let w = values.map(\.name.count).max() ?? 0
+            let w = values.map(\.title.count).max() ?? 0
             for v in values {
-                print(v.name.padding(toLength: w, withPad: " ", startingAt: 0) + "  " + (v.value ?? "—"))
+                print(v.title.padding(toLength: w, withPad: " ", startingAt: 0) + "  " + (v.value ?? "—"))
             }
         }
     }

@@ -12,6 +12,7 @@ import Testing
         let p = Process()
         p.executableURL = Self.exe
         p.arguments = args
+        p.environment = ProcessInfo.processInfo.environment.merging(["HEXWERK_LANG": "en"]) { $1 }
         let out = Pipe()
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
@@ -19,6 +20,14 @@ import Testing
         let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         p.waitUntilExit()
         return (p.terminationStatus, text)
+    }
+
+    /// Children run with HEXWERK_LANG=en, so help texts are the English sources.
+    @Test func helpIsEnglishWithHexwerkLangEn() throws {
+        let (s, out) = try run(["dump", "--help"])
+        #expect(s == 0)
+        #expect(out.contains("Output a range as a hex dump"))
+        #expect(out.contains("Bytes per line"))
     }
 
     /// Only the failure path: a real `open` would launch the app.
