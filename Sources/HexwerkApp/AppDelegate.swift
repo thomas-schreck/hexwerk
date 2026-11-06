@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         for c in controllers where !c.confirmClose() { return .terminateCancel }
         for c in controllers { c.saveProject() }
+        Settings.shared.flush()
         return .terminateNow
     }
 

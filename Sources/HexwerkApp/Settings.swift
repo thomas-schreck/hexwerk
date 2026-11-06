@@ -14,6 +14,8 @@ final class Settings: @unchecked Sendable {
     private let url: URL
     private let lock = NSLock()
     private var values: [String: Any] = [:]
+    /// Writes are coalesced: the script editor sets a value per keystroke.
+    private let writer = Debouncer(delay: .milliseconds(500), label: "hexwerk.settings")
 
     init(url: URL = HexwerkPaths.settings) {
         self.url = url
@@ -35,8 +37,11 @@ final class Settings: @unchecked Sendable {
 
     func set(_ value: Any?, forKey key: String) {
         lock.withLock { values[key] = value }
-        save()
+        writer.schedule { [weak self] in self?.save() }
     }
+
+    /// Writes a pending change now (called before the app quits).
+    func flush() { writer.flush() }
 
     private func save() {
         let data: Data? = lock.withLock {
