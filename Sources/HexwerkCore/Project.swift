@@ -42,6 +42,38 @@ public struct ProjectState: Codable, Sendable, Equatable {
     }
 }
 
+extension ProjectState {
+    /// Synthesized decoding requires every key, even those with defaults, so
+    /// an older or hand-edited project without e.g. `offsetBase` would not
+    /// load at all. Only the file identity is required.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        filePath = try c.decode(String.self, forKey: .filePath)
+        fileSize = try c.decode(UInt64.self, forKey: .fileSize)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        bookmarks = try c.decodeIfPresent([Bookmark].self, forKey: .bookmarks) ?? []
+        format = try c.decodeIfPresent(Format.self, forKey: .format)
+        yaraRules = try c.decodeIfPresent([String].self, forKey: .yaraRules) ?? []
+        cursor = try c.decodeIfPresent(UInt64.self, forKey: .cursor) ?? 0
+        selectionStart = try c.decodeIfPresent(UInt64.self, forKey: .selectionStart)
+        selectionEnd = try c.decodeIfPresent(UInt64.self, forKey: .selectionEnd)
+        offsetBase = try c.decodeIfPresent(UInt64.self, forKey: .offsetBase) ?? 0
+    }
+}
+
+public enum ProjectError: Error, CustomStringConvertible, LocalizedError {
+    /// The file exists but cannot be read or decoded.
+    case unreadable(URL, String)
+
+    public var description: String {
+        switch self {
+        case .unreadable(let url, let detail):
+            L("Project file %@ could not be read and is left unchanged: %@", url.path, detail)
+        }
+    }
+    public var errorDescription: String? { description }
+}
+
 /// Per-file state lives in `<file>.hexwerk` next to the file as soon as
 /// there is something worth keeping (bookmarks) or that file already exists.
 /// Cursor and auto-detected format alone go to a central fallback, so merely
@@ -67,8 +99,23 @@ public enum ProjectStore {
     }
 
     public static func load(_ url: URL) -> ProjectState? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(ProjectState.self, from: data)
+        (try? read(url)) ?? nil
+    }
+
+    /// Like `load(for:in:)`, but a project file that exists and cannot be
+    /// read throws, so the caller can tell the user.
+    public static func read(for file: URL, in dir: URL = directory) throws -> ProjectState? {
+        try read(sidecar(for: file)) ?? read(url(for: file, in: dir))
+    }
+
+    /// nil if there is no file; throws if there is one that does not decode.
+    public static func read(_ url: URL) throws -> ProjectState? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            return try JSONDecoder().decode(ProjectState.self, from: try Data(contentsOf: url))
+        } catch {
+            throw ProjectError.unreadable(url, error.localizedDescription)
+        }
     }
 
     /// The file a project belongs to: the sibling without `.hexwerk` if it
@@ -81,11 +128,16 @@ public enum ProjectStore {
         return URL(fileURLWithPath: state.filePath)
     }
 
-    /// Returns where the state went (nil: nothing to keep).
+    /// Returns where the state went (nil: nothing to keep). Throws without
+    /// touching anything if an existing project file cannot be read: it may
+    /// hold bookmarks this version could not load, and overwriting it with
+    /// the (empty) current state would lose them.
     @discardableResult
     public static func save(_ state: ProjectState, for file: URL, in dir: URL = directory) throws -> URL? {
         let side = sidecar(for: file)
         let central = url(for: file, in: dir)
+        _ = try read(side)
+        _ = try read(central)
         let fm = FileManager.default
         if fm.fileExists(atPath: side.path) || !state.bookmarks.isEmpty {
             if (try? write(state, to: side)) != nil {

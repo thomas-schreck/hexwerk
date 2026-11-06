@@ -187,5 +187,8 @@ extension L10n {
         "state at start ({start, end} or null)": "Stand beim Start ({start, end} oder null)",
         "file name": "Dateiname",
         "output": "Ausgabe",
+
+        // Project files
+        "Project file %@ could not be read and is left unchanged: %@": "Projektdatei %@ konnte nicht gelesen werden und bleibt unverändert: %@",
     ]
 }
