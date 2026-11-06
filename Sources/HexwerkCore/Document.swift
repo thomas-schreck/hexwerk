@@ -84,14 +84,23 @@ public final class Document {
     /// Takes over the content of a working copy made from `base` as one undo
     /// step. Fails if this document changed since `base` was taken.
     public func adopt(_ copy: Document, base: Snapshot) throws {
+        try adopt(pieces: copy.pieces, added: copy.added, base: base)
+    }
+
+    /// `added` must start with this document's buffer at `base`.
+    func adopt(pieces new: [Piece], added newAdded: Data, base: Snapshot) throws {
         guard !isReadOnly else { throw DocumentError.readOnly }
         guard !isSaving else { throw DocumentError.saving }
         guard pieces == base.pieces, added.count == base.added.count else { throw DocumentError.changedMeanwhile }
-        guard copy.pieces != pieces else { return }
+        guard new != pieces else { return }
         // The copy's buffer starts with ours, so old undo states stay valid.
-        added = copy.added
-        record([replacePieces(0, pieces.count, with: copy.pieces)])
+        added = newAdded
+        record([replacePieces(0, pieces.count, with: new)])
     }
+
+    /// For `editedContent` (helper side).
+    var pieceList: [Piece] { pieces }
+    var addedBuffer: Data { added }
 
     /// Runs several edits as one undo step. If `body` throws, all its edits
     /// are rolled back.

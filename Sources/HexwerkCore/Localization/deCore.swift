@@ -197,5 +197,8 @@ extension L10n {
 
         // Project files
         "Project file %@ could not be read and is left unchanged: %@": "Projektdatei %@ konnte nicht gelesen werden und bleibt unverändert: %@",
+        // Sandboxed helper (#102)
+        "Invalid reply from the helper: %@": "Ungültige Antwort des Hilfsprozesses: %@",
+        "Invalid document data: %@": "Ungültige Dokumentdaten: %@",
     ]
 }
