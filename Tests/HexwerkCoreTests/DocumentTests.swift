@@ -220,6 +220,68 @@ import Testing
         #expect(try Data(contentsOf: url) == Data("AYCD".utf8))
     }
 
+    /// #6: one changed byte in a large file is written in place (no full
+    /// copy); anything that moves bytes still saves atomically.
+    @Test func automaticSaveWritesLargeFilesInPlace() throws {
+        let size = Int(Document.inPlaceMinimumSize)
+        var big = Data(count: size)
+        big[size - 1] = 0x55
+        let url = try tempFile(big)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let inode = try inodeOf(url)
+        let doc = try Document(url: url)
+        try doc.overwrite(at: 12345, with: Data([0xAA, 0xBB]))
+        try doc.save(mode: .automatic)
+        #expect(try inodeOf(url) == inode)
+        big.replaceSubrange(12345..<12347, with: [0xAA, 0xBB])
+        #expect(try Data(contentsOf: url) == big)
+        #expect(!doc.isModified)
+
+        try doc.delete(0..<1)
+        try doc.insert(Data([0x11]), at: 100)               // same length, bytes moved
+        let expected = doc.read(0..<doc.count)
+        try doc.save(mode: .automatic)
+        #expect(try inodeOf(url) != inode)                  // atomic
+        #expect(try Data(contentsOf: url) == expected)
+    }
+
+    @Test func automaticSaveKeepsSmallFilesAtomic() throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let inode = try inodeOf(url)
+        let doc = try Document(url: url)
+        try doc.overwrite(at: 1, with: Data([1]))
+        try doc.save(mode: .automatic)
+        #expect(try inodeOf(url) != inode)
+        var expected = original
+        expected[1] = 1
+        #expect(try Data(contentsOf: url) == expected)
+    }
+
+    /// #6: reading must not walk all pieces per call. 10k pieces, 20k reads:
+    /// a linear walk needs ~10⁸ piece steps, the binary search ~3·10⁵.
+    @Test func readWithManyPiecesIsFast() throws {
+        let url = try tempFile(Data(count: 400_000))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        let hits = stride(from: UInt64(0), to: 400_000, by: 80).map { $0 ..< $0 + 1 }
+        try doc.replaceAll(hits, with: Data([0xAB]))
+        let snap = doc.snapshot()
+        var model = Data(count: 400_000)
+        for h in hits { model[Int(h.lowerBound)] = 0xAB }
+        var rng = SplitMix(seed: 6)
+        let start = Date()
+        for _ in 0 ..< 20_000 {
+            let a = UInt64.random(in: 0 ..< 400_000, using: &rng)
+            let b = min(400_000, a + UInt64.random(in: 0 ... 50, using: &rng))
+            #expect(snap.read(a ..< b) == model.subdata(in: Int(a) ..< Int(b)))
+            let c = snap.withContiguousBytes(a ..< b) { Data($0) }
+            #expect(c == model.subdata(in: Int(a) ..< Int(b)))
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        #expect(elapsed < 3)
+    }
+
     /// TC-2.2: atomic save with length change, permissions kept.
     @Test func saveAtomic() throws {
         let url = try tempFile(original)
