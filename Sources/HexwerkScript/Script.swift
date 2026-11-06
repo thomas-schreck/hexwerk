@@ -216,7 +216,9 @@ private final class Session {
         guard let o = offset(off) else { return nil }
         let l = len.toDouble()
         guard len.isNumber, l >= 0, l == l.rounded() else { fail(L("invalid length")); return nil }
-        return o ..< min(document.count, o + UInt64(l))
+        // Clamp in Double first: UInt64(1e20) or UInt64(Infinity) would trap,
+        // and o + len could overflow. o <= count is guaranteed by offset().
+        return o ..< o + UInt64(min(l, Double(document.count - o)))
     }
 
     /// Accepts Uint8Array, an array of numbers 0…255, or a string (UTF-8).
