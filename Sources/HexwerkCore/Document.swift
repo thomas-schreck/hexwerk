@@ -102,6 +102,28 @@ public final class Document {
         }
     }
 
+    /// Runs edits that belong to the previous undo step (the second hex
+    /// digit of a byte), so one undo takes back the whole byte. Without a
+    /// previous step it behaves like `grouped`.
+    public func amendingLastEdit<R>(_ body: () throws -> R) throws -> R {
+        guard !undoStack.isEmpty else { return try grouped(body) }
+        let mark = undoStack.count
+        do {
+            let r = try body()
+            if undoStack.count > mark {
+                // Fold the new steps into the one before them.
+                let steps = undoStack[(mark - 1)...]
+                let merged = Step(changes: steps.flatMap(\.changes), before: steps.first!.before, after: steps.last!.after)
+                undoStack.removeSubrange((mark - 1)...)
+                undoStack.append(merged)
+            }
+            return r
+        } catch {
+            while undoStack.count > mark { revert(undoStack.removeLast()) }
+            throw error
+        }
+    }
+
     public var isModified: Bool { state != savedState }
 
     /// Pieces held by undo and redo (memory use, for tests).

@@ -427,3 +427,34 @@ struct SplitMix: RandomNumberGenerator {
         return z ^ (z >> 31)
     }
 }
+
+/// #16: both hex digits of a typed byte form one undo step.
+@Suite struct NibbleUndoTests {
+    @Test func secondNibbleJoinsPreviousUndoStep() throws {
+        let url = try tempFile(Data([1, 2, 3]))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        // Insert mode with a selection: delete + insert as one step, then the low nibble.
+        try doc.grouped {
+            try doc.delete(1..<2)
+            try doc.insert(Data([0x40]), at: 1)
+        }
+        try doc.amendingLastEdit { try doc.overwrite(at: 1, with: Data([0x41])) }
+        #expect(doc.read(0..<10) == Data([1, 0x41, 3]))
+        doc.undo()
+        #expect(doc.read(0..<10) == Data([1, 2, 3]))
+        #expect(!doc.canUndo)
+        doc.redo()
+        #expect(doc.read(0..<10) == Data([1, 0x41, 3]))
+    }
+
+    @Test func amendingWithoutHistoryIsOwnStep() throws {
+        let url = try tempFile(Data([1]))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try doc.amendingLastEdit { try doc.overwrite(at: 0, with: Data([7])) }
+        #expect(doc.canUndo)
+        doc.undo()
+        #expect(doc.read(0..<1) == Data([1]))
+    }
+}

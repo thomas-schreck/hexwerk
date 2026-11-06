@@ -485,17 +485,21 @@ final class HexView: NSView, NSMenuItemValidation {
     private func typeNibble(_ digit: UInt8) {
         guard !document.isReadOnly else { NSSound.beep(); return }
         if lowNibble {
-            // The second digit always edits the byte just started.
+            // The second digit always edits the byte just started and joins
+            // its undo step, so one undo takes back the whole byte.
             let old = document.read(cursor..<cursor + 1).first ?? 0
-            edit { try document.overwrite(at: cursor, with: Data([(old & 0xF0) | digit])) }
+            edit { try document.amendingLastEdit { try document.overwrite(at: cursor, with: Data([(old & 0xF0) | digit])) } }
             cursor += 1
             lowNibble = false
         } else if model.insertMode || cursor >= document.count {
-            if let sel = selection {
-                edit { try document.delete(sel) }
-                cursor = sel.lowerBound
+            let at = selection?.lowerBound ?? cursor
+            edit {
+                try document.grouped {
+                    if let sel = selection { try document.delete(sel) }
+                    try document.insert(Data([digit << 4]), at: at)
+                }
             }
-            edit { try document.insert(Data([digit << 4]), at: cursor) }
+            cursor = at
             lowNibble = true
         } else {
             let old = document.read(cursor..<cursor + 1).first ?? 0
