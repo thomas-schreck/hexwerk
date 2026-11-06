@@ -57,28 +57,28 @@ struct StringsTab: View {
                     }
                 }
                 HStack {
-                    Stepper("ab \(strings.minLength) Zeichen", value: $strings.minLength, in: 2...64)
+                    Stepper(L("at least %ld characters", strings.minLength), value: $strings.minLength, in: 2...64)
                         .font(.caption).fixedSize()
                     Spacer()
                     if strings.running {
                         ProgressView().controlSize(.small)
-                        Button("Abbrechen") { strings.cancel() }.controlSize(.small)
+                        Button(L("Cancel")) { strings.cancel() }.controlSize(.small)
                     } else {
-                        Button(model.selection == nil ? "Suchen" : "In Auswahl suchen") {
+                        Button(model.selection == nil ? L("Search") : L("Search in Selection")) {
                             strings.run(model.doc.snapshot(), range: model.selection)
                         }
                         .buttonStyle(.borderedProminent).controlSize(.small)
                         .disabled(strings.encodings.isEmpty)
                     }
                 }
-                TextField("Filter", text: $strings.filter).textFieldStyle(.roundedBorder)
+                TextField(L("Filter"), text: $strings.filter).textFieldStyle(.roundedBorder)
                 if strings.stale {
-                    Label("Inhalt geändert – neu suchen", systemImage: "arrow.clockwise")
+                    Label(L("Content changed – search again"), systemImage: "arrow.clockwise")
                         .font(.caption).foregroundStyle(.orange)
                 }
                 if let all = strings.found {
                     let shown = strings.filtered
-                    Text(shown.count == all.count ? "\(all.count) Strings" : "\(shown.count) von \(all.count) Strings")
+                    Text(shown.count == all.count ? L("%ld strings", all.count) : L("%1$ld of %2$ld strings", shown.count, all.count))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -94,7 +94,7 @@ struct StringsTab: View {
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "textformat.abc").font(.largeTitle).foregroundStyle(.tertiary)
-                    Text("Druckbare Zeichenketten finden, wie strings.").foregroundStyle(.secondary)
+                    Text(L("Find printable strings, like strings.")).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

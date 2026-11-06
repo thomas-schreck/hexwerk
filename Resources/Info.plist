@@ -25,7 +25,12 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>de</string>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>de</string>
+	</array>
 	<!-- Every file can be opened ("Öffnen mit" → hexwerk), but hexwerk is
 	     never the default app for anything. -->
 	<key>CFBundleDocumentTypes</key>

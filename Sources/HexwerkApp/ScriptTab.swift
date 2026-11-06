@@ -1,4 +1,5 @@
 import AppKit
+import HexwerkCore
 import HexwerkScript
 import SwiftUI
 
@@ -11,28 +12,28 @@ struct ScriptTab: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Menu {
-                    Button("Öffnen …") { script.open() }
-                    Button("Sichern") { script.save(as: false) }
-                    Button("Sichern unter …") { script.save(as: true) }
+                    Button(L("Open…")) { script.open() }
+                    Button(L("Save")) { script.save(as: false) }
+                    Button(L("Save As…")) { script.save(as: true) }
                     Divider()
-                    Section("Beispiele") {
+                    Section(L("Examples")) {
                         ForEach(Array(ScriptModel.examples.enumerated()), id: \.offset) { i, e in
                             Button(e.0) { script.load(example: i) }
                         }
                     }
                 } label: {
-                    Label(script.fileURL?.lastPathComponent ?? "Skript", systemImage: "curlybraces")
+                    Label(script.fileURL?.lastPathComponent ?? L("Script"), systemImage: "curlybraces")
                 }
                 .menuStyle(.borderlessButton).fixedSize()
                 Spacer()
                 if script.running {
                     ProgressView().controlSize(.small)
-                    Button("Abbrechen") { script.cancel() }.controlSize(.small)
+                    Button(L("Cancel")) { script.cancel() }.controlSize(.small)
                 } else {
-                    Button { run() } label: { Label("Ausführen", systemImage: "play.fill") }
+                    Button { run() } label: { Label(L("Run"), systemImage: "play.fill") }
                         .buttonStyle(.borderedProminent).controlSize(.small)
                         .keyboardShortcut("r", modifiers: [.command])
-                        .help("Skript ausführen (⌘R)")
+                        .help(L("Run Script (⌘R)"))
                 }
             }
 

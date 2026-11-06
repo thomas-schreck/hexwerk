@@ -44,13 +44,13 @@ struct CalculatorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TextField("z. B. pos + 0x40, u32 >> 4, 'MZ'", text: $calc.expression)
+            TextField(L("e.g. pos + 0x40, u32 >> 4, 'MZ'"), text: $calc.expression)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 14, design: .monospaced))
                 .focused($focused)
                 .onSubmit { calc.commit() }
             Picker("", selection: $calc.bits) {
-                ForEach([8, 16, 32, 64], id: \.self) { Text("\($0) Bit").tag($0) }
+                ForEach([8, 16, 32, 64], id: \.self) { Text(L("%ld bit", $0)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden()
 
@@ -60,22 +60,22 @@ struct CalculatorView: View {
             if let v = calc.views {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 5) {
                     row("Hex", v.hex)
-                    row("Dezimal", v.unsigned)
-                    row("Mit Vorz.", v.signed)
-                    row("Oktal", v.octal)
-                    row("Binär", v.binary)
+                    row(L("Decimal"), v.unsigned)
+                    row(L("Signed"), v.signed)
+                    row(L("Octal"), v.octal)
+                    row(L("Binary"), v.binary)
                     row("ASCII", v.ascii)
                     if calc.bits == 32 { row("Float32", v.float32) }
                     if calc.bits == 64 { row("Float64", v.float64) }
                 }
                 HStack {
                     Spacer()
-                    Button("Gehe zu Ergebnis") { if let x = calc.value { calc.goTo(x) } }
-                        .help("Cursor im vorderen Dokument auf diesen Offset bzw. diese Adresse setzen")
+                    Button(L("Go to Result")) { if let x = calc.value { calc.goTo(x) } }
+                        .help(L("Move the cursor in the front document to this offset or address"))
                 }
             }
             Divider()
-            Text("Variablen: pos, sel, size, u8, u16, u32, u64 (Wert unter dem Cursor), ans. Operatoren: + − * / % ** << >> & | ^ ~")
+            Text(L("Variables: pos, sel, size, u8, u16, u32, u64 (value under the cursor), ans. Operators: + − * / % ** << >> & | ^ ~"))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
@@ -93,7 +93,7 @@ struct CalculatorView: View {
                 NSPasteboard.general.setString(value, forType: .string)
             } label: { Image(systemName: "doc.on.doc") }
             .buttonStyle(.borderless)
-            .help("Kopieren")
+            .help(L("Copy"))
         }
     }
 }
@@ -110,7 +110,7 @@ final class CalculatorPanel {
             let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 360),
                             styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
                             backing: .buffered, defer: false)
-            p.title = "Rechner"
+            p.title = L("Calculator")
             p.isFloatingPanel = true
             p.becomesKeyOnlyIfNeeded = false
             p.hidesOnDeactivate = true
