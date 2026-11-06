@@ -450,7 +450,14 @@ final class HexView: NSView, NSMenuItemValidation {
             case .home: move(to: cmd ? 0 : cursor - cursor % w, extend: shift)
             case .end: move(to: cmd ? document.count : min(document.count, cursor - cursor % w + w - 1), extend: shift)
             case .tab, .backTab:
-                pane = pane == .hex ? .text : .hex
+                // Tab goes hex → text → next control, Shift-Tab back; Ctrl-Tab
+                // always leaves the grid (macOS convention), so focus is never trapped.
+                let back = key == .backTab || shift
+                if event.modifierFlags.contains(.control) || pane == (back ? .hex : .text) {
+                    if back { window?.selectPreviousKeyView(self) } else { window?.selectNextKeyView(self) }
+                    return
+                }
+                pane = back ? .hex : .text
                 lowNibble = false
                 changed()
             case .delete: deleteBackward()
@@ -581,6 +588,41 @@ final class HexView: NSView, NSMenuItemValidation {
         needsDisplay = true
         if content { model.contentChanged() }
         model.cursorMoved(cursor, selection: selection)
+        NSAccessibility.post(element: self, notification: .valueChanged)
+    }
+
+    // MARK: Accessibility
+
+    // The grid is drawn, not made of controls: VoiceOver gets one element
+    // whose value describes the cursor byte, its row and the selection.
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .textArea }
+    override func accessibilityRoleDescription() -> String? { L("hex editor") }
+    override func accessibilityLabel() -> String? {
+        pane == .hex ? L("Hex bytes") : L("Text characters")
+    }
+    override func accessibilityValue() -> Any? { accessibilitySummary }
+    override func accessibilityNumberOfCharacters() -> Int { accessibilitySummary.count }
+    override func accessibilitySelectedTextRange() -> NSRange { NSRange(location: 0, length: 0) }
+    override func isAccessibilityEnabled() -> Bool { true }
+
+    private var accessibilitySummary: String {
+        let w = UInt64(bytesPerRow)
+        let rowStart = cursor - cursor % w
+        let row = document.read(rowStart ..< rowStart + w)
+        let byte: String
+        if cursor < document.count, let b = document.read(cursor ..< cursor + 1).first {
+            let ch = (0x20...0x7E).contains(b) ? String(UnicodeScalar(b)) : "·"
+            byte = L("byte %1$@, %2$@", String(format: "%02X", b), ch)
+        } else {
+            byte = L("end of file")
+        }
+        var parts = [L("Offset %1$@, %2$@", hex(cursor), byte)]
+        if let sel = selection { parts.append(L("%ld bytes selected", sel.count)) }
+        if !row.isEmpty {
+            parts.append(L("Row %1$@: %2$@", hex(rowStart), row.map { String(format: "%02X", $0) }.joined(separator: " ")))
+        }
+        return parts.joined(separator: ". ")
     }
 
     // MARK: Menu actions

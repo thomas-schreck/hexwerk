@@ -137,10 +137,10 @@ struct YaraTab: View {
         }
         .font(.system(size: 12))
         .padding(.horizontal, 10).frame(height: 24)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .rowButton {
             if open { yara.expanded.remove(r.id) } else { yara.expanded.insert(r.id) }
         }
+        .accessibilityValue(open ? L("expanded") : L("collapsed"))
         if open {
             ForEach(r.metadata, id: \.self) { m in
                 HStack(alignment: .firstTextBaseline) {
@@ -171,8 +171,7 @@ struct YaraTab: View {
         .padding(.leading, 30).padding(.trailing, 10).frame(height: 20)
         .background(selected ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
         .padding(.horizontal, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .rowButton(selected: selected) {
             yara.selectedMatch = m
             model.jump?(m.offset, m.length > 0 ? m.range : nil)
         }

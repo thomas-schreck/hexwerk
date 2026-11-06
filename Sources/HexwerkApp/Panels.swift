@@ -4,6 +4,16 @@ import SwiftUI
 
 func hex(_ v: UInt64) -> String { "0x" + String(v, radix: 16, uppercase: true) }
 
+extension View {
+    /// A clickable list row that is a real button, so VoiceOver and the
+    /// keyboard (Space with full keyboard access) can activate it too.
+    func rowButton(selected: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { contentShape(Rectangle()) }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
 // MARK: - Sidebar (inspector)
 
 struct Sidebar: View {
@@ -11,9 +21,10 @@ struct Sidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $model.sidebarTab) {
+            // Icon-only segments: the Label's title is what VoiceOver reads.
+            Picker(L("Sidebar"), selection: $model.sidebarTab) {
                 ForEach(DocumentModel.SidebarTab.allCases, id: \.self) { tab in
-                    Image(systemName: tab.symbol).accessibilityLabel(tab.title).help(tab.title).tag(tab)
+                    Label(tab.title, systemImage: tab.symbol).labelStyle(.iconOnly).help(tab.title).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
