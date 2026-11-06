@@ -96,6 +96,11 @@ final class StructureModel: ObservableObject {
         }
     }
 
+    func cancel() {
+        task?.cancel()
+        parsing = false
+    }
+
     func reparse(snapshot: Snapshot) { apply(formatURL, title: formatTitle, snapshot: snapshot) }
 
     func contentChanged() {
