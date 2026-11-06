@@ -46,7 +46,7 @@ public enum Compare {
 
 public enum Checksum: String, CaseIterable, Sendable {
     // Simple
-    case sum8 = "Summe 8", sum16 = "Summe 16", sum32 = "Summe 32", sum64 = "Summe 64", xor8 = "XOR 8"
+    case sum8 = "Sum 8", sum16 = "Sum 16", sum32 = "Sum 32", sum64 = "Sum 64", xor8 = "XOR 8"
     case adler32 = "Adler-32", fletcher16 = "Fletcher-16", fletcher32 = "Fletcher-32"
     // CRC
     case crc8 = "CRC-8", crc8Maxim = "CRC-8/MAXIM"
@@ -64,7 +64,28 @@ public enum Checksum: String, CaseIterable, Sendable {
     case ripemd160 = "RIPEMD-160", sm3 = "SM3"
 
     public enum Group: String, CaseIterable, Sendable {
-        case simple = "Summen", crc = "CRC", fast = "Nicht-kryptografisch", crypto = "Kryptografisch"
+        case simple = "Sums", crc = "CRC", fast = "Non-cryptographic", crypto = "Cryptographic"
+
+        /// Localized label; `rawValue` stays stable.
+        public var title: String {
+            switch self {
+            case .simple: L("Sums")
+            case .crc: "CRC"
+            case .fast: L("Non-cryptographic")
+            case .crypto: L("Cryptographic")
+            }
+        }
+    }
+
+    /// Localized label; `rawValue` is stored in settings and stays stable.
+    public var title: String {
+        switch self {
+        case .sum8: L("Sum 8")
+        case .sum16: L("Sum 16")
+        case .sum32: L("Sum 32")
+        case .sum64: L("Sum 64")
+        default: rawValue
+        }
     }
 
     public var group: Group {

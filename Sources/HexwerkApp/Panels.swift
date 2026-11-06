@@ -62,8 +62,8 @@ struct DataTab: View {
     private let groups: [(String, [String])] = [
         ("Ganzzahlen", ["int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64"]),
         ("Gleitkomma", ["float32", "float64"]),
-        ("Zeit", ["Unix-Zeit 32", "Unix-Zeit 64", "FILETIME", "DOS-Datum/Zeit"]),
-        ("Sonstiges", ["binär", "GUID", "ULEB128", "SLEB128"]),
+        ("Zeit", ["Unix time 32", "Unix time 64", "FILETIME", "DOS date/time"]),
+        ("Sonstiges", ["binary", "GUID", "ULEB128", "SLEB128"]),
         ("Text", ["ASCII", "UTF-8", "UTF-16 LE", "UTF-16 BE"]),
     ]
 

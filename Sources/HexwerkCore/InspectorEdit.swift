@@ -44,21 +44,21 @@ extension Inspector {
         case "float64":
             guard let d = Double(t) else { throw fail("keine Zahl") }
             return bytes(d.bitPattern, 8)
-        case "binär":
+        case "binary":
             let s = t.replacingOccurrences(of: " ", with: "")
             guard s.count <= 8, let v = UInt8(s, radix: 2) else { throw fail("bis zu 8 Bit aus 0 und 1") }
             return Data([v])
-        case "Unix-Zeit 32":
+        case "Unix time 32":
             let s = try seconds(t)
             guard s >= 0, s <= Double(UInt32.max) else { throw fail("außerhalb von 1970–2106") }
             return bytes(UInt64(s), 4)
-        case "Unix-Zeit 64":
+        case "Unix time 64":
             return bytes(UInt64(bitPattern: Int64(try seconds(t))), 8)
         case "FILETIME":
             let s = try seconds(t) + 11_644_473_600
             guard s >= 0 else { throw fail("vor 1601") }
             return bytes(UInt64(s * 10_000_000), 8)
-        case "DOS-Datum/Zeit":
+        case "DOS date/time":
             let s = try seconds(t)
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = TimeZone(identifier: "UTC")!

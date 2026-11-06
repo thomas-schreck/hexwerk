@@ -3,11 +3,21 @@ import Foundation
 /// Bytes as pixels for the image view (SPEC FR-11.1): finds bitmaps,
 /// fonts, sprites and structure in binaries.
 public enum PixelFormat: String, CaseIterable, Sendable {
-    case gray8 = "Grau 8", gray16 = "Grau 16 LE", mono1 = "1 Bit"
+    case gray8 = "Gray 8", gray16 = "Gray 16 LE", mono1 = "1 bit"
     case rgb24 = "RGB 24", bgr24 = "BGR 24", rgba32 = "RGBA 32", bgra32 = "BGRA 32", argb32 = "ARGB 32"
     case rgb565 = "RGB565 LE"
 
     /// Bits per pixel.
+    /// Localized label; `rawValue` is stored in settings and stays stable.
+    public var title: String {
+        switch self {
+        case .gray8: L("Gray 8")
+        case .gray16: L("Gray 16 LE")
+        case .mono1: L("1 bit")
+        default: rawValue
+        }
+    }
+
     public var bits: Int {
         switch self {
         case .mono1: 1
