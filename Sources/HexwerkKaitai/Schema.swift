@@ -112,13 +112,32 @@ public final class KsyLoader {
     /// Text of the file being built; YAML maps lose their order, the text keeps it.
     private var source = ""
 
-    public init(libraryRoots: [URL] = []) { self.libraryRoots = libraryRoots }
+    /// Text of a .ksy file, nil if there is none. The sandboxed helper
+    /// cannot read files and asks the app instead (#102).
+    public typealias Reader = (URL) throws -> String?
+    private let read: Reader
+    private var texts: [URL: String] = [:]
+
+    public init(libraryRoots: [URL] = [], read: @escaping Reader = KsyLoader.readFile) {
+        self.libraryRoots = libraryRoots
+        self.read = read
+    }
+
+    public static func readFile(_ url: URL) throws -> String? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try String(contentsOf: url, encoding: .utf8)
+    }
 
     public func load(_ url: URL) throws -> KsyFile {
         let url = url.standardizedFileURL
         if let f = cache[url] { return f }
         let text: String
-        do { text = try String(contentsOf: url, encoding: .utf8) }
+        do {
+            guard let t = try texts[url] ?? read(url) else {
+                throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: url.path])
+            }
+            text = t
+        }
         catch { throw KaitaiError("\(url.lastPathComponent): \(error.localizedDescription)") }
         let node: Node?
         do { node = try Yams.compose(yaml: text) }
@@ -176,7 +195,16 @@ public final class KsyLoader {
             candidates = [from.deletingLastPathComponent().appendingPathComponent(name + ".ksy")]
                 + libraryRoots.map { $0.appendingPathComponent(name + ".ksy") }
         }
-        guard let hit = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+        // A candidate that exists but cannot be read is taken; load() reports why.
+        guard let hit = candidates.first(where: { c in
+            let c = c.standardizedFileURL
+            if texts[c] != nil { return true }
+            do {
+                guard let t = try read(c) else { return false }
+                texts[c] = t
+            } catch {}
+            return true
+        }) else {
             throw KaitaiError(L("Import %@ not found (from %@)", "\(name)", from.lastPathComponent))
         }
         return hit

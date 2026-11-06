@@ -19,6 +19,10 @@ public final class ByteSource: @unchecked Sendable {
     public let url: URL
     public let count: UInt64
     private let base: UnsafeRawPointer?
+    /// Descriptor of what is mapped (the clone or the file), kept open so the
+    /// sandboxed helper can map the same bytes (#102); the clone is unlinked,
+    /// so this is the only way to reach it.
+    private let fd: Int32
     /// True if the mapping comes from a private clone of the file.
     let isClone: Bool
     /// The opened file as checked before cloning, for change detection. A
@@ -38,7 +42,8 @@ public final class ByteSource: @unchecked Sendable {
         // the fstat below catches that. It has no effect on regular files.
         let fd = open(url.path, O_RDONLY | O_NONBLOCK | O_NOCTTY)
         guard fd >= 0 else { throw ByteSourceError.open(url.path, errno) }
-        defer { close(fd) }   // the mapping stays valid after close
+        var keep: Int32 = -1
+        defer { if keep != fd { close(fd) } }
 
         guard fstat(fd, &st) == 0 else { throw ByteSourceError.open(url.path, errno) }
         guard (st.st_mode & S_IFMT) == S_IFREG else { throw ByteSourceError.notRegularFile(url.path) }
@@ -55,17 +60,48 @@ public final class ByteSource: @unchecked Sendable {
             }
         }
         isClone = mapFD != fd
-        defer { if mapFD != fd { close(mapFD) } }
-        count = UInt64(st.st_size)
-
-        // mmap rejects length 0, an empty file simply has no mapping.
-        if count == 0 {
-            base = nil
-            return
+        do {
+            (base, count) = try Self.map(mapFD, size: st.st_size, path: url.path)
+        } catch {
+            if mapFD != fd { close(mapFD) }
+            throw error
         }
-        let p = mmap(nil, Int(count), PROT_READ, MAP_PRIVATE, mapFD, 0)
-        guard let p, p != MAP_FAILED else { throw ByteSourceError.map(url.path, errno) }
-        base = UnsafeRawPointer(p)
+        self.fd = mapFD
+        keep = mapFD
+    }
+
+    /// Maps a descriptor received from the app (sandboxed helper, #102). The
+    /// helper cannot open paths; `url` only names the file for messages.
+    public init(fileDescriptor: Int32, url: URL) throws {
+        self.url = url
+        var st = stat()
+        guard fstat(fileDescriptor, &st) == 0 else { throw ByteSourceError.open(url.path, errno) }
+        guard (st.st_mode & S_IFMT) == S_IFREG else { throw ByteSourceError.notRegularFile(url.path) }
+        let fd = dup(fileDescriptor)
+        guard fd >= 0 else { throw ByteSourceError.open(url.path, errno) }
+        stamp = DiskStamp(st)
+        isClone = false
+        do {
+            (base, count) = try Self.map(fd, size: st.st_size, path: url.path)
+        } catch {
+            close(fd)
+            throw error
+        }
+        self.fd = fd
+    }
+
+    private static func map(_ fd: Int32, size: off_t, path: String) throws -> (UnsafeRawPointer?, UInt64) {
+        // mmap rejects length 0, an empty file simply has no mapping.
+        guard size > 0 else { return (nil, 0) }
+        let p = mmap(nil, Int(size), PROT_READ, MAP_PRIVATE, fd, 0)
+        guard let p, p != MAP_FAILED else { throw ByteSourceError.map(path, errno) }
+        return (UnsafeRawPointer(p), UInt64(size))
+    }
+
+    /// A new descriptor of the mapped bytes, for handing to the helper.
+    public func fileHandle() -> FileHandle? {
+        let d = dup(fd)
+        return d >= 0 ? FileHandle(fileDescriptor: d, closeOnDealloc: true) : nil
     }
 
     /// Clones the open file into the temp folder and returns a descriptor of
@@ -102,6 +138,7 @@ public final class ByteSource: @unchecked Sendable {
 
     deinit {
         if let base { munmap(UnsafeMutableRawPointer(mutating: base), Int(count)) }
+        close(fd)
     }
 
     /// Bytes in `range`, clipped to the file. A range past the end yields
