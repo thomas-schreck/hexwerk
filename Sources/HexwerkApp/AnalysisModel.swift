@@ -17,6 +17,8 @@ final class AnalysisModel: ObservableObject {
     @Published var logScale = true
 
     private var task: Task<Void, Never>?
+    /// Marks a result stale when the content was edited while it was computed.
+    private var gate = RunGate()
 
     // File type (FR-10.x): libmagic description, MIME, own signature.
     @Published private(set) var typeDescription: String?
@@ -58,6 +60,7 @@ final class AnalysisModel: ObservableObject {
         running = true
         progress = 0
         let r = range ?? 0 ..< snap.count
+        let ticket = gate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             var last = Date.distantPast
             let result = Analysis.analyze(snap, range: r, blocks: Self.blocks, isCancelled: { Task.isCancelled }) { p in
@@ -72,7 +75,7 @@ final class AnalysisModel: ObservableObject {
                 self.stats = result.0
                 self.profile = result.1
                 self.end = r.upperBound
-                self.stale = false
+                self.stale = self.gate.finish(ticket) == .stale
             }
         }
     }
@@ -82,5 +85,8 @@ final class AnalysisModel: ObservableObject {
         running = false
     }
 
-    func contentChanged() { if stats != nil { stale = true } }
+    func contentChanged() {
+        gate.contentChanged()
+        if stats != nil { stale = true }
+    }
 }

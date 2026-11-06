@@ -39,6 +39,8 @@ final class YaraModel: ObservableObject {
     /// All match ranges sorted by start, for drawing.
     private(set) var ranges: [Range<UInt64>] = []
     private var task: Task<Void, Never>?
+    /// Marks a result stale when the content was edited while it was computed.
+    private var gate = RunGate()
 
     var matchCount: Int { results?.reduce(0) { $0 + $1.matches.count } ?? 0 }
 
@@ -74,6 +76,7 @@ final class YaraModel: ObservableObject {
         scanError = nil
         compileErrors = []
         summary = ""
+        let ticket = gate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let start = Date()
             var hits: [YaraRuleMatch]?
@@ -99,6 +102,7 @@ final class YaraModel: ObservableObject {
                 self.compileErrors = compileErrors
                 self.scanError = failure
                 if let hits { self.show(hits, range: range, size: snapshot.count, elapsed: elapsed) }
+                if self.gate.finish(ticket) == .stale, self.results != nil { self.stale = true }
             }
         }
     }
@@ -112,7 +116,10 @@ final class YaraModel: ObservableObject {
         scanError = L("Cancelled")
     }
 
-    func contentChanged() { if results != nil { stale = true } }
+    func contentChanged() {
+        gate.contentChanged()
+        if results != nil { stale = true }
+    }
 
     private func show(_ hits: [YaraRuleMatch], range: Range<UInt64>?, size: UInt64, elapsed: TimeInterval) {
         results = hits

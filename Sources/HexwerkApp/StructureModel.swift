@@ -35,6 +35,8 @@ final class StructureModel: ObservableObject {
     /// Leaf ranges sorted by start, with a color index (for drawing).
     private(set) var leaves: [(Range<UInt64>, Int)] = []
     private var task: Task<Void, Never>?
+    /// Marks a result stale when the content was edited while it was computed.
+    private var gate = RunGate()
     /// Cursor at the last follow() call, applied once a parse finishes.
     private var lastCursor: UInt64?
 
@@ -71,6 +73,7 @@ final class StructureModel: ObservableObject {
         guard let url else { return }
         parsing = true
         let roots = [Self.formatsDir, Self.ownDir]
+        let ticket = gate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: Result<ParseResult, Error>
             do {
@@ -87,13 +90,17 @@ final class StructureModel: ObservableObject {
                 case .success(let r): self.show(r)
                 case .failure(let e): self.loadError = String(describing: e)
                 }
+                if self.gate.finish(ticket) == .stale, self.result != nil { self.stale = true }
             }
         }
     }
 
     func reparse(snapshot: Snapshot) { apply(formatURL, title: formatTitle, snapshot: snapshot) }
 
-    func contentChanged() { if result != nil { stale = true } }
+    func contentChanged() {
+        gate.contentChanged()
+        if result != nil { stale = true }
+    }
 
     private func show(_ r: ParseResult) {
         result = r
