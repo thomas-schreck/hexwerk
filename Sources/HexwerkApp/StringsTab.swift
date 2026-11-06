@@ -16,6 +16,8 @@ final class StringsModel: ObservableObject {
     @Published private(set) var stale = false
     @Published var selected: FoundString?
     private var task: Task<Void, Never>?
+    /// Marks a result stale when the content was edited while it was computed.
+    private var gate = RunGate()
 
     var filtered: [FoundString] {
         guard let found else { return [] }
@@ -27,19 +29,23 @@ final class StringsModel: ObservableObject {
         task?.cancel()
         running = true
         let min = minLength, enc = encodings
+        let ticket = gate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let r = Strings.find(snap, range: range, minLength: min, encodings: enc, isCancelled: { Task.isCancelled })
             await MainActor.run {
                 guard let self, !Task.isCancelled else { return }
                 self.found = r
                 self.running = false
-                self.stale = false
+                self.stale = self.gate.finish(ticket) == .stale
             }
         }
     }
 
     func cancel() { task?.cancel(); running = false }
-    func contentChanged() { if found != nil { stale = true } }
+    func contentChanged() {
+        gate.contentChanged()
+        if found != nil { stale = true }
+    }
 }
 
 struct StringsTab: View {
