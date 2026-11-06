@@ -5,12 +5,14 @@ extension L10n {
         "%ld entries": "%ld Einträge",
         "%ld bytes": "%ld Byte",
         "value": "Wert",
+        "(enclosing object)": "(umschließendes Objekt)",
         "%@ (unknown in %@)": "%@ (unbekannt in %@)",
 
         // .ksy loading
         "%@: YAML error: %@": "%@: YAML-Fehler: %@",
         "%@: not a YAML object": "%@: kein YAML-Objekt",
         "%@: YAML has more than %@ nodes after expanding aliases": "%@: YAML hat nach dem Auflösen der Aliase mehr als %@ Knoten",
+        "%@: YAML mapping keys must be plain values": "%@: Schlüssel in YAML-Objekten müssen einfache Werte sein",
         "%@: meta.id missing": "%@: meta.id fehlt",
         "Import %@ not found (from %@)": "Import %@ nicht gefunden (von %@)",
         "seq[%ld] in %@ is not an object": "seq[%ld] in %@ ist kein Objekt",

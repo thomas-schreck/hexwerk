@@ -1,0 +1,56 @@
+name: Fuzz
+
+# Long run of Tests/HexwerkCoreTests/FuzzTests.swift. The normal CI runs the
+# same targets with a few iterations. A crash prints a line
+# "*** hexwerk fuzz: crash while running: ... HEXWERK_FUZZ_SEED=<n> ..."
+# with the command that reproduces it.
+
+on:
+  schedule:
+    - cron: "23 1 * * *"      # nightly, 01:23 UTC
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: "Debug job: multiplier for each target's default iteration count (ASan job: always 100)"
+        default: "500"
+      seed:
+        description: "Base seed (empty: the run id)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debug
+            flags: ""
+            scale: 500
+          - name: address-sanitizer
+            flags: "--sanitize=address"
+            scale: 100
+    name: fuzz (${{ matrix.name }})
+    env:
+      HEXWERK_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+      HEXWERK_FUZZ_SCALE: ${{ matrix.name == 'debug' && inputs.scale || matrix.scale }}
+      HEXWERK_FUZZ_TIMEOUT: "120"
+      ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dependencies (YARA-X from source, libmagic)
+        uses: ./.github/actions/deps
+
+      - name: Build
+        run: swift build --build-tests ${{ matrix.flags }}
+
+      - name: Fuzz
+        timeout-minutes: 100
+        run: swift test --skip-build ${{ matrix.flags }} --filter FuzzTests

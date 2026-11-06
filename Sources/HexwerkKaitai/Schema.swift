@@ -129,6 +129,11 @@ public final class KsyLoader {
             throw KaitaiError(L("%@: YAML has more than %@ nodes after expanding aliases",
                                 url.lastPathComponent, "\(Self.maxYAMLNodes)"))
         }
+        // Yams traps converting a mapping with a non-scalar key ({[a]: b},
+        // "? [a]"); .ksy files never have one.
+        if let node, Self.hasNonScalarKey(node) {
+            throw KaitaiError(L("%@: YAML mapping keys must be plain values", url.lastPathComponent))
+        }
         let any = node?.any
         guard let top = map(any) else { throw KaitaiError(L("%@: not a YAML object", url.lastPathComponent)) }
 
@@ -166,6 +171,24 @@ public final class KsyLoader {
             }
         }
         return true
+    }
+
+    /// Whether any mapping has a key that is not a scalar.
+    /// Only called after `expandsWithin`, so the walk is bounded.
+    static func hasNonScalarKey(_ root: Node) -> Bool {
+        var stack = [root]
+        while let n = stack.popLast() {
+            switch n {
+            case .scalar, .alias: break
+            case .sequence(let seq): stack.append(contentsOf: seq)
+            case .mapping(let m):
+                for (k, v) in m {
+                    guard case .scalar = k else { return true }
+                    stack.append(v)
+                }
+            }
+        }
+        return false
     }
 
     func resolveImport(_ name: String, from: URL) throws -> URL {
