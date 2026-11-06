@@ -51,5 +51,7 @@ public func L(_ key: String) -> String {
 }
 
 public func L(_ key: String, _ args: any CVarArg...) -> String {
-    String(format: L10n.translate(key), locale: Locale(identifier: L10n.language.rawValue), arguments: args)
+    // No locale on purpose: offsets and sizes must not get thousands
+    // separators, and decimals keep the point in both languages.
+    String(format: L10n.translate(key), arguments: args)
 }

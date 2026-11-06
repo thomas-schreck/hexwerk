@@ -97,6 +97,8 @@ import Testing
         defer { L10n.override = saved }
         L10n.override = .en
         #expect(L("%lld bytes", Int64(3)) == "3 bytes")
+        #expect(L("%lld bytes", Int64(99_999_999)) == "99999999 bytes")   // no grouping
+        #expect(L("%.1f", 0.5) == "0.5")
         #expect(L("not a key") == "not a key")
     }
 }
