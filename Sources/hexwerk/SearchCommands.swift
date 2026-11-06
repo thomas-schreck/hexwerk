@@ -124,8 +124,7 @@ struct Hash: ParsableCommand {
             }
         }
         let s = try openSnapshot(file)
-        let start = offset?.value ?? 0
-        let range = start ..< (length.map { start + $0.value } ?? s.count)
+        let range = try resolveRange(s, offset, length)
         let result = Checksum.compute(algos, s, range: range) ?? [:]
         if json {
             try printJSON(Dictionary(uniqueKeysWithValues: algos.map { ($0.cliName, result[$0] ?? "") }))
