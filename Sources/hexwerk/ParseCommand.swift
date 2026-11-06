@@ -8,18 +8,18 @@ let formatLibrary = HexwerkPaths.formats
 
 struct Parse: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Datei mit einer Kaitai-Struct-Beschreibung (.ksy) zerlegen.",
-        discussion: "Formate aus der Sammlung (\(formatLibrary.path)) per --format, eigene per --ksy."
+        abstract: L("Parse a file with a Kaitai Struct description (.ksy)."),
+        discussion: L("Formats from the collection (%@) via --format, your own via --ksy.", formatLibrary.path)
     )
 
-    @Argument(help: "Datei") var file: String
-    @Option(help: "Pfad zu einer .ksy-Datei") var ksy: String?
-    @Option(help: "Format-ID aus der Sammlung, z. B. png oder zip") var format: String?
-    @Option(help: "Maximale Tiefe der Ausgabe") var depth: Int = 64
-    @Flag(help: "Ausgabe als JSON") var json = false
+    @Argument(help: .init(L("File"))) var file: String
+    @Option(help: .init(L("Path to a .ksy file"))) var ksy: String?
+    @Option(help: .init(L("Format ID from the collection, e.g. png or zip"))) var format: String?
+    @Option(help: .init(L("Maximum output depth"))) var depth: Int = 64
+    @Flag(help: .init(L("Output as JSON"))) var json = false
 
     func validate() throws {
-        guard (ksy == nil) != (format == nil) else { throw ValidationError("Genau eins von --ksy oder --format angeben") }
+        guard (ksy == nil) != (format == nil) else { throw ValidationError(L("Specify exactly one of --ksy or --format")) }
     }
 
     func run() throws {
@@ -27,7 +27,7 @@ struct Parse: ParsableCommand {
         if let ksy { url = URL(fileURLWithPath: ksy) }
         else {
             guard let hit = FormatCatalog(root: formatLibrary).url(forID: format!) else {
-                FileHandle.standardError.write(Data("hexwerk: Format \(format!) nicht in \(formatLibrary.path) (make formats)\n".utf8))
+                FileHandle.standardError.write(Data(("hexwerk: " + L("Format %@ not in %@ (make formats)", format!, formatLibrary.path) + "\n").utf8))
                 throw ExitCode(1)
             }
             url = hit
@@ -47,7 +47,7 @@ struct Parse: ParsableCommand {
             printTree(result.root, indent: 0, depth: depth)
         }
         if let e = result.error {
-            FileHandle.standardError.write(Data("hexwerk: Fehler beim Zerlegen: \(e)\n".utf8))
+            FileHandle.standardError.write(Data(("hexwerk: " + L("Parse error: %@", "\(e)") + "\n").utf8))
             throw ExitCode(2)
         }
     }
@@ -64,7 +64,7 @@ struct Parse: ParsableCommand {
         // Long arrays: first 50 entries are enough on a terminal.
         for i in 0 ..< n.childCount {
             if i == 50 && n.childCount > 60 {
-                print(pad + "  … \(n.childCount - 50) weitere")
+                print(pad + "  " + L("… %ld more", n.childCount - 50))
                 break
             }
             printTree(n.child(i), indent: indent + 1, depth: depth)
