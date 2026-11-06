@@ -53,11 +53,14 @@ extension Inspector {
             guard s >= 0, s <= Double(UInt32.max) else { throw fail(L("out of range 1970–2106")) }
             return bytes(UInt64(s), 4)
         case "Unix time 64":
-            return bytes(UInt64(bitPattern: Int64(try seconds(t))), 8)
+            // Int64(Double) traps outside its range; exactly: returns nil instead.
+            guard let s = Int64(exactly: try seconds(t).rounded(.towardZero)) else { throw fail(L("out of range for int%ld", 64)) }
+            return bytes(UInt64(bitPattern: s), 8)
         case "FILETIME":
             let s = try seconds(t) + 11_644_473_600
             guard s >= 0 else { throw fail(L("before 1601")) }
-            return bytes(UInt64(s * 10_000_000), 8)
+            guard let ticks = UInt64(exactly: (s * 10_000_000).rounded(.towardZero)) else { throw fail(L("out of range for uint%ld", 64)) }
+            return bytes(ticks, 8)
         case "DOS date/time":
             let s = try seconds(t)
             var cal = Calendar(identifier: .gregorian)
@@ -69,7 +72,8 @@ extension Inspector {
             // Always little endian, like the display.
             return Data((0 ..< 4).map { UInt8(truncatingIfNeeded: (date << 16 | time) >> (8 * UInt64($0))) })
         case "GUID":
-            let h = t.filter { $0.isHexDigit }
+            // isHexDigit also accepts fullwidth digits, which UInt8(radix:) rejects.
+            let h = t.filter { $0.isASCII && $0.isHexDigit }
             guard h.count == 32 else { throw fail(L("GUID needs 32 hex digits")) }
             let raw = stride(from: 0, to: 32, by: 2).map { UInt8(h[h.index(h.startIndex, offsetBy: $0) ..< h.index(h.startIndex, offsetBy: $0 + 2)], radix: 16)! }
             // Microsoft order: first three fields little endian.
@@ -124,7 +128,11 @@ extension Inspector {
 
     /// ISO 8601 (as displayed), "YYYY-MM-DD HH:MM:SS" (UTC) or seconds.
     static func seconds(_ t: String) throws -> Double {
-        if let v = Double(t) { return v }
+        if let v = Double(t) {
+            // "inf", "nan" and 1e400 parse as Double but are no point in time.
+            guard v.isFinite else { throw EncodeError(message: L("not a number")) }
+            return v
+        }
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime]
         if let d = iso.date(from: t) { return d.timeIntervalSince1970 }
