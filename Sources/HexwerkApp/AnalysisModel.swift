@@ -52,6 +52,11 @@ final class AnalysisModel: ObservableObject {
         }
     }
 
+    func cancelEmbedded() {
+        embeddedTask?.cancel()
+        embeddedRunning = false
+    }
+
     /// About one block per point of a typical sidebar chart.
     nonisolated static let blocks = 512
 

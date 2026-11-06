@@ -789,7 +789,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func windowWillClose(_ notification: Notification) {
         fileWatch?.cancel()
         saveProject()
-        model.cancelSearch()
+        model.cancelBackgroundWork()
         model.cancelChecksums()
         onClose?(self)
     }

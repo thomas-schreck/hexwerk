@@ -328,6 +328,17 @@ final class DocumentModel: ObservableObject {
         searching = false
     }
 
+    /// Stops everything still running for this window (it is closing).
+    func cancelBackgroundWork() {
+        cancelSearch()
+        structure.cancel()
+        yara.cancel()
+        analysis.cancel()
+        analysis.cancelEmbedded()
+        strings.cancel()
+        script.cancel()
+    }
+
     func select(hit i: Int) {
         guard hits.indices.contains(i) else { return }
         currentHit = i
