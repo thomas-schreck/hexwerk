@@ -422,6 +422,81 @@ import Testing
         #expect(try Data(contentsOf: url).count == 100)
     }
 
+    /// #80: another program truncates the open file before hexwerk notices.
+    /// Reading the lost range must not crash and must return the old bytes;
+    /// the change is still reported against the original file.
+    @Test func truncationByAnotherProgramKeepsOldContent() throws {
+        let big = Data((0..<(1 << 20)).map { UInt8(truncatingIfNeeded: $0 &* 31) })
+        let url = try tempFile(big)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        let snap = doc.snapshot()
+
+        let h = try FileHandle(forWritingTo: url)
+        try h.truncate(atOffset: 0)
+        try h.close()
+
+        #expect(snap.read(0 ..< snap.count) == big)
+        #expect(doc.read(0 ..< doc.count) == big)
+        #expect(doc.diskChange() == .modified)
+        #expect(throws: DocumentError.self) { try doc.save(as: url.appendingPathExtension("copy")) }
+        try doc.revertToDisk()
+        #expect(doc.count == 0)
+    }
+
+    /// #80: with the file itself mapped, macOS keeps the mapping intact by
+    /// copying the whole truncated range into it first: seconds and as much
+    /// memory as the file for big files. A mapped clone is not affected.
+    /// Measured by the pages resident in the mapping (sparse file, so none
+    /// are before).
+    @Test func truncationDoesNotCopyTheMappedFile() throws {
+        let size = 64 << 20
+        let url = try tempFile(Data())
+        defer { try? FileManager.default.removeItem(at: url) }
+        let w = try FileHandle(forWritingTo: url)
+        try w.truncate(atOffset: UInt64(size))
+        try w.close()
+        let doc = try Document(url: url)
+        let snap = doc.snapshot()
+        try #require(snap.original.isClone, "temp folder cannot clone (not APFS?)")
+
+        let before = residentPages(snap.original)
+        let h = try FileHandle(forWritingTo: url)
+        try h.truncate(atOffset: 0)
+        try h.close()
+        let after = residentPages(snap.original)
+
+        let pages = size / Int(getpagesize())
+        #expect(after - before < pages / 4, "\(after - before) of \(pages) pages copied")
+        #expect(snap.read(UInt64(size) - 4 ..< UInt64(size)) == Data(count: 4))
+    }
+
+    /// #80: the clone is private; closing the document leaves nothing in
+    /// the clone folder.
+    @Test func cloneLeavesNoFileBehind() throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let doc = try Document(url: url)
+        try #require(doc.snapshot().original.isClone)
+        let dir = try #require(ByteSource.cloneDirectory)
+        let mine = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("\(getpid())-") }
+        #expect(mine.isEmpty)
+    }
+
+    /// #80: clones left by a crashed process are removed, live ones kept.
+    @Test func staleClonesAreRemoved() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-clonetest-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // pid 99999 is above the default kern.maxproc limit.
+        let dead = dir.appendingPathComponent("99999-x"), live = dir.appendingPathComponent("\(getpid())-y")
+        try Data([1]).write(to: dead)
+        try Data([1]).write(to: live)
+        ByteSource.removeStaleClones(in: dir)
+        #expect(!FileManager.default.fileExists(atPath: dead.path))
+        #expect(FileManager.default.fileExists(atPath: live.path))
+    }
+
     /// #5: a file replaced by another program (atomic save elsewhere) leaves
     /// our mapping intact, so saving is possible once the user agreed.
     @Test func replacedFileCanStillBeSaved() throws {
@@ -460,6 +535,15 @@ import Testing
         let doc = try Document(url: url)
         try doc.overwrite(at: 10, with: Data([1, 2]))
         #expect(doc.modifiedRanges == [10..<12])
+    }
+}
+
+private func residentPages(_ source: ByteSource) -> Int {
+    source.withUnsafeBytes { buf in
+        let pages = (buf.count + Int(getpagesize()) - 1) / Int(getpagesize())
+        var vec = [CChar](repeating: 0, count: pages)
+        guard mincore(buf.baseAddress, buf.count, &vec) == 0 else { return -1 }
+        return vec.reduce(0) { $0 + Int($1 & 1) }
     }
 }
 

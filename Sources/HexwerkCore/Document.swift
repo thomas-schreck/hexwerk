@@ -62,10 +62,10 @@ public final class Document {
     public init(url: URL, readOnly: Bool = false) throws {
         self.url = url
         self.isReadOnly = readOnly
-        original = try ByteSource(url: url)
+        original = try ByteSource(url: url, privateCopy: true)
         pieces = original.count > 0 ? [Piece(source: .original, start: 0, length: original.count)] : []
         count = original.count
-        diskStamp = try DiskStamp(url)
+        diskStamp = original.stamp
     }
 
     /// Working copy of a snapshot for edits off the main thread (scripts).
@@ -308,9 +308,10 @@ public final class Document {
         /// Another file now sits at the path (rewritten by an atomic save,
         /// moved or deleted). The mapping still holds the old file, intact.
         case replaced
-        /// The mapped file itself was written to or truncated. What the
-        /// mapping shows is no longer reliable (mixed content), and reading
-        /// past a new, shorter end crashes with SIGBUS.
+        /// The opened file itself was written to or truncated. The document
+        /// no longer shows what is on disk: it maps a clone that kept the
+        /// old content or, without one (no APFS), the file itself, whose
+        /// mapping is then not guaranteed to be consistent (see ByteSource).
         case modified
     }
 
@@ -369,7 +370,7 @@ public final class Document {
 
     private func reload(_ newURL: URL) throws {
         url = newURL
-        original = try ByteSource(url: newURL)
+        original = try ByteSource(url: newURL, privateCopy: true)
         added = Data()
         pieces = original.count > 0 ? [Piece(source: .original, start: 0, length: original.count)] : []
         count = original.count
@@ -378,7 +379,7 @@ public final class Document {
         savedState = state
         undoStack.removeAll()
         redoStack.removeAll()
-        diskStamp = try DiskStamp(newURL)
+        diskStamp = original.stamp
         acceptedStamp = nil
         acceptedMissing = false
     }
@@ -563,6 +564,13 @@ public struct DiskStamp: Equatable, Sendable {
     let device: UInt64
     let inode: UInt64
 
+    init(_ st: stat) {
+        size = UInt64(st.st_size)
+        mtime = st.st_mtimespec
+        device = UInt64(bitPattern: Int64(st.st_dev))
+        inode = UInt64(st.st_ino)
+    }
+
     init(size: UInt64, mtime: timespec, device: UInt64, inode: UInt64) {
         self.size = size
         self.mtime = mtime
@@ -573,10 +581,7 @@ public struct DiskStamp: Equatable, Sendable {
     public init(_ url: URL) throws {
         var st = stat()
         guard stat(url.path, &st) == 0 else { throw DocumentError.write(url.path, errno) }
-        size = UInt64(st.st_size)
-        mtime = st.st_mtimespec
-        device = UInt64(bitPattern: Int64(st.st_dev))
-        inode = UInt64(st.st_ino)
+        self.init(st)
     }
 
     /// Same file (not just same path), possibly with other content.
