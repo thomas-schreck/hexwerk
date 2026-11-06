@@ -487,6 +487,70 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(try value(ok) == "3799 (0xED7)")
     }
 
+    /// Terminator scanning is blockwise now (#29): semantics across the
+    /// 64 KiB read-ahead blocks and in processed (in-memory) streams.
+    @Test func terminatorSemantics() throws {
+        var d = Data(repeating: 0x78, count: 70_000) + [0]            // a: strz across blocks
+        d += Data("xyA".utf8) + Data("B".utf8)                         // c, d (not consumed), e
+        d += Data([5, 0x10, 0x13, 0x21, 0x99, 0x98])                   // g: xor'ed 5 "12" 0 …
+        d += Data("tail".utf8)                                         // f: no 0x7f until eos
+        let r = try parse(d, yaml: """
+            meta: {id: t}
+            seq:
+              - {id: a, type: strz, encoding: ASCII}
+              - {id: c, terminator: 0x41, include: true}
+              - {id: d, terminator: 0x42, consume: false}
+              - {id: e, type: u1}
+              - {id: g, size: 6, process: xor(0x21), type: inner}
+              - {id: f, terminator: 0x7f, eos-error: false}
+            types:
+              inner:
+                seq:
+                  - {id: n, type: u1}
+                  - {id: s, type: strz, encoding: ASCII}
+                  - {id: rest, terminator: 0xff, eos-error: false}
+            """)
+        #expect(r.error == nil)
+        #expect(r.root.at("a")?.range == 0 ..< 70_001)
+        #expect(r.root.at("c")?.range == 70_001 ..< 70_004)
+        #expect(r.root.at("d")?.range?.isEmpty == true)
+        #expect(r.root.at("e")?.number == 0x42)
+        #expect(r.root.at("g.n")?.number == 0x24)                   // 5 ^ 0x21
+        #expect(r.root.at("g.s")?.value == "\"12\"")
+        #expect(r.root.at("g.rest")?.value == "B8 B9")
+        #expect(r.root.at("f")?.range == UInt64(d.count - 4) ..< UInt64(d.count))
+        let bad = try parse(Data(repeating: 1, count: 100_000), yaml: """
+            meta: {id: t}
+            seq:
+              - {id: s, type: strz, encoding: ASCII}
+            """)
+        #expect(bad.error?.message == L("Terminator 0x%@ not found", "0"))
+    }
+
+    /// A huge file without the terminator: fast, and cancel/deadline apply
+    /// during the scan (#29). Before, the scan ran per byte and never checked.
+    @Test func terminatorScanIsFastAndCancellable() throws {
+        let url = try tempFile(Data(repeating: 0x41, count: 50 << 20) + [0])
+        defer { try? FileManager.default.removeItem(at: url) }
+        let ksy = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString).ksy")
+        try "meta: {id: t}\nseq:\n  - {id: s, type: strz, encoding: ASCII}\n".write(to: ksy, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: ksy) }
+        let schema = try KsyLoader().load(ksy)
+        let snap = try Document(url: url, readOnly: true).snapshot()
+
+        let cancelled = KaitaiInterpreter.parse(snap, file: schema) { false }
+        #expect(cancelled.error?.message == L("Cancelled"))
+        var limits = ParseLimits()
+        limits.maxSeconds = 0
+        let late = KaitaiInterpreter.parse(snap, file: schema, limits: limits)
+        #expect(late.error?.message == L("Time limit of %ld s exceeded", 0))
+
+        let start = Date()
+        let r = KaitaiInterpreter.parse(snap, file: schema)
+        #expect(r.error == nil && r.root.at("s")?.range == 0 ..< UInt64(50 << 20) + 1)
+        #expect(Date().timeIntervalSince(start) < 5)
+    }
+
     @Test func nodeLimit() throws {
         let schema = """
             meta: {id: t}

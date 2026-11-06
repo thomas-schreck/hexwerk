@@ -101,24 +101,48 @@ final class KStream {
         return try rawRead(size - pos)
     }
 
+    /// Up to `n` bytes from `from` (stream-relative), without copying where
+    /// possible; for files through the read-ahead cache.
+    private func block(_ from: UInt64, max n: Int) -> ArraySlice<UInt8> {
+        switch source {
+        case .data(let d):
+            let a = Int(start + from)
+            return d[a ..< a + n]
+        case .file(let s):
+            let abs = start + from
+            if !(abs >= cacheStart && abs < cacheStart + UInt64(cache.count)) {
+                cacheStart = abs
+                cache = [UInt8](s.read(abs ..< min(s.count, abs + 65536)))
+            }
+            let o = Int(abs - cacheStart)
+            return cache[o ..< min(cache.count, o + n)]
+        }
+    }
+
     /// Bytes up to the terminator (Kaitai semantics for include/consume/eos-error).
-    func readBytesTerm(_ term: UInt8, include: Bool, consume: Bool, eosError: Bool) throws -> [UInt8] {
+    /// Scans block by block; `check` runs between blocks so that deadline and
+    /// cancel apply to long scans (a huge file without the terminator).
+    func readBytesTerm(_ term: UInt8, include: Bool, consume: Bool, eosError: Bool,
+                       check: () throws -> Void = {}) throws -> [UInt8] {
         alignToByte()
         var out: [UInt8] = []
-        while true {
-            if pos >= size {
-                if eosError { throw KaitaiError(L("Terminator 0x%@ not found", String(term, radix: 16)), offset: fileBase.map { $0 + pos }) }
-                return out
-            }
-            let b = peek(pos, 1)[0]
-            if b == term {
-                if include { out.append(b) }
+        var first = true
+        while pos < size {
+            if !first { try check() }
+            first = false
+            let b = block(pos, max: Int(min(size - pos, 1 << 20)))
+            if let i = b.firstIndex(of: term) {
+                out += b[b.startIndex ..< i]
+                pos += UInt64(i - b.startIndex)
+                if include { out.append(term) }
                 if consume { pos += 1 }
                 return out
             }
-            out.append(b)
-            pos += 1
+            out += b
+            pos += UInt64(b.count)
         }
+        if eosError { throw KaitaiError(L("Terminator 0x%@ not found", String(term, radix: 16)), offset: fileBase.map { $0 + pos }) }
+        return out
     }
 
     func readUInt(_ n: Int, _ endian: Endian) throws -> UInt64 {
