@@ -12,6 +12,10 @@ jobs:
   release:
     runs-on: macos-latest
     timeout-minutes: 60
+    env:
+      # Deploy key with write access to thomas-schreck/homebrew-tap; without
+      # it the tap update is skipped.
+      TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,3 +63,22 @@ jobs:
           gh release create "$GITHUB_REF_NAME" $pre --verify-tag \
             --title "hexwerk $v" --notes-file notes.md --generate-notes \
             "dist/hexwerk-$v.dmg" "dist/hexwerk-$v.zip" "dist/hexwerk-cli-$v-arm64.tar.gz" dist/SHA256SUMS
+
+      - name: Update Homebrew tap
+        if: env.TAP_DEPLOY_KEY != ''
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          key="$RUNNER_TEMP/tap_key"
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes"
+          git clone --depth 1 git@github.com:thomas-schreck/homebrew-tap.git "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          ./update.sh "$v" \
+            "$(shasum -a 256 "$GITHUB_WORKSPACE/dist/hexwerk-$v.zip" | cut -d' ' -f1)" \
+            "$(shasum -a 256 "$GITHUB_WORKSPACE/dist/hexwerk-cli-$v-arm64.tar.gz" | cut -d' ' -f1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "hexwerk $v"
+          git push
+          rm -f "$key"

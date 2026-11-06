@@ -42,7 +42,15 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 
 ## Download
 
-Prebuilt app and CLI for Apple silicon are on the
+Via Homebrew ([own tap](https://github.com/thomas-schreck/homebrew-tap), Apple silicon):
+
+```sh
+brew tap thomas-schreck/tap && brew trust thomas-schreck/tap
+brew install --cask thomas-schreck/tap/hexwerk   # app
+brew install thomas-schreck/tap/hexwerk          # CLI
+```
+
+Or download the app and CLI from the
 [releases page](https://github.com/thomas-schreck/hexwerk/releases). The app is
 not notarized: on first start allow it under *System Settings → Privacy &
 Security → Open Anyway*.

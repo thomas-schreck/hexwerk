@@ -85,6 +85,10 @@ maintainer decides. The decision and its reasoning are recorded in the issue.
   runs the tests, builds the app (DMG and ZIP) and the CLI archive with
   `make dist`, and publishes a GitHub release with checksums. The version in
   the app comes from the tag.
+- The same workflow updates the Homebrew tap
+  ([thomas-schreck/homebrew-tap](https://github.com/thomas-schreck/homebrew-tap))
+  with the new version and checksums, using the deploy key stored as secret
+  `TAP_DEPLOY_KEY`.
 - Binary releases must ship `LICENSE` and `THIRD_PARTY_NOTICES.md`
   (`make app` does this). The notices are regenerated with
   `scripts/third-party-notices.py` whenever a bundled dependency changes.
