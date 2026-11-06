@@ -420,6 +420,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(Date().timeIntervalSince(start) < 10)
         #expect(r.error == nil)
         #expect(r.nodeCount < 100)
+        #expect(r.lazyElementCount == 1_000_000 + 1024)     // #39: values and tail, shown next to the node count
         let values = try #require(r.root.at("values"))
         #expect(values.childCount == 1_000_000 && values.children.isEmpty && values.lazy != nil)
         let e = values.child(123456)
@@ -445,6 +446,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         let r = try parse(Data(repeating: 0, count: 2010), yaml: yaml)
         #expect(r.root.at("few")?.lazy == nil && r.root.at("few")?.children.count == 10)
         #expect(r.root.at("kinds")?.lazy == nil && r.root.at("kinds")?.children.count == 2000)
+        #expect(r.lazyElementCount == 0)
     }
 
     /// Nested aliases used to expand to gigabytes in Yams.load (#11).

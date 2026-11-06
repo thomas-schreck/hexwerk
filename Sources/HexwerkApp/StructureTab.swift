@@ -47,7 +47,10 @@ struct StructureTab: View {
                        action: e.offset.map { off in (L("Go There"), { model.jump?(off, nil) }) })
             }
             if let r = structure.result {
-                Text(L("%ld nodes", r.nodeCount)).font(.caption).foregroundStyle(.secondary)
+                Text(r.lazyElementCount > 0
+                     ? L("%1$ld nodes, %2$ld array elements", r.nodeCount, r.lazyElementCount)
+                     : L("%ld nodes", r.nodeCount))
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(10)
