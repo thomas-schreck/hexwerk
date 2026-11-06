@@ -39,7 +39,7 @@ struct AnalysisTab: View {
                 .fixedSize(horizontal: false, vertical: true)
             if let m = analysis.mime { Text(m).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
             if let s = analysis.signature {
-                Text(L("Signature: %@", s.name) + (s.kaitai.map { " · Kaitai \($0)" } ?? ""))
+                Text(L("Signature: %@", s.title) + (s.kaitai.map { " · Kaitai \($0)" } ?? ""))
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
@@ -59,7 +59,7 @@ struct AnalysisTab: View {
                         Button { model.jump?(h.offset, nil) } label: {
                             HStack {
                                 Text(hex(h.offset)).monospaced()
-                                Text(h.name)
+                                Text(h.title)
                                 Spacer()
                                 if h.kaitai != nil { Image(systemName: "list.bullet.indent").foregroundStyle(.tertiary) }
                             }
