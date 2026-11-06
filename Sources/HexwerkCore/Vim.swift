@@ -3,7 +3,17 @@ import Foundation
 /// Vim-style key handling for the hex view (SPEC FR-10.9), as a pure state
 /// machine: keys in, actions out. The view executes the actions.
 public enum VimMode: String, Sendable {
-    case normal = "NORMAL", insert = "EINFÜGEN", replace = "ERSETZEN", visual = "VISUELL"
+    case normal = "NORMAL", insert = "INSERT", replace = "REPLACE", visual = "VISUAL"
+
+    /// Localized name for the status bar.
+    public var title: String {
+        switch self {
+        case .normal: L("NORMAL")
+        case .insert: L("INSERT")
+        case .replace: L("REPLACE")
+        case .visual: L("VISUAL")
+        }
+    }
 }
 
 public enum VimAction: Equatable, Sendable {
@@ -36,7 +46,7 @@ public struct VimMachine: Sendable {
 
     /// What the status bar shows, e.g. "NORMAL 12" while typing a count.
     public var status: String {
-        var s = mode.rawValue
+        var s = mode.title
         if !count.isEmpty { s += " \(count)" }
         if let p = pending { s += " \(p)" + (nibble.map { String($0, radix: 16, uppercase: true) } ?? "") }
         return s

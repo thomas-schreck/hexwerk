@@ -14,7 +14,7 @@ public enum Calculator {
     public static func evaluate(_ text: String, variables: [String: UInt64] = [:]) throws -> UInt64 {
         var p = Parser(tokens: try tokenize(text), vars: variables)
         let v = try p.expression(0)
-        guard p.i == p.tokens.count else { throw CalcError(message: "unerwartet: \(p.tokens[p.i])") }
+        guard p.i == p.tokens.count else { throw CalcError(message: L("unexpected: %@", "\(p.tokens[p.i])")) }
         return v.value
     }
 
@@ -42,7 +42,7 @@ public enum Calculator {
                 else if raw.hasPrefix("0o") { v = UInt64(raw.dropFirst(2), radix: 8) }
                 else if raw.hasSuffix("h"), let h = UInt64(raw.dropLast(), radix: 16) { v = h }   // 1Fh
                 else { v = UInt64(raw) }
-                guard let v else { throw CalcError(message: "ungültige Zahl \(raw)") }
+                guard let v else { throw CalcError(message: L("invalid number %@", raw)) }
                 out.append(.num(v))
                 i = j
                 continue
@@ -57,7 +57,7 @@ public enum Calculator {
             if ch == "'" {
                 // 'A' or 'ABCD' (multi-char, big-endian like a FourCC).
                 guard let end = c[(i + 1)...].firstIndex(of: "'"), end > i + 1, end - i - 1 <= 8 else {
-                    throw CalcError(message: "Zeichenkonstante nicht abgeschlossen")
+                    throw CalcError(message: L("unterminated character constant"))
                 }
                 var v: UInt64 = 0
                 for u in String(c[(i + 1) ..< end]).utf8 { v = v << 8 | UInt64(u) }
@@ -67,7 +67,7 @@ public enum Calculator {
             }
             let two = i + 1 < c.count ? String(c[i ... i + 1]) : ""
             if ["<<", ">>", "**"].contains(two) { out.append(.op(two)); i += 2; continue }
-            guard "+-*/%&|^~()".contains(ch) else { throw CalcError(message: "unerwartetes Zeichen \(ch)") }
+            guard "+-*/%&|^~()".contains(ch) else { throw CalcError(message: L("unexpected character %@", String(ch))) }
             out.append(.op(String(ch)))
             i += 1
         }
@@ -95,23 +95,23 @@ public enum Calculator {
         }
 
         mutating func unary() throws -> Val {
-            guard i < tokens.count else { throw CalcError(message: "Ausdruck unvollständig") }
+            guard i < tokens.count else { throw CalcError(message: L("incomplete expression")) }
             let t = tokens[i]
             i += 1
             switch t {
             case .num(let n): return Val(value: n, signed: false)
             case .ident(let name):
-                guard let v = vars[name] else { throw CalcError(message: "unbekannt: \(name)") }
+                guard let v = vars[name] else { throw CalcError(message: L("unknown: %@", "\(name)")) }
                 return Val(value: v, signed: false)
             case .op("-"): let v = try unary(); return Val(value: 0 &- v.value, signed: true)
             case .op("+"): return try unary()
             case .op("~"): let v = try unary(); return Val(value: ~v.value, signed: v.signed)
             case .op("("):
                 let v = try expression(0)
-                guard i < tokens.count, tokens[i] == .op(")") else { throw CalcError(message: "„)“ fehlt") }
+                guard i < tokens.count, tokens[i] == .op(")") else { throw CalcError(message: L("missing “)”")) }
                 i += 1
                 return v
-            default: throw CalcError(message: "unerwartet: \(t)")
+            default: throw CalcError(message: L("unexpected: %@", "\(t)"))
             }
         }
 
@@ -124,10 +124,10 @@ public enum Calculator {
             case "-": r = x &- y
             case "*": r = x &* y
             case "/", "%":
-                guard y != 0 else { throw CalcError(message: "Division durch 0") }
+                guard y != 0 else { throw CalcError(message: L("Division by 0")) }
                 if signed {
                     let sx = Int64(bitPattern: x), sy = Int64(bitPattern: y)
-                    guard !(sx == .min && sy == -1) else { throw CalcError(message: "Überlauf") }
+                    guard !(sx == .min && sy == -1) else { throw CalcError(message: L("overflow")) }
                     r = UInt64(bitPattern: op == "/" ? sx / sy : sx % sy)
                 } else {
                     r = op == "/" ? x / y : x % y
@@ -141,7 +141,7 @@ public enum Calculator {
                 var base = x, e = y, acc: UInt64 = 1
                 while e > 0 { if e & 1 == 1 { acc = acc &* base }; base = base &* base; e >>= 1 }
                 r = acc
-            default: throw CalcError(message: "Operator \(op)")
+            default: throw CalcError(message: L("operator %@", "\(op)"))
             }
             return Val(value: r, signed: signed)
         }

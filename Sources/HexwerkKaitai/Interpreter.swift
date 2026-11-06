@@ -216,7 +216,7 @@ public final class KaitaiInterpreter {
         obj.root = root ?? obj
         obj.start = io.pos
         do {
-            guard depth <= limits.maxDepth else { throw KaitaiError("Verschachtelung tiefer als \(limits.maxDepth)") }
+            guard depth <= limits.maxDepth else { throw KaitaiError(L("Nesting deeper than %@", "\(limits.maxDepth)")) }
             for (name, value) in zip(type.params, args) { obj.params[name] = value }
             obj.bitEndian = type.bitEndian ?? parent?.bitEndian ?? .big
             obj.endian = try resolveEndian(type, obj) ?? parent?.endian
@@ -249,16 +249,16 @@ public final class KaitaiInterpreter {
         case .switchOn(let on, let cases):
             let v = try eval(on, Ctx(obj: obj))
             for (k, e) in cases where try equal(v, eval(k, Ctx(obj: obj))) { return e }
-            throw KaitaiError("Endianness nicht bestimmbar")
+            throw KaitaiError(L("Cannot determine endianness"))
         }
     }
 
     private func tick() throws {
         nodes += 1
-        if nodes > limits.maxNodes { throw KaitaiError("Mehr als \(limits.maxNodes) Knoten, abgebrochen") }
+        if nodes > limits.maxNodes { throw KaitaiError(L("More than %@ nodes, aborted", "\(limits.maxNodes)")) }
         if nodes % 1024 == 0 {
-            if Date() > deadline { throw KaitaiError("Zeitlimit von \(Int(limits.maxSeconds)) s überschritten") }
-            if !shouldContinue() { throw KaitaiError("Abgebrochen") }
+            if Date() > deadline { throw KaitaiError(L("Time limit of %ld s exceeded", Int(limits.maxSeconds))) }
+            if !shouldContinue() { throw KaitaiError(L("Cancelled")) }
         }
     }
 
@@ -321,7 +321,7 @@ public final class KaitaiInterpreter {
             while !io.isEof { _ = try one() }
         case .expr(let n):
             let count = try int(eval(n, Ctx(obj: obj)))
-            guard count >= 0 else { throw KaitaiError("repeat-expr negativ: \(count)") }
+            guard count >= 0 else { throw KaitaiError(L("repeat-expr negative: %@", "\(count)")) }
             for _ in 0..<count { _ = try one() }
         case .until(let cond):
             while true {
@@ -348,7 +348,7 @@ public final class KaitaiInterpreter {
         switch rep {
         case .expr(let n):
             count = try int(eval(n, Ctx(obj: obj)))
-            guard count >= 0 else { throw KaitaiError("repeat-expr negativ: \(count)") }
+            guard count >= 0 else { throw KaitaiError(L("repeat-expr negative: %@", "\(count)")) }
         case .eos:
             let rest = io.size - io.pos
             guard rest % size == 0 else { return nil }      // partial last element: let the normal path report it
@@ -365,7 +365,7 @@ public final class KaitaiInterpreter {
         for i in 0 ..< Int(count) {
             guard let v = try readPrimitive(tn, io, obj) else { return nil }
             items.append(v)
-            if i % 65536 == 0, Date() > deadline { throw KaitaiError("Zeitlimit von \(Int(limits.maxSeconds)) s überschritten") }
+            if i % 65536 == 0, Date() > deadline { throw KaitaiError(L("Time limit of %ld s exceeded", Int(limits.maxSeconds))) }
         }
         var info = FieldInfo(stream: io, start: start, end: io.pos, typeName: tn + "[]")
         info.elementSize = size
@@ -397,7 +397,7 @@ public final class KaitaiInterpreter {
         if let expected = attr.contents {
             let got = try io.readBytes(UInt64(expected.count))
             guard got == expected else {
-                throw KaitaiError("contents: erwartet \(hexString(expected)), gefunden \(hexString(got))", offset: io.fileBase.map { $0 + io.pos - UInt64(got.count) })
+                throw KaitaiError(L("contents: expected %@, found %@", hexString(expected), hexString(got)), offset: io.fileBase.map { $0 + io.pos - UInt64(got.count) })
             }
             return .bytes(got)
         }
@@ -433,7 +433,7 @@ public final class KaitaiInterpreter {
         }
 
         // User type.
-        guard let type = resolveType(tn, from: obj.type) else { throw KaitaiError("Typ \(tn) unbekannt") }
+        guard let type = resolveType(tn, from: obj.type) else { throw KaitaiError(L("Unknown type %@", "\(tn)")) }
         let argValues = try args.map { try eval($0, ctx) }
         let sub: KStream
         if attr.size != nil || attr.sizeEos || attr.terminator != nil {
@@ -463,7 +463,7 @@ public final class KaitaiInterpreter {
     }
 
     private func nonNegative(_ n: Int64) throws -> Int64 {
-        guard n >= 0 else { throw KaitaiError("Negative Größe \(n)") }
+        guard n >= 0 else { throw KaitaiError(L("Negative size %@", "\(n)")) }
         return n
     }
 
@@ -478,7 +478,7 @@ public final class KaitaiInterpreter {
         } else if let term {
             return try io.readBytesTerm(term, include: attr.include, consume: attr.consume, eosError: attr.eosError)
         } else {
-            throw KaitaiError("Weder size noch size-eos noch terminator angegeben")
+            throw KaitaiError(L("Neither size nor size-eos nor terminator given"))
         }
         if let pad = attr.padRight {
             while b.last == pad { b.removeLast() }
@@ -499,7 +499,7 @@ public final class KaitaiInterpreter {
             case .int(let n): return Process.xor(b, key: [UInt8(truncatingIfNeeded: n)])
             case .bytes(let key): return Process.xor(b, key: key)
             case .array(let a): return Process.xor(b, key: try a.map { UInt8(truncatingIfNeeded: try int($0)) })
-            default: throw KaitaiError("xor-Schlüssel unverständlich")
+            default: throw KaitaiError(L("Cannot parse xor key"))
             }
         case .rol(let n): return Process.rotate(b, left: Int(try int(eval(n, ctx))))
         case .ror(let n): return Process.rotate(b, left: -Int(try int(eval(n, ctx)) % 8))   // % 8 first: -Int64.min traps
@@ -516,14 +516,14 @@ public final class KaitaiInterpreter {
         case "u", "s":
             guard [1, 2, 4, 8].contains(n) else { return nil }
             let e = endian ?? obj.endian ?? (n == 1 ? .little : nil)
-            guard let e else { throw KaitaiError("Endianness für \(tn) nicht festgelegt") }
+            guard let e else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
             let raw = try io.readUInt(n, e)
             if kind == "u" { return .int(Int64(bitPattern: raw)) }
             let shift = UInt64(64 - n * 8)
             return .int(Int64(bitPattern: raw << shift) >> Int64(shift))
         case "f":
             guard n == 4 || n == 8 else { return nil }
-            guard let e = endian ?? obj.endian else { throw KaitaiError("Endianness für \(tn) nicht festgelegt") }
+            guard let e = endian ?? obj.endian else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
             let raw = try io.readUInt(n, e)
             return .float(n == 4 ? Double(Float(bitPattern: UInt32(raw))) : Double(bitPattern: raw))
         case "b":
@@ -551,16 +551,16 @@ public final class KaitaiInterpreter {
         case .range(let lo, let hi):
             let l = try lo.map { try eval($0, ctx) }, h = try hi.map { try eval($0, ctx) }
             ok = try (l == nil || compare(v, l!) >= 0) && (h == nil || compare(v, h!) <= 0)
-            expected = "\(l.map(display) ?? "…") bis \(h.map(display) ?? "…")"
+            expected = L("%@ to %@", l.map(display) ?? "…", h.map(display) ?? "…")
         case .anyOf(let list):
             let vals = try list.map { try eval($0, ctx) }
             ok = try vals.contains { try equal(v, $0) }
-            expected = "einer von " + vals.map(display).joined(separator: ", ")
+            expected = L("one of %@", vals.map(display).joined(separator: ", "))
         case .expr(let e):
             ok = try bool(eval(e, ctx))
-            expected = "Bedingung erfüllt"
+            expected = L("condition met")
         }
-        guard ok else { throw KaitaiError("Validierung: erwartet \(expected), gefunden \(display(v))") }
+        guard ok else { throw KaitaiError(L("Validation: expected %@, found %@", expected, display(v))) }
     }
 
     // MARK: Instances
@@ -569,7 +569,7 @@ public final class KaitaiInterpreter {
         if let v = obj.instanceValues[name] { return v }
         if let e = obj.instanceErrors[name] { throw e }
         guard let spec = obj.type.instances.first(where: { $0.id == name }) else { return nil }
-        guard !obj.evaluating.contains(name) else { throw KaitaiError("Instanz \(name) hängt von sich selbst ab") }
+        guard !obj.evaluating.contains(name) else { throw KaitaiError(L("Instance %@ depends on itself", "\(name)")) }
         obj.evaluating.insert(name)
         defer { obj.evaluating.remove(name) }
         do {
@@ -582,7 +582,7 @@ public final class KaitaiInterpreter {
             } else {
                 var io = obj.io
                 if let ioExpr = spec.io {
-                    guard case .io(let s) = try eval(ioExpr, ctx) else { throw KaitaiError("io ist kein Stream") }
+                    guard case .io(let s) = try eval(ioExpr, ctx) else { throw KaitaiError(L("io is not a stream")) }
                     io = s
                 }
                 let saved = io.pos
@@ -655,7 +655,7 @@ public final class KaitaiInterpreter {
             if let values = s.enums[enumName] { return KEnum(name: enumName, values: values) }
             scope = parts.isEmpty ? s.parent : nil
         }
-        throw KaitaiError("Enum \(name) unbekannt")
+        throw KaitaiError(L("Unknown enum %@", "\(name)"))
     }
 
     private func inheritedEncoding(_ t: KsyType) -> String? {
@@ -677,12 +677,12 @@ public final class KaitaiInterpreter {
         case .enumLit(let path, let value):
             let en = try resolveEnum(path.joined(separator: "::"), from: c.obj.type)
             guard let n = en.values.first(where: { $0.value == value })?.key else {
-                throw KaitaiError("Enum-Wert \(path.joined(separator: "::"))::\(value) unbekannt")
+                throw KaitaiError(L("Unknown enum value %@::%@", path.joined(separator: "::"), "\(value)"))
             }
             return .enumv(en, n)
         case .cast(let inner, _): return try eval(inner, c)
         case .sizeofType(let name):
-            guard let t = resolveType(name, from: c.obj.type) else { throw KaitaiError("sizeof: Typ \(name) unbekannt") }
+            guard let t = resolveType(name, from: c.obj.type) else { throw KaitaiError(L("sizeof: unknown type %@", "\(name)")) }
             return .int(try staticSize(t, c))
         case .ternary(let cond, let a, let b): return try bool(eval(cond, c)) ? eval(a, c) : eval(b, c)
         case .unary(let op, let x):
@@ -692,7 +692,7 @@ public final class KaitaiInterpreter {
             case ("-", .float(let d)): return .float(-d)
             case ("~", .int(let n)): return .int(~n)
             case ("not", _): return .bool(!(try bool(v)))
-            default: throw KaitaiError("Operator \(op) passt nicht zu \(display(v))")
+            default: throw KaitaiError(L("Operator %@ does not apply to %@", "\(op)", display(v)))
             }
         case .binary(let op, let l, let r):
             if op == "and" { return .bool(try bool(eval(l, c)) && bool(eval(r, c))) }
@@ -703,7 +703,7 @@ public final class KaitaiInterpreter {
             switch v {
             case .array(let a) where a.indices.contains(idx): return a[idx]
             case .bytes(let b) where b.indices.contains(idx): return .int(Int64(b[idx]))
-            default: throw KaitaiError("Index \(idx) außerhalb")
+            default: throw KaitaiError(L("Index %@ out of range", "\(idx)"))
             }
         case .member(let base, let name):
             // _sizeof of a plain field: its byte count.
@@ -719,7 +719,7 @@ public final class KaitaiInterpreter {
         switch n {
         case "_root": return .obj(c.obj.root)
         case "_parent":
-            guard let p = c.obj.parent else { throw KaitaiError("_parent fehlt") }
+            guard let p = c.obj.parent else { throw KaitaiError(L("_parent missing")) }
             return .obj(p)
         case "_io": return .io(c.obj.io)
         default: return try field(n, of: c.obj)
@@ -730,7 +730,7 @@ public final class KaitaiInterpreter {
         if let v = o.fields[n] { return v }
         if let v = o.params[n] { return v }
         if let v = try instance(n, of: o) { return v }
-        throw KaitaiError("\(n) unbekannt oder noch nicht gelesen")
+        throw KaitaiError(L("%@ unknown or not read yet", "\(n)"))
     }
 
     private func member(_ v: KValue, _ name: String, _ args: [KValue], _ c: Ctx) throws -> KValue {
@@ -738,7 +738,7 @@ public final class KaitaiInterpreter {
         case (.obj(let o), "_io"): return .io(o.io)
         case (.obj(let o), "_root"): return .obj(o.root)
         case (.obj(let o), "_parent"):
-            guard let p = o.parent else { throw KaitaiError("_parent fehlt") }
+            guard let p = o.parent else { throw KaitaiError(L("_parent missing")) }
             return .obj(p)
         case (.obj(let o), "_sizeof"): return .int(Int64(o.end - o.start))
         case (.obj(let o), _): return try field(name, of: o)
@@ -753,11 +753,11 @@ public final class KaitaiInterpreter {
         case (.str(let s), "reverse"): return .str(String(s.reversed()))
         case (.str(let s), "to_i"):
             let radix = try args.first.map { try int($0) } ?? 10
-            guard (2 ... 36).contains(radix) else { throw KaitaiError("to_i: Basis \(radix) ungültig") }
-            guard let n = Int64(s, radix: Int(radix)) else { throw KaitaiError("\"\(s)\" ist keine Zahl") }
+            guard (2 ... 36).contains(radix) else { throw KaitaiError(L("to_i: invalid radix %@", "\(radix)")) }
+            guard let n = Int64(s, radix: Int(radix)) else { throw KaitaiError(L("\"%@\" is not a number", s)) }
             return .int(n)
         case (.str(let s), "substring"):
-            guard args.count == 2 else { throw KaitaiError("substring erwartet 2 Argumente") }
+            guard args.count == 2 else { throw KaitaiError(L("substring expects 2 arguments")) }
             let chars = Array(s)
             let a = max(0, Int(try int(args[0]))), b = min(chars.count, Int(try int(args[1])))
             return .str(a < b ? String(chars[a..<b]) : "")
@@ -782,9 +782,9 @@ public final class KaitaiInterpreter {
             case "max": if let m = try items.max(by: { try compare($0, $1) < 0 }) { return m }
             default: break
             }
-            throw KaitaiError(".\(name) auf leerer Liste oder unbekannt")
+            throw KaitaiError(L(".%@ on empty list or unknown", "\(name)"))
         }
-        throw KaitaiError(".\(name) passt nicht zu \(display(v))")
+        throw KaitaiError(L(".%@ does not apply to %@", "\(name)", display(v)))
     }
 
     private func binary(_ op: String, _ a: KValue, _ b: KValue) throws -> KValue {
@@ -806,25 +806,25 @@ public final class KaitaiInterpreter {
         case "-": return .int(x &- y)
         case "*": return .int(x &* y)
         case "/":
-            guard y != 0 else { throw KaitaiError("Division durch 0") }
+            guard y != 0 else { throw KaitaiError(L("Division by 0")) }
             // The only quotient that does not fit into Int64.
-            guard !(x == .min && y == -1) else { throw KaitaiError("Überlauf bei \(x) / \(y)") }
+            guard !(x == .min && y == -1) else { throw KaitaiError(L("Overflow in %@ / %@", "\(x)", "\(y)")) }
             // Kaitai divides like Python: rounding towards minus infinity.
             let q = x / y
             return .int((x % y != 0) && ((x < 0) != (y < 0)) ? q - 1 : q)
         case "%":
-            guard y != 0 else { throw KaitaiError("Division durch 0") }
+            guard y != 0 else { throw KaitaiError(L("Division by 0")) }
             if y == -1 { return .int(0) }       // Int64.min % -1 traps in Swift
             let m = x % y
             return .int(m != 0 && (m < 0) != (y < 0) ? m + y : m)
         case "<<", ">>":
-            guard y >= 0 else { throw KaitaiError("Negative Verschiebung \(y)") }
+            guard y >= 0 else { throw KaitaiError(L("Negative shift %@", "\(y)")) }
             if y >= 64 { return .int(0) }
             return .int(op == "<<" ? x << y : Int64(bitPattern: UInt64(bitPattern: x) >> UInt64(y)))
         case "&": return .int(x & y)
         case "|": return .int(x | y)
         case "^": return .int(x ^ y)
-        default: throw KaitaiError("Operator \(op) unbekannt")
+        default: throw KaitaiError(L("Unknown operator %@", "\(op)"))
         }
     }
 
@@ -834,7 +834,7 @@ public final class KaitaiInterpreter {
         case "-": return .float(x - y)
         case "*": return .float(x * y)
         case "/": return .float(x / y)
-        default: throw KaitaiError("Operator \(op) nicht für Gleitkomma")
+        default: throw KaitaiError(L("Operator %@ not supported for floating point", "\(op)"))
         }
     }
 
@@ -853,7 +853,7 @@ public final class KaitaiInterpreter {
         case .enumv(_, let n): return n
         case .bool(let b): return b ? 1 : 0
         case .float(let d): return try Self.toInt(d)
-        default: throw KaitaiError("Zahl erwartet, gefunden \(display(v))")
+        default: throw KaitaiError(L("Number expected, found %@", display(v)))
         }
     }
 
@@ -861,7 +861,7 @@ public final class KaitaiInterpreter {
     /// trap for NaN, infinity and values outside Int64.
     static func toInt(_ d: Double) throws -> Int64 {
         guard let n = Int64(exactly: d.rounded(.towardZero)) else {
-            throw KaitaiError("\(d) passt in keine Ganzzahl")
+            throw KaitaiError(L("%@ does not fit in an integer", "\(d)"))
         }
         return n
     }
@@ -870,7 +870,7 @@ public final class KaitaiInterpreter {
         switch v {
         case .bool(let b): return b
         case .int(let n): return n != 0
-        default: throw KaitaiError("Wahrheitswert erwartet, gefunden \(display(v))")
+        default: throw KaitaiError(L("Boolean expected, found %@", display(v)))
         }
     }
 
@@ -905,29 +905,29 @@ public final class KaitaiInterpreter {
             return x.lexicographicallyPrecedes(y) ? -1 : x == y ? 0 : 1
         }
         if case .int(let x) = a, case .int(let y) = b { return x < y ? -1 : x == y ? 0 : 1 }
-        guard let x = number(a), let y = number(b) else { throw KaitaiError("Nicht vergleichbar: \(display(a)) und \(display(b))") }
+        guard let x = number(a), let y = number(b) else { throw KaitaiError(L("Not comparable: %@ and %@", display(a), display(b))) }
         return x < y ? -1 : x == y ? 0 : 1
     }
 
     /// Size of a type with fixed layout (sizeof<T>).
     private func staticSize(_ t: KsyType, _ c: Ctx, depth: Int = 0) throws -> Int64 {
         // A type that contains itself has no fixed size; stop before the stack does.
-        guard depth < limits.maxDepth else { throw KaitaiError("sizeof: \(t.name) ist rekursiv") }
+        guard depth < limits.maxDepth else { throw KaitaiError(L("sizeof: %@ is recursive", t.name)) }
         var bits: Int64 = 0
         for a in t.seq {
-            guard a.cond == nil else { throw KaitaiError("sizeof: \(t.name) hat bedingte Felder") }
+            guard a.cond == nil else { throw KaitaiError(L("sizeof: %@ has conditional fields", t.name)) }
             var one: Int64
             if let contents = a.contents { one = Int64(contents.count) * 8 }
             else if let s = a.size, case .int(let n) = s { one = try checked(n.multipliedReportingOverflow(by: 8)) }
             else if case .named(let tn, _)? = a.type {
                 if let prim = Self.primitiveBits(tn) { one = prim }
                 else if let sub = resolveType(tn, from: t) { one = try checked(staticSize(sub, c, depth: depth + 1).multipliedReportingOverflow(by: 8)) }
-                else { throw KaitaiError("sizeof: Typ \(tn) unbekannt") }
-            } else { throw KaitaiError("sizeof: \(t.name).\(a.id) hat keine feste Größe") }
+                else { throw KaitaiError(L("sizeof: unknown type %@", "\(tn)")) }
+            } else { throw KaitaiError(L("sizeof: %@.%@ has no fixed size", t.name, a.id)) }
             switch a.repeatSpec {
             case nil: break
             case .expr(.int(let n)): one = try checked(one.multipliedReportingOverflow(by: n))
-            default: throw KaitaiError("sizeof: \(t.name).\(a.id) wiederholt sich variabel")
+            default: throw KaitaiError(L("sizeof: %@.%@ repeats a variable number of times", t.name, a.id))
             }
             bits = try checked(bits.addingReportingOverflow(one))
         }
@@ -935,7 +935,7 @@ public final class KaitaiInterpreter {
     }
 
     private func checked(_ r: (partialValue: Int64, overflow: Bool)) throws -> Int64 {
-        guard !r.overflow else { throw KaitaiError("sizeof: Größe passt in keine Ganzzahl") }
+        guard !r.overflow else { throw KaitaiError(L("sizeof: size does not fit in an integer")) }
         return r.partialValue
     }
 
@@ -967,7 +967,7 @@ public final class KaitaiInterpreter {
             for a in o.type.instances {
                 if let v = o.instanceValues[a.id] {
                     children.append(node(name: a.id, value: v, info: a.value == nil ? o.info[a.id] : nil,
-                                         typeName: a.value == nil ? (o.info[a.id]?.typeName ?? "") : "Wert", id: &id))
+                                         typeName: a.value == nil ? (o.info[a.id]?.typeName ?? "") : L("value"), id: &id))
                 } else if let e = o.instanceErrors[a.id] {
                     id += 1
                     children.append(ParseNode(id: id, name: a.id, typeName: "", value: nil, range: nil, children: [], error: e.description, number: nil))
@@ -982,7 +982,7 @@ public final class KaitaiInterpreter {
                 let lazy = LazyArray(values: items, base: base + info.start, elementSize: size,
                                      typeName: String(info.typeName.dropLast(2)), firstID: id + 1)
                 id += items.count
-                var n = ParseNode(id: myID, name: name, typeName: typeName, value: "\(items.count) Einträge", range: range,
+                var n = ParseNode(id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
                                   children: [], error: nil, number: nil)
                 n.lazy = lazy
                 return n
@@ -996,7 +996,7 @@ public final class KaitaiInterpreter {
                 }
                 children.append(node(name: "[\(i)]", value: v, info: elInfo, typeName: elInfo?.typeName ?? "", id: &id))
             }
-            return ParseNode(id: myID, name: name, typeName: typeName, value: "\(items.count) Einträge", range: range,
+            return ParseNode(id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
                              children: children, error: nil, number: nil)
         default:
             var number: Int64? = nil
@@ -1018,13 +1018,13 @@ func display(_ v: KValue) -> String {
     case .float(let d): return "\(d)"
     case .bool(let b): return b ? "true" : "false"
     case .str(let s): return "\"" + (s.count > 200 ? String(s.prefix(200)) + "…" : s) + "\""
-    case .bytes(let b): return b.count <= 24 ? hexString(b) : hexString(Array(b.prefix(24))) + " … (\(b.count) Byte)"
-    case .array(let a): return "\(a.count) Einträge"
+    case .bytes(let b): return b.count <= 24 ? hexString(b) : hexString(Array(b.prefix(24))) + " … (" + L("%ld bytes", b.count) + ")"
+    case .array(let a): return L("%ld entries", a.count)
     case .obj(let o): return o.type.name
     case .io: return "Stream"
     case .enumv(let e, let n):
         let hexN = "0x" + String(UInt64(bitPattern: n), radix: 16, uppercase: true)
-        return e.values[n].map { "\($0) (\(hexN))" } ?? "\(hexN) (unbekannt in \(e.name))"
+        return e.values[n].map { "\($0) (\(hexN))" } ?? L("%@ (unknown in %@)", hexN, e.name)
     }
 }
 

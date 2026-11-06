@@ -96,7 +96,7 @@ public enum Inspector {
             shift += 7
             if byte & 0x80 == 0 {
                 if signed && shift < 64 && byte & 0x40 != 0 { result |= ~0 << shift }
-                return "\(signed ? String(Int64(bitPattern: result)) : String(result)) (\(i + 1) Byte)"
+                return L("%@ (%ld bytes)", signed ? String(Int64(bitPattern: result)) : String(result), i + 1)
             }
         }
         return nil

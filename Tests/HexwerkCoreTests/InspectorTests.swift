@@ -44,8 +44,8 @@ import Testing
     }
 
     @Test func leb128() {
-        #expect(value([0xE5, 0x8E, 0x26], "ULEB128") == "624485 (3 Byte)")
-        #expect(value([0xC0, 0xBB, 0x78], "SLEB128") == "-123456 (3 Byte)")
+        #expect(value([0xE5, 0x8E, 0x26], "ULEB128") == L("%@ (%ld bytes)", "624485", 3))
+        #expect(value([0xC0, 0xBB, 0x78], "SLEB128") == L("%@ (%ld bytes)", "-123456", 3))
     }
 
     @Test func strings() {

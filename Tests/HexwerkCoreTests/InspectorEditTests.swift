@@ -21,8 +21,8 @@ import Testing
                 let shown = Inspector.values(bytes, endian: endian).first { $0.name == name }?.value
                 let expected: String = switch name {
                 case "uint16": "48879"
-                case "ULEB128": "624485 (3 Byte)"
-                case "SLEB128": "-123456 (3 Byte)"
+                case "ULEB128": L("%@ (%ld bytes)", "624485", 3)
+                case "SLEB128": L("%@ (%ld bytes)", "-123456", 3)
                 default: text
                 }
                 #expect(shown == expected, "\(name) \(endian): \(shown ?? "nil")")

@@ -1,4 +1,5 @@
 import Foundation
+import HexwerkCore
 
 /// Kaitai expression AST.
 indirect enum Expr {
@@ -21,7 +22,7 @@ indirect enum Expr {
     static func parse(_ text: String) throws -> Expr {
         var p = ExprParser(tokens: try ExprLexer.tokens(text), source: text)
         let e = try p.ternary()
-        guard p.atEnd else { throw KaitaiError("Ausdruck \"\(text)\": unerwartet \(p.peekDescription)") }
+        guard p.atEnd else { throw KaitaiError(L("Expression \"%@\": unexpected %@", text, p.peekDescription)) }
         return e
     }
 
@@ -31,7 +32,7 @@ indirect enum Expr {
         var p = ExprParser(tokens: try ExprLexer.tokens(text), source: text)
         var out = [try p.ternary()]
         while p.accept(.punct(",")) { out.append(try p.ternary()) }
-        guard p.atEnd else { throw KaitaiError("Argumente \"\(text)\" unverständlich") }
+        guard p.atEnd else { throw KaitaiError(L("Cannot parse arguments \"%@\"", text)) }
         return out
     }
 
@@ -77,7 +78,7 @@ enum ExprLexer {
                 let lit = String(String.UnicodeScalarView(c[i..<j]))
                 if let n = Expr.parseIntLiteral(lit) { out.append(.int(n)) }
                 else if let d = Double(lit.replacingOccurrences(of: "_", with: "")) { out.append(.float(d)) }
-                else { throw KaitaiError("Zahl \(lit) unverständlich in \"\(s)\"") }
+                else { throw KaitaiError(L("Cannot parse number %@ in \"%@\"", "\(lit)", "\(s)")) }
                 i = j
                 continue
             }
@@ -99,7 +100,7 @@ enum ExprLexer {
                     }
                     j += 1
                 }
-                guard j < c.count else { throw KaitaiError("String nicht geschlossen in \"\(s)\"") }
+                guard j < c.count else { throw KaitaiError(L("Unterminated string in \"%@\"", "\(s)")) }
                 out.append(.str(lit))
                 i = j + 1
                 continue
@@ -113,7 +114,7 @@ enum ExprLexer {
             }
             let rest = String(String.UnicodeScalarView(c[i...]))
             guard let p = puncts.first(where: { rest.hasPrefix($0) }) else {
-                throw KaitaiError("Zeichen \"\(ch)\" unerwartet in \"\(s)\"")
+                throw KaitaiError(L("Unexpected character \"%@\" in \"%@\"", "\(ch)", "\(s)"))
             }
             out.append(.punct(p))
             i += p.unicodeScalars.count
@@ -135,7 +136,7 @@ struct ExprParser {
     }
 
     var atEnd: Bool { i >= tokens.count }
-    var peekDescription: String { atEnd ? "Ende" : "\(tokens[i])" }
+    var peekDescription: String { atEnd ? L("end of input") : "\(tokens[i])" }
 
     mutating func accept(_ t: Token) -> Bool {
         if !atEnd && tokens[i] == t { i += 1; return true }
@@ -143,7 +144,7 @@ struct ExprParser {
     }
 
     mutating func expect(_ t: Token) throws {
-        guard accept(t) else { throw KaitaiError("Ausdruck \"\(source)\": \(t) erwartet, gefunden \(peekDescription)") }
+        guard accept(t) else { throw KaitaiError(L("Expression \"%@\": expected %@, found %@", source, "\(t)", peekDescription)) }
     }
 
     private func isIdent(_ name: String) -> Bool { !atEnd && tokens[i] == .ident(name) }
@@ -209,7 +210,7 @@ struct ExprParser {
         var e = try primary()
         while true {
             if accept(.punct(".")) {
-                guard !atEnd, case .ident(let name) = tokens[i] else { throw KaitaiError("Ausdruck \"\(source)\": Name nach . erwartet") }
+                guard !atEnd, case .ident(let name) = tokens[i] else { throw KaitaiError(L("Expression \"%@\": name expected after .", source)) }
                 i += 1
                 if name == "as", accept(.punct("<")) {
                     e = .cast(e, try typeName(until: ">"))
@@ -251,7 +252,7 @@ struct ExprParser {
     }
 
     mutating func primary() throws -> Expr {
-        guard !atEnd else { throw KaitaiError("Ausdruck \"\(source)\": unvollständig") }
+        guard !atEnd else { throw KaitaiError(L("Expression \"%@\": incomplete", source)) }
         let t = tokens[i]
         i += 1
         switch t {
@@ -280,7 +281,7 @@ struct ExprParser {
             if !atEnd, tokens[i] == .punct("::") {
                 var parts = [name]
                 while accept(.punct("::")) {
-                    guard !atEnd, case .ident(let n) = tokens[i] else { throw KaitaiError("Ausdruck \"\(source)\": Name nach :: erwartet") }
+                    guard !atEnd, case .ident(let n) = tokens[i] else { throw KaitaiError(L("Expression \"%@\": name expected after ::", source)) }
                     i += 1
                     parts.append(n)
                 }
@@ -288,7 +289,7 @@ struct ExprParser {
             }
             return .name(name)
         default:
-            throw KaitaiError("Ausdruck \"\(source)\": unerwartet \(t)")
+            throw KaitaiError(L("Expression \"%@\": unexpected %@", source, "\(t)"))
         }
     }
 }
