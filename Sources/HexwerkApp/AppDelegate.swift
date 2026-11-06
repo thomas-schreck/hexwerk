@@ -159,7 +159,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         if url.pathExtension.lowercased() == "hexwerk" { openProject(url); return }
         if openHexRecords(url, readOnly: readOnly) { return }
-        if let existing = controllers.first(where: { $0.file.url.standardizedFileURL == url.standardizedFileURL }) {
+        // Via a symlink it is still the same file: one window, one undo history.
+        let real = url.resolvingSymlinksInPath()
+        if let existing = controllers.first(where: { $0.file.url.resolvingSymlinksInPath() == real }) {
             existing.showWindow(nil)
             return
         }

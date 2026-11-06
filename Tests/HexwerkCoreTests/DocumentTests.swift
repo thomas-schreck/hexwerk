@@ -131,6 +131,47 @@ import Testing
         #expect(leftovers.isEmpty)
     }
 
+    /// #13: saving through a symlink updates the target and keeps the link.
+    @Test func saveKeepsSymlink() throws {
+        let target = try tempFile(Data([1, 2, 3]))
+        let link = target.appendingPathExtension("link")
+        defer {
+            try? FileManager.default.removeItem(at: link)
+            try? FileManager.default.removeItem(at: target)
+        }
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        let doc = try Document(url: link)
+        try doc.insert(Data([9]), at: 0)
+        try doc.save()
+
+        let dest = try FileManager.default.destinationOfSymbolicLink(atPath: link.path)
+        #expect(dest == target.path)
+        #expect(try Data(contentsOf: target) == Data([9, 1, 2, 3]))
+        #expect(doc.read(0..<doc.count) == Data([9, 1, 2, 3]))
+    }
+
+    /// #13: extended attributes (quarantine flag of a sample!) and the full
+    /// permission bits survive an atomic save.
+    @Test func saveKeepsXattrsAndMode() throws {
+        let url = try tempFile(original)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let q = Data("0081;00000000;hexwerk-test;".utf8)
+        let x = Data("value".utf8)
+        try setXattr(url, "com.apple.quarantine", q)
+        try setXattr(url, "org.hexwerk.test", x)
+        chmod(url.path, 0o666)                   // wider than the usual umask allows
+
+        let doc = try Document(url: url)
+        try doc.insert(Data([1]), at: 0)
+        try doc.save()
+
+        #expect(getXattr(url, "com.apple.quarantine") != nil)
+        #expect(getXattr(url, "org.hexwerk.test") == x)
+        var st = stat()
+        stat(url.path, &st)
+        #expect(st.st_mode & 0o7777 == 0o666)
+    }
+
     /// TC-1.7: a failing save leaves the original untouched.
     @Test func failedSaveKeepsOriginal() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-ro-\(UUID().uuidString)")
@@ -180,6 +221,19 @@ import Testing
         try doc.overwrite(at: 10, with: Data([1, 2]))
         #expect(doc.modifiedRanges == [10..<12])
     }
+}
+
+private func setXattr(_ url: URL, _ name: String, _ value: Data) throws {
+    let r = value.withUnsafeBytes { setxattr(url.path, name, $0.baseAddress, $0.count, 0, 0) }
+    guard r == 0 else { throw DocumentError.write(url.path, errno) }
+}
+
+private func getXattr(_ url: URL, _ name: String) -> Data? {
+    let n = getxattr(url.path, name, nil, 0, 0, 0)
+    guard n >= 0 else { return nil }
+    var d = Data(count: n)
+    let r = d.withUnsafeMutableBytes { getxattr(url.path, name, $0.baseAddress, n, 0, 0) }
+    return r == n ? d : nil
 }
 
 private func inodeOf(_ url: URL) throws -> UInt64 {

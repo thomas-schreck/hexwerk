@@ -236,15 +236,21 @@ public final class Document {
         diskStamp = try DiskStamp(newURL)
     }
 
-    private func writeReplacement(at target: URL) throws {
+    /// Writes the document to a temp file next to `target` and renames it
+    /// over `target`. A symlink is followed, so the link stays a link and its
+    /// target gets the new content. Extended attributes (including the
+    /// quarantine flag), ACLs, permission bits and, where allowed, owner and
+    /// group of the replaced file are carried over.
+    private func writeReplacement(at link: URL) throws {
+        let target = Self.resolvingSymlinks(link)
         let dir = target.deletingLastPathComponent()
         let tmp = dir.appendingPathComponent(".\(target.lastPathComponent).hexwerk-\(UUID().uuidString.prefix(8))")
-        // Keep the permission bits of the file being replaced.
-        var mode: mode_t = 0o644
-        var st = stat()
-        if stat(target.path, &st) == 0 { mode = st.st_mode & 0o7777 }
+        var old = stat()
+        let replacing = stat(target.path, &old) == 0
 
-        let fd = open(tmp.path, O_WRONLY | O_CREAT | O_EXCL, mode)
+        // A new file gets the usual 0666 minus umask; a replacement starts
+        // private and gets the old mode below.
+        let fd = open(tmp.path, O_WRONLY | O_CREAT | O_EXCL, replacing ? 0o600 : 0o666)
         guard fd >= 0 else { throw DocumentError.write(tmp.path, errno) }
         var ok = false
         defer {
@@ -258,9 +264,36 @@ public final class Document {
             try writeAll(fd, data, path: tmp.path)
             pos += UInt64(data.count)
         }
+        if replacing {
+            // A failure here must not silently strip e.g. com.apple.quarantine
+            // from a malware sample, so it fails the save.
+            guard copyfile(target.path, tmp.path, nil, copyfile_flags_t(COPYFILE_ACL | COPYFILE_XATTR)) == 0 else {
+                throw DocumentError.write(tmp.path, errno)
+            }
+            // Only root may give a file away and only to groups one is in;
+            // otherwise the file ends up owned by us, as with any editor.
+            if fchown(fd, old.st_uid, old.st_gid) != 0 { _ = fchown(fd, uid_t.max, old.st_gid) }
+            // After chown, which clears set-id bits; not via open(), whose
+            // mode is reduced by the umask.
+            guard fchmod(fd, old.st_mode & 0o7777) == 0 else { throw DocumentError.write(tmp.path, errno) }
+        }
         guard fsync(fd) == 0 else { throw DocumentError.write(tmp.path, errno) }
         guard rename(tmp.path, target.path) == 0 else { throw DocumentError.write(target.path, errno) }
         ok = true
+        // Make the rename itself durable.
+        let dfd = open(dir.path, O_RDONLY)
+        if dfd >= 0 {
+            fsync(dfd)
+            close(dfd)
+        }
+    }
+
+    /// The file a path finally refers to; the path itself if it does not
+    /// exist (yet).
+    static func resolvingSymlinks(_ url: URL) -> URL {
+        guard let p = realpath(url.path, nil) else { return url }
+        defer { free(p) }
+        return URL(fileURLWithPath: String(cString: p))
     }
 
     private func writeChangedBytesInPlace() throws {
