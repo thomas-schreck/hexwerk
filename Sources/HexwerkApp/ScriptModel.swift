@@ -3,7 +3,7 @@ import Combine
 import HexwerkCore
 import HexwerkScript
 
-/// JavaScript runner of one window (SPEC FR-9.2). The script runs in the
+/// JavaScript runner of one window. The script runs in the
 /// background on a working copy; the result is adopted as one undo step.
 @MainActor
 final class ScriptModel: ObservableObject {

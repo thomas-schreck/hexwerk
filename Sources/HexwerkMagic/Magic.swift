@@ -2,7 +2,7 @@ internal import CMagic
 import Foundation
 import HexwerkCore
 
-/// File type description via libmagic, like `file` (SPEC FR-10.2).
+/// File type description via libmagic, like `file`.
 public enum Magic {
     /// Database search order: $HEXWERK_MAGIC, the app bundle, next to the executable, Homebrew.
     public static var databasePath: String? {

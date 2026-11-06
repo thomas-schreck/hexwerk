@@ -4,7 +4,7 @@ import Foundation
 /// pages are faulted in on access.
 ///
 /// Gotcha: if another process truncates the file while it is mapped, touching
-/// the lost pages raises SIGBUS. Detecting external changes (SPEC FR-1.6) is
+/// the lost pages raises SIGBUS. Detecting external changes is
 /// the guard against that, not this type.
 public final class ByteSource: @unchecked Sendable {
     // @unchecked: base and count never change after init, the mapping is

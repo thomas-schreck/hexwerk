@@ -3,7 +3,7 @@ import HexwerkCore
 import HexwerkKaitai
 import SwiftUI
 
-/// Kaitai structure tree (SPEC FR-6.8–6.12).
+/// Kaitai structure tree.
 struct StructureTab: View {
     @ObservedObject var model: DocumentModel
     @ObservedObject var structure: StructureModel

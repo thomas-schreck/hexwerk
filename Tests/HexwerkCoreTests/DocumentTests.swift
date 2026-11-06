@@ -41,7 +41,7 @@ import Testing
         #expect(doc.read(0..<10) == Data([1, 2]))
     }
 
-    /// TC-1.5 / TC-2.1: random edits must match a plain Data model, and
+    /// Random edits must match a plain Data model, and
     /// undoing everything must give back the original.
     @Test(arguments: 1...20) func randomEditsMatchModel(seed: Int) throws {
         var rng = SplitMix(seed: UInt64(seed))
@@ -163,7 +163,7 @@ import Testing
         #expect(throws: DocumentError.self) { try doc.save() }
     }
 
-    /// TC-1.6: in-place save changes exactly the edited bytes.
+    /// in-place save changes exactly the edited bytes.
     @Test func saveInPlaceWritesOnlyChanges() throws {
         let url = try tempFile(original)
         defer { try? FileManager.default.removeItem(at: url) }
@@ -282,7 +282,7 @@ import Testing
         #expect(elapsed < 10)   // old code: ~16 s; generous for loaded CI
     }
 
-    /// TC-2.2: atomic save with length change, permissions kept.
+    /// atomic save with length change, permissions kept.
     @Test func saveAtomic() throws {
         let url = try tempFile(original)
         defer { try? FileManager.default.removeItem(at: url) }
@@ -345,7 +345,7 @@ import Testing
         #expect(st.st_mode & 0o7777 == 0o666)
     }
 
-    /// TC-1.7: a failing save leaves the original untouched.
+    /// a failing save leaves the original untouched.
     @Test func failedSaveKeepsOriginal() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-ro-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

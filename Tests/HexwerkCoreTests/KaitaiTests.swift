@@ -64,7 +64,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
     p.waitUntilExit()
 }
 
-/// TC-3.1: reference formats parse completely and give the values the
+/// reference formats parse completely and give the values the
 /// files were made with.
 @Suite struct KaitaiFormatTests {
     @Test func png() throws {
@@ -180,7 +180,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("header.program_headers")?.children.count == 1)
     }
 
-    /// TC-3.6: a cut-off file keeps the tree read so far and says where.
+    /// a cut-off file keeps the tree read so far and says where.
     @Test func truncatedPNG() throws {
         let full = image(.png, width: 53, height: 37)
         let r = try parse(full.prefix(40), ksy: "image/png.ksy")
@@ -323,7 +323,6 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("is_long")?.value == "true")
     }
 
-    /// TC-3.5
     @Test func bitFields() throws {
         let r = try parse(Data([0b1011_0010, 0b1100_0000]), yaml: """
             meta: {id: t}
@@ -340,7 +339,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("d")?.number == 0)
     }
 
-    /// TC-3.3: repeat eos / expr / until, instances with pos, size-limited subtypes.
+    /// repeat eos / expr / until, instances with pos, size-limited subtypes.
     @Test func repeatsAndInstances() throws {
         let r = try parse(Data([3, 1, 2, 3, 7, 8, 0, 0x42]), yaml: """
             meta: {id: t}
@@ -360,7 +359,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.root.at("at_last")?.range == 7..<8)
     }
 
-    /// TC-3.4: process routines produce a sub-stream.
+    /// process routines produce a sub-stream.
     @Test func processRoutines() throws {
         let plain = Array("geheim".utf8)
         let xored = plain.map { $0 ^ 0x5A }
@@ -388,7 +387,7 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.error?.path == "magic")
     }
 
-    /// TC-3.7: self-recursive type is stopped by the depth limit, no crash.
+    /// self-recursive type is stopped by the depth limit, no crash.
     @Test func recursionLimit() throws {
         let r = try parse(Data(count: 2000), yaml: """
             meta: {id: t}
@@ -399,8 +398,8 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(r.error != nil)
     }
 
-    /// TC-3.10: a million plain numbers parse fast and stay out of the tree
-    /// until shown (FR-6.13).
+    /// a million plain numbers parse fast and stay out of the tree
+    /// until shown.
     @Test func lazyMillionElementArray() throws {
         var d = Data(le(UInt32(1_000_000)))
         d.reserveCapacity(4 + 2_000_000 + 4096)

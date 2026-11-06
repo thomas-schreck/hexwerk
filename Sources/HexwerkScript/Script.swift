@@ -2,7 +2,7 @@ import Foundation
 import HexwerkCore
 import JavaScriptCore
 
-/// JavaScript automation (SPEC FR-9.2) on JavaScriptCore, which ships with
+/// JavaScript automation on JavaScriptCore, which ships with
 /// macOS. Scripts see one global `hw` object; see `ScriptRunner.apiHelp`.
 public struct ScriptContext: Sendable {
     public var cursor: UInt64

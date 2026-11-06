@@ -3,7 +3,7 @@ import Combine
 import HexwerkCore
 import SwiftUI
 
-/// Programmer's calculator in a floating panel (SPEC FR-10.8).
+/// Programmer's calculator in a floating panel.
 @MainActor
 final class CalculatorModel: ObservableObject {
     @Published var expression = "" { didSet { evaluate() } }

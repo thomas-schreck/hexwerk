@@ -1,6 +1,6 @@
 import Foundation
 
-/// One difference between two files, with offsets in both (SPEC FR-5.7).
+/// One difference between two files, with offsets in both.
 public struct DiffOp: Sendable, Equatable, Codable {
     public enum Kind: String, Sendable, Codable {
         case replace, insert, delete    // insert: only in B; delete: only in A

@@ -3,7 +3,7 @@ import HexwerkCore
 import HexwerkYARA
 import SwiftUI
 
-/// YARA-X rules and scan results (SPEC FR-7.x).
+/// YARA-X rules and scan results.
 struct YaraTab: View {
     @ObservedObject var model: DocumentModel
     @ObservedObject var yara: YaraModel

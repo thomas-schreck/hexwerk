@@ -1,6 +1,6 @@
 import Foundation
 
-/// Printable strings in binary data, like `strings` (SPEC FR-10.4).
+/// Printable strings in binary data, like `strings`.
 public struct FoundString: Sendable, Equatable, Hashable {
     public enum Encoding: String, Sendable, CaseIterable { case ascii = "ASCII", utf8 = "UTF-8", utf16le = "UTF-16LE", utf16be = "UTF-16BE" }
     public let offset: UInt64
@@ -141,7 +141,7 @@ public enum Strings {
     }
 }
 
-/// Regular expressions over raw bytes (SPEC FR-10.5). Each byte is one
+/// Regular expressions over raw bytes. Each byte is one
 /// Latin-1 character, so `\x00`, `[\x80-\xff]` and offsets map 1:1.
 public enum RegexSearch {
     /// Longest match that is still found across a chunk border.

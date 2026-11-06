@@ -10,7 +10,7 @@ let brewHeaders: [SwiftSetting] = [.unsafeFlags(["-Xcc", "-I\(brew)/include"])]
 
 // Command Line Tools without Xcode ship the swift-testing macro plugin in a
 // folder the compiler does not search, so @Test fails with "plugin for module
-// 'TestingMacros' not found" (SPEC R-1). Only add it when the CLT are the
+// 'TestingMacros' not found". Only add it when the CLT are the
 // active developer directory; with Xcode it is found automatically.
 let developerDir = ProcessInfo.processInfo.environment["DEVELOPER_DIR"]
     ?? (try? FileManager.default.destinationOfSymbolicLink(atPath: "/var/db/xcode_select_link")) ?? ""
@@ -33,9 +33,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "HexwerkCore"),
-        // Kaitai Struct: .ksy schemas interpreted at runtime (SPEC FR-6.x).
+        // Kaitai Struct: .ksy schemas interpreted at runtime.
         .target(name: "HexwerkKaitai", dependencies: ["HexwerkCore", "Yams"]),
-        // YARA-X (SPEC FR-7.x): C API header plus a thin Swift wrapper. The
+        // YARA-X: C API header plus a thin Swift wrapper. The
         // static libyara_x_capi.a is linked in, so neither the CLI nor the app
         // need Homebrew at runtime and a brew upgrade cannot break them (R-5).
         .systemLibrary(name: "CYaraX", path: "Sources/CYaraX"),
@@ -48,7 +48,7 @@ let package = Package(
                 .linkedLibrary("iconv"),
             ]
         ),
-        // libmagic for file type descriptions (SPEC FR-10.2), static like YARA-X.
+        // libmagic for file type descriptions, static like YARA-X.
         .systemLibrary(name: "CMagic", path: "Sources/CMagic"),
         .target(
             name: "HexwerkMagic",
@@ -59,7 +59,7 @@ let package = Package(
                 .linkedLibrary("z"), .linkedLibrary("bz2"), .linkedLibrary("lzma"),
             ]
         ),
-        // JavaScript automation on the system JavaScriptCore (SPEC FR-9.2).
+        // JavaScript automation on the system JavaScriptCore.
         .target(name: "HexwerkScript", dependencies: ["HexwerkCore"]),
         .executableTarget(
             name: "hexwerk",

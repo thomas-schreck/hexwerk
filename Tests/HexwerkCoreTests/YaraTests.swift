@@ -23,7 +23,6 @@ import HexwerkCore
         return d
     }()
 
-    // TC-4.1
     @Test func compileReportsErrorsWithLine() throws {
         let src = "rule ok { condition: true }\n\nrule broken {\n  condition: $missing\n}\n"
         let e = try #require(throws: YaraCompileError.self) {
@@ -41,7 +40,6 @@ import HexwerkCore
         #expect(YaraRules.lineColumn("äö\nxü$", byteOffset: 8) == (2, 3))
     }
 
-    // TC-4.2, TC-4.7
     @Test func scanFindsPatternsTagsAndMetadata() throws {
         let hits = try scan(Self.sample)
         #expect(hits.map(\.rule).sorted() == ["magic", "xored"])
@@ -61,7 +59,7 @@ import HexwerkCore
         #expect(hits.contains { $0.rule == "only_condition" && $0.matches.isEmpty })
     }
 
-    // TC-4.3: a selection scan reports file offsets.
+    // a selection scan reports file offsets.
     @Test func selectionOffsetsAreShifted() throws {
         let hits = try scan(Self.sample, extra: ["--offset", "30", "--length", "34"])
         #expect(hits.map(\.rule) == ["xored"])
@@ -69,7 +67,6 @@ import HexwerkCore
         #expect(try scan(Self.sample, extra: ["--offset", "0", "--length", "20"]).isEmpty)
     }
 
-    // TC-4.4
     @Test func timeoutExitsWith3() throws {
         let slow = """
         rule slow { condition: for all i in (0..filesize) : (for all j in (0..filesize) : (uint8(i) != uint8(j) or true)) }
@@ -85,7 +82,7 @@ import HexwerkCore
         #expect(r.status == 2)
     }
 
-    // TC-4.5 relies on this: snapshots hand the scanner the edited content.
+    // Snapshots hand the scanner the edited content.
     @Test func zeroCopyAndMaterializedAgree() throws {
         let url = try tempFile(Self.sample)
         defer { try? FileManager.default.removeItem(at: url) }

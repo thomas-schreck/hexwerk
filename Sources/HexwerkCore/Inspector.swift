@@ -11,7 +11,7 @@ public struct InspectorValue: Sendable, Equatable {
     public let value: String?
 }
 
-/// Interprets the bytes at a position as common data types (SPEC FR-4.x).
+/// Interprets the bytes at a position as common data types.
 public enum Inspector {
     /// How many bytes the inspector looks at; strings are cut off here.
     public static let window = 64

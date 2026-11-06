@@ -16,7 +16,7 @@ public struct ParseNode: Sendable, Identifiable {
     public let error: String?
     /// Raw number for JSON output (ints and enums), if any.
     public let number: Int64?
-    /// Large arrays of plain numbers: elements are made on demand (FR-6.13).
+    /// Large arrays of plain numbers: elements are made on demand.
     public var lazy: LazyArray? = nil
 
     public init(id: Int, name: String, typeName: String, value: String?, range: Range<UInt64>?,
@@ -73,7 +73,7 @@ public struct ParseResult: Sendable {
     /// First error that stopped parsing (the tree up to there is kept).
     public let error: KaitaiError?
     public let nodeCount: Int
-    /// Elements of lazy arrays (FR-6.13). Not in `nodeCount`: they only
+    /// Elements of lazy arrays. Not in `nodeCount`: they only
     /// become nodes when shown, so the node count alone looks tiny.
     public let lazyElementCount: Int
 
@@ -379,7 +379,7 @@ public final class KaitaiInterpreter {
     }
 
     /// Arrays of plain integers/floats are read in one loop without a node
-    /// or checks per element (FR-6.13): 10⁶ entries take milliseconds.
+    /// or checks per element: 10⁶ entries take milliseconds.
     /// Anything special (enum, valid, process, switch, …) takes the normal path.
     private func fastNumberArray(_ attr: AttrSpec, _ rep: RepeatSpec, _ obj: KObj, io: KStream,
                                  start: UInt64, typeName tn: String) throws -> (KValue, FieldInfo)? {

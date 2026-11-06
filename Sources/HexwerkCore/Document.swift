@@ -535,7 +535,7 @@ public struct Snapshot: Sendable {
 
     /// Contiguous bytes of `range` (clipped). If the range lies inside one
     /// unmodified piece the file mapping is passed directly, without a copy;
-    /// otherwise the bytes are materialized (SPEC R-4).
+    /// otherwise the bytes are materialized.
     public func withContiguousBytes<R>(_ range: Range<UInt64>,
                                        _ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
         let r = range.clamped(to: 0..<count)

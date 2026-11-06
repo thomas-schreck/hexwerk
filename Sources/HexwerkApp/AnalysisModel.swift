@@ -3,7 +3,7 @@ import Combine
 import HexwerkCore
 import HexwerkMagic
 
-/// Entropy profile and byte histogram of the file or selection (SPEC FR-9.1).
+/// Entropy profile and byte histogram of the file or selection.
 @MainActor
 final class AnalysisModel: ObservableObject {
     @Published private(set) var stats: ByteStats?
@@ -20,7 +20,7 @@ final class AnalysisModel: ObservableObject {
     /// Marks a result stale when the content was edited while it was computed.
     private var gate = RunGate()
 
-    // File type (FR-10.x): libmagic description, MIME, own signature.
+    // File type: libmagic description, MIME, own signature.
     @Published private(set) var typeDescription: String?
     @Published private(set) var mime: String?
     @Published private(set) var signature: SignatureHit?

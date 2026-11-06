@@ -1,6 +1,6 @@
 import Foundation
 
-/// Text renderings of a byte range for the clipboard or a file (SPEC FR-9.4).
+/// Text renderings of a byte range for the clipboard or a file.
 public enum ExportFormat: String, CaseIterable, Sendable {
     case hex, c, python, swift, base64
 

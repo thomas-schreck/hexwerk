@@ -1,6 +1,6 @@
 import Foundation
 
-/// Bytes as pixels for the image view (SPEC FR-11.1): finds bitmaps,
+/// Bytes as pixels for the image view: finds bitmaps,
 /// fonts, sprites and structure in binaries.
 public enum PixelFormat: String, CaseIterable, Sendable {
     case gray8 = "Gray 8", gray16 = "Gray 16 LE", mono1 = "1 bit"

@@ -24,7 +24,7 @@ final class DocumentModel: ObservableObject {
     /// Bumped on every content change, so views can react.
     @Published private(set) var revision = 0
 
-    // View options (SPEC FR-2.6–2.8).
+    // View options.
     @Published var bytesPerRowSetting = 16          // 0 = fit window
     @Published var decimalOffsets = false
     /// Load address of offset 0 (Intel HEX / S-Record import); shown in
@@ -50,7 +50,7 @@ final class DocumentModel: ObservableObject {
     var importInfo: ImportInfo?
     @Published var charset: TextEncodingView = .utf8
 
-    // Search (FR-5.x).
+    // Search.
     @Published var findVisible = false
     @Published var findText = ""
     @Published var findMode: FindMode = .hex
@@ -64,16 +64,16 @@ final class DocumentModel: ObservableObject {
     @Published private(set) var progress: Double = 0
     @Published var findMessage: String?
 
-    // Diff (FR-5.7).
+    // Diff.
     @Published private(set) var diffs: [DiffOp] = []
     @Published private(set) var diffFile: URL?
     /// The comparison stopped at `Search.maxHits`; there are more differences.
     @Published private(set) var diffsTruncated = false
 
-    // Bookmarks (FR-3.6).
+    // Bookmarks.
     @Published var bookmarks: [Bookmark] = []
 
-    // Checksums (FR-5.8).
+    // Checksums.
     @Published private(set) var checksums: [Checksum: String] = [:]
     @Published private(set) var checksumScope = ""
     @Published private(set) var checksumRunning = false
@@ -97,7 +97,7 @@ final class DocumentModel: ObservableObject {
     /// Re-syncs the hex view after an edit made outside it.
     var reloadView: (() -> Void)?
 
-    // Inspector editing (FR-4.6).
+    // Inspector editing.
     @Published var inspectorEditing: String?
     @Published var inspectorText = ""
     @Published var inspectorError: String?
@@ -289,7 +289,7 @@ final class DocumentModel: ObservableObject {
         }
     }
 
-    /// Regex over raw bytes (each byte one Latin-1 character), FR-10.5.
+    /// Regex over raw bytes (each byte one Latin-1 character).
     private func runRegexSearch(thenSelect index: Int?) {
         guard !findText.isEmpty else { hits = []; currentHit = nil; findMessage = nil; return }
         do { _ = try NSRegularExpression(pattern: findText) } catch {

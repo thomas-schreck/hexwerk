@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Per-file working state (SPEC FR-10.7): remembered automatically and
+/// Per-file working state: remembered automatically and
 /// exportable as a `.hexwerk` project file.
 public struct ProjectState: Codable, Sendable, Equatable {
     public struct Bookmark: Codable, Sendable, Equatable {

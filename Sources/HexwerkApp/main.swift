@@ -11,7 +11,7 @@ default: UserDefaults.standard.removeObject(forKey: "AppleLanguages")
 
 // Offscreen rendering for checks without clicking through the app:
 //   HexwerkApp --snapshot <file> <image.png> [row]
-//       hex view only, reports the drawing time (SPEC TC-1.8)
+//       hex view only, reports the drawing time
 //   HexwerkApp --window <file> <image.png> [hex-search | :struct] [dark]
 //       whole window content (find bar, grid, sidebar, status bar)
 let args = CommandLine.arguments

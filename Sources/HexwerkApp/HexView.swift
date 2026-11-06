@@ -4,7 +4,7 @@ import HexwerkCore
 /// The hex grid: column header, offset column, hex bytes, characters.
 /// Draws only the rows on screen and keeps its own scroll position as a row
 /// index, because an NSScrollView document of billions of pixels loses
-/// precision (SPEC R-2).
+/// precision.
 final class HexView: NSView, NSMenuItemValidation {
     enum Pane { case hex, text }
 
@@ -711,7 +711,7 @@ final class HexView: NSView, NSMenuItemValidation {
     }
 }
 
-// MARK: - Vim mode (SPEC FR-10.9)
+// MARK: - Vim mode
 
 extension HexView {
     /// Returns true if the vim layer consumed the key.
