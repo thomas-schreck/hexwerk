@@ -13,7 +13,7 @@ struct Sidebar: View {
         VStack(spacing: 0) {
             Picker("", selection: $model.sidebarTab) {
                 ForEach(DocumentModel.SidebarTab.allCases, id: \.self) { tab in
-                    Image(systemName: tab.symbol).help(tab.rawValue).tag(tab)
+                    Image(systemName: tab.symbol).accessibilityLabel(tab.title).help(tab.title).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
@@ -60,11 +60,11 @@ struct DataTab: View {
     @ObservedObject var model: DocumentModel
 
     private let groups: [(String, [String])] = [
-        ("Ganzzahlen", ["int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64"]),
-        ("Gleitkomma", ["float32", "float64"]),
-        ("Zeit", ["Unix time 32", "Unix time 64", "FILETIME", "DOS date/time"]),
-        ("Sonstiges", ["binary", "GUID", "ULEB128", "SLEB128"]),
-        ("Text", ["ASCII", "UTF-8", "UTF-16 LE", "UTF-16 BE"]),
+        (L("Integers"), ["int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64"]),
+        (L("Floating Point"), ["float32", "float64"]),
+        (L("Time"), ["Unix time 32", "Unix time 64", "FILETIME", "DOS date/time"]),
+        (L("Other"), ["binary", "GUID", "ULEB128", "SLEB128"]),
+        (L("Text"), ["ASCII", "UTF-8", "UTF-16 LE", "UTF-16 BE"]),
     ]
 
     var body: some View {
@@ -84,7 +84,7 @@ struct DataTab: View {
             ForEach(groups, id: \.0) { title, names in
                 Section(title) {
                     ForEach(names, id: \.self) { name in
-                        LabeledContent(name) {
+                        LabeledContent(Inspector.title(of: name)) {
                             if model.inspectorEditing == name {
                                 InspectorEditField(model: model)
                             } else {
@@ -95,7 +95,7 @@ struct DataTab: View {
                                     .truncationMode(.middle)
                                     .contentShape(Rectangle())
                                     .onTapGesture(count: 2) { model.beginInspectorEdit(name, current: values[name] ?? nil) }
-                                    .help(model.doc.isReadOnly ? "" : "Doppelklick zum Bearbeiten")
+                                    .help(model.doc.isReadOnly ? "" : L("Double-click to edit"))
                             }
                         }
                         if model.inspectorEditing == name, let e = model.inspectorError {
@@ -116,9 +116,9 @@ struct HitsTab: View {
 
     static func describe(_ d: DiffOp) -> String {
         switch d.kind {
-        case .replace: d.a.count == d.b.count ? "\(d.a.count) B geändert" : "\(d.a.count) → \(d.b.count) B"
-        case .insert: "+\(d.b.count) B nur dort"
-        case .delete: "−\(d.a.count) B nur hier"
+        case .replace: d.a.count == d.b.count ? L("%ld B changed", d.a.count) : "\(d.a.count) → \(d.b.count) B"
+        case .insert: L("+%ld B only there", d.b.count)
+        case .delete: L("−%ld B only here", d.a.count)
         }
     }
 
@@ -140,15 +140,15 @@ struct HitsTab: View {
                     }
                 } header: {
                     HStack {
-                        Text("Unterschiede zu \(file.lastPathComponent): \(model.diffs.count)")
+                        Text(L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count))
                         Spacer()
-                        Button("Schließen") { model.clearDiff() }.buttonStyle(.link)
+                        Button(L("Close")) { model.clearDiff() }.buttonStyle(.link)
                     }
                 }
             }
-            Section(model.hits.isEmpty ? "Suchtreffer" : "Suchtreffer: \(model.hits.count)") {
+            Section(model.hits.isEmpty ? L("Search Hits") : L("Search Hits: %ld", model.hits.count)) {
                 if model.hits.isEmpty {
-                    Text("Suche mit ⌘F").foregroundStyle(.secondary)
+                    Text(L("Search with ⌘F")).foregroundStyle(.secondary)
                 }
                 // Long lists are capped; navigation via ⌘G still reaches all hits.
                 ForEach(Array(model.hits.prefix(5000).enumerated()), id: \.offset) { i, r in
@@ -180,12 +180,12 @@ struct BookmarksTab: View {
     var body: some View {
         List {
             if model.bookmarks.isEmpty {
-                Text("Lesezeichen mit ⌘D setzen").foregroundStyle(.secondary)
+                Text(L("Add bookmarks with ⌘D")).foregroundStyle(.secondary)
             }
             ForEach($model.bookmarks) { $b in
                 HStack(spacing: 8) {
                     Circle().fill(Color(nsColor: b.color)).frame(width: 9, height: 9)
-                    TextField("Name", text: $b.name).textFieldStyle(.plain)
+                    TextField(L("Name"), text: $b.name).textFieldStyle(.plain)
                     Spacer()
                     Button(hex(b.range.lowerBound)) { model.jump?(b.range.lowerBound, b.range) }
                         .buttonStyle(.link).monospaced()
@@ -208,21 +208,21 @@ struct ChecksumsTab: View {
         Form {
             Section {
                 HStack {
-                    Button(model.selection == nil ? "Für ganze Datei berechnen" : "Für Auswahl berechnen") {
+                    Button(model.selection == nil ? L("Compute for Whole File") : L("Compute for Selection")) {
                         model.computeChecksums()
                     }
                     .disabled(model.checksumRunning || model.checksumSelection.isEmpty)
                     if model.checksumRunning { ProgressView().controlSize(.small) }
                     Spacer()
-                    Menu("Auswahl") {
-                        Button("Gängige (CRC32, MD5, SHA-1, SHA-256)") { model.checksumSelection = Set(Checksum.common) }
-                        Button("Alle") { model.checksumSelection = Set(Checksum.allCases) }
+                    Menu(L("Choose")) {
+                        Button(L("Common (CRC32, MD5, SHA-1, SHA-256)")) { model.checksumSelection = Set(Checksum.common) }
+                        Button(L("All")) { model.checksumSelection = Set(Checksum.allCases) }
                         ForEach(Checksum.Group.allCases, id: \.self) { g in
-                            Button("Alle \(g.rawValue)") {
+                            Button(L("All %@", g.title)) {
                                 model.checksumSelection.formUnion(Checksum.allCases.filter { $0.group == g })
                             }
                         }
-                        Button("Keine") { model.checksumSelection = [] }
+                        Button(L("None")) { model.checksumSelection = [] }
                     }
                     .fixedSize()
                 }
@@ -231,7 +231,7 @@ struct ChecksumsTab: View {
                 }
             }
             ForEach(Checksum.Group.allCases, id: \.self) { g in
-                Section(g.rawValue) {
+                Section(g.title) {
                     ForEach(Checksum.allCases.filter { $0.group == g }, id: \.self) { c in row(c) }
                 }
             }
@@ -244,7 +244,7 @@ struct ChecksumsTab: View {
         HStack(spacing: 6) {
             Toggle(isOn: Binding(get: { model.checksumSelection.contains(c) },
                                  set: { on in if on { model.checksumSelection.insert(c) } else { model.checksumSelection.remove(c) } })) {
-                Text(c.rawValue)
+                Text(c.title)
             }
             .toggleStyle(.checkbox)
             .fixedSize()
@@ -256,7 +256,7 @@ struct ChecksumsTab: View {
                     NSPasteboard.general.setString(v, forType: .string)
                 } label: { Image(systemName: "doc.on.doc") }
                     .buttonStyle(.borderless)
-                    .help("Kopieren")
+                    .help(L("Copy"))
             }
         }
     }
@@ -280,7 +280,7 @@ struct FindBar: View {
                 if model.findMode == .regex {
                     Toggle("Aa", isOn: $model.ignoreCase.not)
                         .toggleStyle(.button)
-                        .help("Groß-/Kleinschreibung beachten")
+                        .help(L("Match Case"))
                 }
                 if model.findMode == .text {
                     Picker("", selection: $model.textEncoding) {
@@ -293,7 +293,7 @@ struct FindBar: View {
                     .frame(width: 100)
                     Toggle("Aa", isOn: $model.ignoreCase.not)
                         .toggleStyle(.button)
-                        .help("Groß-/Kleinschreibung beachten")
+                        .help(L("Match Case"))
                 }
 
                 TextField(placeholder, text: $model.findText)
@@ -304,11 +304,11 @@ struct FindBar: View {
 
                 if model.searching {
                     ProgressView(value: model.progress).frame(width: 60)
-                    Button("Stopp") { model.cancelSearch() }
+                    Button(L("Stop")) { model.cancelSearch() }
                 } else if let msg = model.findMessage {
                     Text(msg).foregroundStyle(.secondary).font(.callout)
                 } else if !model.hits.isEmpty {
-                    Text("\((model.currentHit ?? 0) + 1) von \(model.hits.count)")
+                    Text(L("%1$ld of %2$ld", (model.currentHit ?? 0) + 1, model.hits.count))
                         .foregroundStyle(.secondary).font(.callout).monospacedDigit()
                 }
 
@@ -321,7 +321,7 @@ struct FindBar: View {
 
                 Toggle(isOn: $model.showReplace) { Image(systemName: "arrow.2.squarepath") }
                     .toggleStyle(.button)
-                    .help("Ersetzen")
+                    .help(L("Replace"))
 
                 Button { model.findVisible = false } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.borderless)
@@ -330,12 +330,12 @@ struct FindBar: View {
             }
             if model.showReplace {
                 HStack(spacing: 8) {
-                    Text("Ersetzen durch").foregroundStyle(.secondary).frame(width: 90, alignment: .trailing)
+                    Text(L("Replace with")).foregroundStyle(.secondary).frame(width: 90, alignment: .trailing)
                     TextField(placeholder, text: $model.replaceText)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12, design: .monospaced))
-                    Button("Ersetzen") { model.replaceCurrent() }.disabled(model.currentHit == nil || model.doc.isReadOnly)
-                    Button("Alle") { model.replaceAll() }.disabled(model.hits.isEmpty || model.doc.isReadOnly)
+                    Button(L("Replace")) { model.replaceCurrent() }.disabled(model.currentHit == nil || model.doc.isReadOnly)
+                    Button(L("All")) { model.replaceAll() }.disabled(model.hits.isEmpty || model.doc.isReadOnly)
                 }
             }
         }
@@ -349,10 +349,10 @@ struct FindBar: View {
 
     private var placeholder: String {
         switch model.findMode {
-        case .hex: "Hex, z. B. 4D 5A ?? 00"
-        case .text: "Text"
-        case .regex: "Regex über Bytes, z. B. \\x7fELF|[a-z]+@[a-z.]+"
-        default: "Zahl"
+        case .hex: L("Hex, e.g. 4D 5A ?? 00")
+        case .text: L("Text")
+        case .regex: L("Regex over bytes, e.g. \\x7fELF|[a-z]+@[a-z.]+")
+        default: L("Number")
         }
     }
 }
@@ -376,19 +376,19 @@ struct StatusBar: View {
             Button { send(#selector(DocumentWindowController.goToOffset(_:))) } label: {
                 field("Offset", "\(hex(model.cursor)) (\(model.cursor))")
             }
-            .help("Gehe zu Offset (⌘L)")
+            .help(L("Go to Offset (⌘L)"))
             if model.offsetBase != 0 {
                 sep
-                field("Adresse", hex(model.cursor + model.offsetBase))
+                field(L("Address"), hex(model.cursor + model.offsetBase))
             }
             if let s = model.selection, !s.isEmpty {
                 sep
-                field("Auswahl", "\(hex(s.lowerBound))–\(hex(s.upperBound - 1)) (\(s.count) Byte)")
+                field(L("Selection"), L("%1$@–%2$@ (%3$ld bytes)", hex(s.lowerBound), hex(s.upperBound - 1), s.count))
             }
             if let b = byteAtCursor {
                 sep
-                field("Wert", "\(b) · 0x\(String(format: "%02X", b)) · \(String(b, radix: 2).leftPad(8))")
-                    .help("Byte unter dem Cursor: dezimal, hex, binär")
+                field(L("Value"), "\(b) · 0x\(String(format: "%02X", b)) · \(String(b, radix: 2).leftPad(8))")
+                    .help(L("Byte under the cursor: decimal, hex, binary"))
             }
             Spacer(minLength: 12)
 
@@ -415,53 +415,53 @@ struct StatusBar: View {
                         Text(structure.formatTitle ?? "Format")
                     }
                 }
-                .help("Struktur anzeigen")
+                .help(L("Show Structure"))
                 sep
             }
             if let r = yara.results {
                 Button { send(#selector(DocumentWindowController.showYara(_:))) } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "shield.lefthalf.filled").foregroundStyle(r.isEmpty ? Color.secondary : Color.pink)
-                        Text(r.isEmpty ? "YARA: nichts" : "YARA: \(r.count) \(r.count == 1 ? "Regel" : "Regeln")")
+                        Text(r.isEmpty ? L("YARA: nothing") : r.count == 1 ? L("YARA: %ld rule", r.count) : L("YARA: %ld rules", r.count))
                     }
                 }
                 .help(yara.summary)
                 sep
             }
             Menu {
-                Picker("Zeichensatz", selection: $model.charset) {
+                Picker(L("Character Set"), selection: $model.charset) {
                     ForEach(TextEncodingView.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.inline)
             } label: { Text(model.charset.rawValue) }
             .menuStyle(.borderlessButton).fixedSize()
-            .help("Zeichensatz der Textspalte")
+            .help(L("Character set of the text column"))
             sep
             Menu {
-                Picker("Byte-Reihenfolge", selection: $model.endian) {
+                Picker(L("Byte Order"), selection: $model.endian) {
                     Text("Little Endian").tag(Endian.little)
                     Text("Big Endian").tag(Endian.big)
                 }
                 .pickerStyle(.inline)
             } label: { Text(model.endian == .little ? "LE" : "BE") }
             .menuStyle(.borderlessButton).fixedSize()
-            .help("Byte-Reihenfolge für Inspektor und Zahlensuche")
+            .help(L("Byte order for inspector and number search"))
             sep
             if model.doc.isReadOnly {
-                Label("Schreibgeschützt", systemImage: "lock.fill").foregroundStyle(.secondary)
+                Label(L("Read-Only"), systemImage: "lock.fill").foregroundStyle(.secondary)
             } else {
                 Button { model.insertMode.toggle() } label: {
-                    Text(model.insertMode ? "EIN" : "ÜBS").fontWeight(.medium)
+                    Text(model.insertMode ? L("INS") : L("OVR")).fontWeight(.medium)
                 }
-                .help(model.insertMode ? "Einfügemodus – klicken für Überschreiben (⌘I)"
-                                       : "Überschreibmodus – klicken für Einfügen (⌘I)")
+                .help(model.insertMode ? L("Insert mode – click for overwrite (⌘I)")
+                                       : L("Overwrite mode – click for insert (⌘I)"))
             }
             sep
             Text(ByteCountFormatter.string(fromByteCount: Int64(model.doc.count), countStyle: .binary))
-                .help("\(model.doc.count) Byte")
+                .help(L("%llu bytes", model.doc.count))
             if model.doc.isModified {
                 Circle().fill(Color.orange).frame(width: 7, height: 7).padding(.leading, 8)
-                    .help("Ungesicherte Änderungen")
+                    .help(L("Unsaved changes"))
             }
         }
         .buttonStyle(.plain)
@@ -525,7 +525,7 @@ struct PromptSheet: View {
                 .onSubmit { if validate(text) { done(text) } }
             HStack {
                 Spacer()
-                Button("Abbrechen") { done(nil) }.keyboardShortcut(.cancelAction)
+                Button(L("Cancel")) { done(nil) }.keyboardShortcut(.cancelAction)
                 Button("OK") { done(text) }.keyboardShortcut(.defaultAction).disabled(!validate(text))
             }
         }

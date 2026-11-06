@@ -28,7 +28,7 @@ final class ScriptModel: ObservableObject {
         let copy = Document(editing: base, readOnly: doc.isReadOnly)
         let ctx = ScriptContext(cursor: cursor, selection: selection, fileName: doc.url.lastPathComponent)
         let source = source
-        let name = fileURL?.lastPathComponent ?? "Skript"
+        let name = fileURL?.lastPathComponent ?? L("Script")
         let flag = CancelFlag()
         cancelFlag = flag
         running = true
@@ -53,11 +53,13 @@ final class ScriptModel: ObservableObject {
                     try doc.adopt(copy, base: base)
                     changed = true
                 } catch {
-                    self.error = ScriptError(message: "Nicht übernommen: \(error)", line: nil)
+                    self.error = ScriptError(message: L("Not applied: %@", String(describing: error)), line: nil)
                 }
             }
-            status = (self.error == nil ? "Fertig" : "Fehler") + String(format: " nach %.2f s", elapsed)
-                + (changed ? " · \(r.edits) Änderung\(r.edits == 1 ? "" : "en") (⌘Z macht alle rückgängig)" : "")
+            status = self.error == nil ? L("Done after %.2f s", elapsed) : L("Error after %.2f s", elapsed)
+            if changed {
+                status += " · " + (r.edits == 1 ? L("1 change (⌘Z undoes all)") : L("%ld changes (⌘Z undoes all)", r.edits))
+            }
             done(changed, r)
         }
     }
@@ -70,7 +72,7 @@ final class ScriptModel: ObservableObject {
         let panel = NSOpenPanel()
         try? FileManager.default.createDirectory(at: Self.scriptsDir, withIntermediateDirectories: true)
         panel.directoryURL = Self.scriptsDir
-        panel.message = "JavaScript-Datei öffnen"
+        panel.message = L("Open JavaScript File")
         guard panel.runModal() == .OK, let url = panel.url,
               let text = try? String(contentsOf: url, encoding: .utf8) else { return }
         source = text
@@ -83,7 +85,7 @@ final class ScriptModel: ObservableObject {
             let panel = NSSavePanel()
             try? FileManager.default.createDirectory(at: Self.scriptsDir, withIntermediateDirectories: true)
             panel.directoryURL = Self.scriptsDir
-            panel.nameFieldStringValue = fileURL?.lastPathComponent ?? "skript.js"
+            panel.nameFieldStringValue = fileURL?.lastPathComponent ?? L("script.js")
             guard panel.runModal() == .OK else { return }
             url = panel.url
         }
@@ -101,9 +103,10 @@ final class ScriptModel: ObservableObject {
         fileURL = nil
     }
 
+    /// Example scripts (menu title, source). The code is English in every language.
     static let examples: [(String, String)] = [
-        ("Byte-Statistik", """
-        // Zählt Nullbytes und druckbare Zeichen der Auswahl oder Datei.
+        (L("Byte Statistics"), """
+        // Counts zero bytes and printable characters in the selection or file.
         const s = hw.selection ?? { start: 0, end: hw.size() }
         const d = hw.read(s.start, s.end - s.start)
         let zeros = 0, printable = 0
@@ -111,20 +114,20 @@ final class ScriptModel: ObservableObject {
           if (b === 0) zeros++
           if (b >= 0x20 && b < 0x7f) printable++
         }
-        print(`${d.length} Byte, ${zeros} × 0x00, ${printable} druckbar`)
+        print(`${d.length} bytes, ${zeros} × 0x00, ${printable} printable`)
         """),
-        ("Auswahl XOR", """
-        // XOR der Auswahl mit einem Schlüssel (ein Undo-Schritt).
+        (L("XOR Selection"), """
+        // XORs the selection with a key (one undo step).
         const key = [0x5a]
         const s = hw.selection
-        if (!s) throw new Error("Bitte erst Bytes auswählen")
+        if (!s) throw new Error("Select some bytes first")
         const d = hw.read(s.start, s.end - s.start)
         for (let i = 0; i < d.length; i++) d[i] ^= key[i % key.length]
         hw.write(s.start, d)
         hw.select(s.start, s.end)
         """),
-        ("Strings finden", """
-        // Druckbare ASCII-Folgen ab 6 Zeichen, wie `strings`.
+        (L("Find Strings"), """
+        // Printable ASCII runs of 6 or more characters, like `strings`.
         const min = 6, d = hw.read(0, hw.size())
         let start = -1, found = 0
         for (let i = 0; i <= d.length; i++) {
@@ -137,9 +140,9 @@ final class ScriptModel: ObservableObject {
         }
         print(`${found} Strings`)
         """),
-        ("PNG-Chunks", """
-        // Listet die Chunks einer PNG-Datei auf und springt zum ersten IDAT.
-        if (hw.hex(0, 4) !== "89 50 4E 47") throw new Error("keine PNG-Datei")
+        (L("PNG Chunks"), """
+        // Lists the chunks of a PNG file and jumps to the first IDAT.
+        if (hw.hex(0, 4) !== "89 50 4E 47") throw new Error("not a PNG file")
         let off = 8
         while (off + 8 <= hw.size()) {
           const len = hw.u32(off, false), type = hw.str(off + 4, 4)

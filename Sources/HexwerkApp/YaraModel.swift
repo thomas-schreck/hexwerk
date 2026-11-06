@@ -11,7 +11,10 @@ final class YaraModel: ObservableObject {
     /// Caps hits per pattern so a pattern like `{ 00 00 }` cannot flood the UI.
     static let maxMatchesPerPattern = 100_000
 
-    enum Scope: String, CaseIterable { case file = "Datei", selection = "Auswahl" }
+    enum Scope: CaseIterable {
+        case file, selection
+        var title: String { self == .file ? L("Entire File") : L("Selection") }
+    }
 
     /// Rule files and folders, shared by all windows and kept across launches.
     @Published var ruleFiles: [URL] = (Settings.shared.stringArray(forKey: "yaraRules") ?? [])
@@ -106,7 +109,7 @@ final class YaraModel: ObservableObject {
         task?.cancel()
         task = nil
         running = false
-        scanError = "Abgebrochen"
+        scanError = L("Cancelled")
     }
 
     func contentChanged() { if results != nil { stale = true } }
@@ -118,9 +121,9 @@ final class YaraModel: ObservableObject {
         ranges = hits.flatMap { $0.matches.map(\.range) }.filter { !$0.isEmpty }
             .sorted { $0.lowerBound < $1.lowerBound }
         expanded = hits.count <= 3 ? Set(hits.map(\.id)) : []
-        let scanned = range.map { "Auswahl \(hex($0.lowerBound))–\(hex($0.upperBound - 1))" } ?? "ganze Datei"
-        summary = "\(hits.count) \(hits.count == 1 ? "Regel" : "Regeln") · \(matchCount) Treffer · \(scanned) · "
-            + String(format: "%.2f s", elapsed)
+        let scanned = range.map { L("selection %1$@–%2$@", hex($0.lowerBound), hex($0.upperBound - 1)) } ?? L("whole file")
+        let rules = hits.count == 1 ? L("1 rule") : L("%ld rules", hits.count)
+        summary = L("%1$@ · %2$ld hits · %3$@ · %4$.2f s", rules, matchCount, scanned, elapsed)
     }
 
     func clear() {

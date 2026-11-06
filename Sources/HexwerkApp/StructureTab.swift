@@ -25,7 +25,7 @@ struct StructureTab: View {
                 Menu {
                     formatMenu
                 } label: {
-                    Label(structure.formatTitle ?? "Format wählen", systemImage: "doc.text.magnifyingglass")
+                    Label(structure.formatTitle ?? L("Choose Format"), systemImage: "doc.text.magnifyingglass")
                         .lineLimit(1)
                 }
                 .menuStyle(.borderlessButton)
@@ -34,20 +34,20 @@ struct StructureTab: View {
                 Toggle(isOn: $structure.colorize) { Image(systemName: "paintpalette") }
                     .toggleStyle(.button)
                     .controlSize(.small)
-                    .help("Felder im Hex-Raster einfärben")
+                    .help(L("Color fields in the hex grid"))
             }
             if structure.stale {
-                banner("Inhalt geändert", systemImage: "arrow.clockwise", tint: .orange,
-                       action: ("Neu zerlegen", { structure.reparse(snapshot: model.doc.snapshot()) }))
+                banner(L("Content changed"), systemImage: "arrow.clockwise", tint: .orange,
+                       action: (L("Parse Again"), { structure.reparse(snapshot: model.doc.snapshot()) }))
             }
             if let e = structure.loadError {
                 banner(e, systemImage: "exclamationmark.triangle.fill", tint: .red, action: nil)
             } else if let e = structure.result?.error {
                 banner(e.description, systemImage: "exclamationmark.triangle.fill", tint: .red,
-                       action: e.offset.map { off in ("Zur Stelle", { model.jump?(off, nil) }) })
+                       action: e.offset.map { off in (L("Go There"), { model.jump?(off, nil) }) })
             }
             if let r = structure.result {
-                Text("\(r.nodeCount) Knoten").font(.caption).foregroundStyle(.secondary)
+                Text(L("%ld nodes", r.nodeCount)).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(10)
@@ -56,7 +56,7 @@ struct StructureTab: View {
     @ViewBuilder private var formatMenu: some View {
         let matches = StructureModel.catalog.matching(fileExtension: model.doc.url.pathExtension)
         if !matches.isEmpty {
-            Section("Passend zur Endung") {
+            Section(L("Matching the Extension")) {
                 ForEach(matches) { e in Button(e.title) { apply(e) } }
             }
         }
@@ -67,11 +67,11 @@ struct StructureTab: View {
             }
         }
         if StructureModel.catalog.entries.isEmpty {
-            Text("Keine Formate – im Terminal: make formats")
+            Text(L("No formats – in Terminal: make formats"))
         }
         Divider()
-        Button("Eigene .ksy öffnen …") { openOwn() }
-        Button("Keins") { structure.apply(nil, title: nil, snapshot: model.doc.snapshot()) }
+        Button(L("Open Own .ksy…")) { openOwn() }
+        Button(L("None")) { structure.apply(nil, title: nil, snapshot: model.doc.snapshot()) }
     }
 
     private func apply(_ e: FormatCatalog.Entry) {
@@ -82,7 +82,7 @@ struct StructureTab: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = []
         panel.allowsOtherFileTypes = true
-        panel.message = "Kaitai-Struct-Beschreibung (.ksy) wählen"
+        panel.message = L("Choose a Kaitai Struct description (.ksy)")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         structure.apply(url, title: url.deletingPathExtension().lastPathComponent, snapshot: model.doc.snapshot())
     }
@@ -105,8 +105,8 @@ struct StructureTab: View {
         if structure.result == nil && !structure.parsing {
             VStack(spacing: 8) {
                 Image(systemName: "list.bullet.indent").font(.largeTitle).foregroundStyle(.tertiary)
-                Text("Kein Format gewählt").foregroundStyle(.secondary)
-                Text("Oben ein Format aus der Kaitai-Sammlung oder eine eigene .ksy wählen.")
+                Text(L("No format chosen")).foregroundStyle(.secondary)
+                Text(L("Choose a format from the Kaitai collection or your own .ksy above."))
                     .font(.caption).foregroundStyle(.tertiary).multilineTextAlignment(.center)
             }
             .padding(20)
@@ -178,6 +178,6 @@ private struct NodeRow: View {
         .padding(.horizontal, 4)
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
-        .help(n.range.map { "0x\(String($0.lowerBound, radix: 16, uppercase: true)), \($0.count) Byte" } ?? "berechnet")
+        .help(n.range.map { L("%1$@, %2$ld bytes", hex($0.lowerBound), $0.count) } ?? L("computed"))
     }
 }
