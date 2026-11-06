@@ -60,6 +60,11 @@ enum Token: Equatable {
 enum ExprLexer {
     static let puncts = ["<<", ">>", "<=", ">=", "==", "!=", "::", "+", "-", "*", "/", "%", "<", ">",
                          "&", "|", "^", "~", "?", ":", "(", ")", "[", "]", ".", ","]
+    private static let punctScalars = puncts.map { ($0, Array($0.unicodeScalars)) }
+
+    /// Generous: lookup tables in real formats are array literals with a few
+    /// thousand tokens. Only keeps lexing and memory in proportion.
+    static let maxTokens = 100_000
 
     static func tokens(_ s: String) throws -> [Token] {
         let c = Array(s.unicodeScalars)
@@ -67,6 +72,9 @@ enum ExprLexer {
         var out: [Token] = []
         func isIdent(_ u: UnicodeScalar) -> Bool { CharacterSet.alphanumerics.contains(u) || u == "_" }
         while i < c.count {
+            guard out.count < maxTokens else {
+                throw KaitaiError(L("Expression longer than %@ tokens", "\(maxTokens)"))
+            }
             let ch = c[i]
             if CharacterSet.whitespacesAndNewlines.contains(ch) { i += 1; continue }
             if CharacterSet.decimalDigits.contains(ch) {
@@ -112,12 +120,14 @@ enum ExprLexer {
                 i = j
                 continue
             }
-            let rest = String(String.UnicodeScalarView(c[i...]))
-            guard let p = puncts.first(where: { rest.hasPrefix($0) }) else {
+            // Compared in place: building the rest as a String per token was O(n²).
+            guard let (p, u) = punctScalars.first(where: { _, u in
+                i + u.count <= c.count && c[i ..< i + u.count].elementsEqual(u)
+            }) else {
                 throw KaitaiError(L("Unexpected character \"%@\" in \"%@\"", "\(ch)", "\(s)"))
             }
             out.append(.punct(p))
-            i += p.unicodeScalars.count
+            i += u.count
         }
         return out
     }
@@ -129,6 +139,22 @@ struct ExprParser {
     let tokens: [Token]
     let source: String
     var i = 0
+    /// Recursion depth of the descent; each level costs a dozen stack frames.
+    private var depth = 0
+    static let maxDepth = 32
+    /// Operator nodes built so far. A chain like 1+1+… nests the AST once per
+    /// operator, and evaluation and deallocation recurse per level, so this
+    /// bounds the AST depth (flat array literals do not count).
+    private var operators = 0
+    static let maxOperators = 2000
+
+    private mutating func op(_ e: Expr) throws -> Expr {
+        operators += 1
+        guard operators <= Self.maxOperators else {
+            throw KaitaiError(L("Expression has more than %@ operators", "\(Self.maxOperators)"))
+        }
+        return e
+    }
 
     init(tokens: [Token], source: String) {
         self.tokens = tokens
@@ -149,38 +175,53 @@ struct ExprParser {
 
     private func isIdent(_ name: String) -> Bool { !atEnd && tokens[i] == .ident(name) }
 
+    /// Runs `body` one level deeper; parentheses, brackets, arguments and
+    /// prefix operators all pass through here.
+    private mutating func nested<R>(_ body: (inout ExprParser) throws -> R) throws -> R {
+        guard depth < Self.maxDepth else {
+            throw KaitaiError(L("Expression \"%@\": nested deeper than %@", source, "\(Self.maxDepth)"))
+        }
+        depth += 1
+        defer { depth -= 1 }
+        return try body(&self)
+    }
+
     mutating func ternary() throws -> Expr {
+        try nested { try $0.ternaryLevel() }
+    }
+
+    private mutating func ternaryLevel() throws -> Expr {
         let c = try or()
         if accept(.punct("?")) {
             let a = try ternary()
             try expect(.punct(":"))
             let b = try ternary()
-            return .ternary(c, a, b)
+            return try op(.ternary(c, a, b))
         }
         return c
     }
 
     mutating func or() throws -> Expr {
         var l = try and()
-        while isIdent("or") { i += 1; l = .binary("or", l, try and()) }
+        while isIdent("or") { i += 1; l = try op(.binary("or", l, try and())) }
         return l
     }
 
     mutating func and() throws -> Expr {
         var l = try not()
-        while isIdent("and") { i += 1; l = .binary("and", l, try not()) }
+        while isIdent("and") { i += 1; l = try op(.binary("and", l, try not())) }
         return l
     }
 
     mutating func not() throws -> Expr {
-        if isIdent("not") { i += 1; return .unary("not", try not()) }
+        if isIdent("not") { i += 1; return try op(.unary("not", try nested { try $0.not() })) }
         return try comparison()
     }
 
     mutating func comparison() throws -> Expr {
         let l = try binaryLevel(0)
         for op in ["==", "!=", "<=", ">=", "<", ">"] where accept(.punct(op)) {
-            return .binary(op, l, try binaryLevel(0))
+            return try self.op(.binary(op, l, try binaryLevel(0)))
         }
         return l
     }
@@ -192,7 +233,7 @@ struct ExprParser {
         var l = try binaryLevel(n + 1)
         loop: while true {
             for op in Self.levels[n] where accept(.punct(op)) {
-                l = .binary(op, l, try binaryLevel(n + 1))
+                l = try self.op(.binary(op, l, try binaryLevel(n + 1)))
                 continue loop
             }
             return l
@@ -200,9 +241,9 @@ struct ExprParser {
     }
 
     mutating func unary() throws -> Expr {
-        if accept(.punct("-")) { return .unary("-", try unary()) }
-        if accept(.punct("~")) { return .unary("~", try unary()) }
-        if accept(.punct("+")) { return try unary() }
+        if accept(.punct("-")) { return try op(.unary("-", try nested { try $0.unary() })) }
+        if accept(.punct("~")) { return try op(.unary("~", try nested { try $0.unary() })) }
+        if accept(.punct("+")) { return try nested { try $0.unary() } }
         return try postfix()
     }
 
@@ -213,7 +254,7 @@ struct ExprParser {
                 guard !atEnd, case .ident(let name) = tokens[i] else { throw KaitaiError(L("Expression \"%@\": name expected after .", source)) }
                 i += 1
                 if name == "as", accept(.punct("<")) {
-                    e = .cast(e, try typeName(until: ">"))
+                    e = try op(.cast(e, try typeName(until: ">")))
                 } else if accept(.punct("(")) {
                     var args: [Expr] = []
                     if !accept(.punct(")")) {
@@ -221,14 +262,14 @@ struct ExprParser {
                         while accept(.punct(",")) { args.append(try ternary()) }
                         try expect(.punct(")"))
                     }
-                    e = .call(e, name, args)
+                    e = try op(.call(e, name, args))
                 } else {
-                    e = .member(e, name)
+                    e = try op(.member(e, name))
                 }
             } else if accept(.punct("[")) {
                 let idx = try ternary()
                 try expect(.punct("]"))
-                e = .index(e, idx)
+                e = try op(.index(e, idx))
             } else {
                 return e
             }
