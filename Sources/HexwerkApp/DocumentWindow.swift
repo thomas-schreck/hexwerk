@@ -542,10 +542,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func windowDidBecomeKey(_ notification: Notification) { checkDisk() }
 
-    /// Reacts to a change by another program. A file changed in place must
-    /// be reloaded at once: the mapping shows foreign bytes and touching a
-    /// truncated part would crash (SIGBUS). A replaced file leaves the
-    /// mapping intact, so the user may keep their version.
+    /// Reacts to a change by another program. A file changed in place is
+    /// reloaded at once: it can no longer be saved from (see
+    /// `Document.DiskChange.modified`). A replaced file leaves the mapping
+    /// intact, so the user may keep their version.
     func checkDisk() {
         guard !askingAboutDisk else { return }
         let change = file.diskChange()
