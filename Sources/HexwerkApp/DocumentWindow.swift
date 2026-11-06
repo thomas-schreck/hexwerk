@@ -763,10 +763,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func restoreProject() {
-        if let s = ProjectStore.load(for: displayURL) { apply(s) }
+        do { if let s = try ProjectStore.read(for: displayURL) { apply(s) } }
+        catch { showError(error) }   // saveProject() then leaves the file alone
     }
 
     func saveProject() {
+        // Fails without writing if the project file is unreadable (reported on open).
         try? ProjectStore.save(projectState(), for: displayURL)
     }
 

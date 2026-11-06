@@ -59,6 +59,34 @@ import Testing
         #expect(ProjectStore.target(of: side, moved).standardizedFileURL == file.standardizedFileURL)
     }
 
+    /// Issue #24: keys with defaults may be missing (older or hand-edited files).
+    @Test func decodesFilesWithoutOptionalKeys() throws {
+        let json = #"{"filePath": "/x/fw.bin", "fileSize": 10, "bookmarks": [{"name": "h", "start": 0, "end": 4, "color": 1}]}"#
+        let url = try tempFile(Data(json.utf8))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let s = try #require(ProjectStore.load(url))
+        #expect(s.bookmarks.count == 1)
+        #expect(s.offsetBase == 0 && s.cursor == 0 && s.version == 1 && s.yaraRules.isEmpty)
+    }
+
+    /// Issue #24: a sidecar that does not decode is reported, never overwritten.
+    @Test func unreadableSidecarIsNotOverwritten() throws {
+        let central = try tempDir(), folder = try tempDir()
+        defer { for d in [central, folder] { try? FileManager.default.removeItem(at: d) } }
+        let file = folder.appendingPathComponent("dump.bin")
+        try Data([1, 2, 3]).write(to: file)
+        let side = ProjectStore.sidecar(for: file)
+        let broken = Data(#"{"filePath": 42, "bookmarks": "from a future version"}"#.utf8)
+        try broken.write(to: side)
+
+        #expect(throws: ProjectError.self) { try ProjectStore.read(for: file, in: central) }
+        var s = ProjectState(filePath: file.path, fileSize: 3)
+        s.cursor = 1
+        #expect(throws: ProjectError.self) { try ProjectStore.save(s, for: file, in: central) }
+        #expect(try Data(contentsOf: side) == broken)
+        #expect(!FileManager.default.fileExists(atPath: ProjectStore.url(for: file, in: central).path))
+    }
+
     @Test func toleratesMissingAndBrokenFiles() throws {
         let url = try tempFile(Data("{not json".utf8))
         defer { try? FileManager.default.removeItem(at: url) }
