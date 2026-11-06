@@ -28,8 +28,9 @@ struct FileType: ParsableCommand {
             try printJSON(obj)
             return
         }
-        print(L("Type       %@", desc ?? L("— (no libmagic database)")))
-        if let mime { print("MIME       \(mime)") }
+        // libmagic quotes strings from the file (titles, names) in its description.
+        print(L("Type       %@", desc.map { TerminalText.escape($0) } ?? L("— (no libmagic database)")))
+        if let mime { print("MIME       \(TerminalText.escape(mime))") }
         if let s = sigs.first {
             print(L("Signature  %@", s.title) + (s.kaitai.map { L(" → Kaitai format %@", $0) } ?? ""))
         }

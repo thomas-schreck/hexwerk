@@ -121,9 +121,10 @@ public enum Inspector {
         return quote(String(decoding: units, as: UTF16.self))
     }
 
-    /// Control characters made visible so one value stays one line.
+    /// Control and bidi characters made visible so one value stays one line
+    /// and cannot steer a terminal.
     private static func quote(_ s: String) -> String {
-        "\"" + s.unicodeScalars.map { $0.value < 0x20 || $0.value == 0x7F ? "·" : String($0) }.joined() + "\""
+        "\"" + TerminalText.escape(s) + "\""
     }
 }
 

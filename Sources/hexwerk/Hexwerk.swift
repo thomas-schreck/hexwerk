@@ -43,7 +43,7 @@ func openSnapshot(_ path: String) throws -> Snapshot {
 
 func printJSON(_ obj: Any) throws {
     let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
-    print(String(decoding: data, as: UTF8.self))
+    print(TerminalText.escapeJSON(String(decoding: data, as: UTF8.self)))
 }
 
 struct Dump: ParsableCommand {
@@ -97,9 +97,7 @@ struct Inspect: ParsableCommand {
         let values = Inspector.values(src.read(offset.value ..< offset.value + UInt64(Inspector.window)),
                                       endian: endian.value)
         if json {
-            let obj = values.reduce(into: [String: String]()) { $0[$1.name] = $1.value }
-            let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
-            print(String(decoding: data, as: UTF8.self))
+            try printJSON(values.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
         } else {
             let w = values.map(\.title.count).max() ?? 0
             for v in values {

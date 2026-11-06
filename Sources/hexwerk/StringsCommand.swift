@@ -35,7 +35,7 @@ struct StringsCmd: ParsableCommand {
         }
         for f in found {
             let tag = f.encoding == .ascii ? "" : " [\(f.encoding.rawValue)]"
-            print(String(format: "%8llx", f.offset) + "\(tag) " + f.text)
+            print(String(format: "%8llx", f.offset) + "\(tag) " + TerminalText.escape(f.text))
         }
     }
 }

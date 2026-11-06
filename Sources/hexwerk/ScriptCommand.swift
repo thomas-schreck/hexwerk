@@ -34,7 +34,7 @@ struct Script: ParsableCommand {
         let r = ScriptRunner.run(source, name: eval ? "-e" : (script as NSString).lastPathComponent, document: doc,
                                  context: ScriptContext(fileName: (file as NSString).lastPathComponent),
                                  timeout: timeout)
-        for line in r.output { print(line) }
+        for line in r.output { print(TerminalText.escape(line, keepingLayout: true)) }
         if let e = r.error {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             throw ExitCode(e.isTimeout ? 3 : 2)
