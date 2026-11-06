@@ -104,15 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         open(target, readOnly: false)
         let c = controllers.first { $0.displayURL.standardizedFileURL == target.standardizedFileURL }
-        if let c {
-            if c.file.count != s.fileSize {
-                let a = NSAlert()
-                a.messageText = L("%@ has changed since the project was saved.", target.lastPathComponent)
-                a.informativeText = L("Size then %1$llu bytes, now %2$llu bytes. Bookmarks may have shifted.", s.fileSize, c.file.count)
-                a.runModal()
-            }
-            c.apply(s)
-        }
+        c?.apply(s)
     }
 
     static let hexRecordExtensions: Set<String> = ["hex", "ihex", "ihx", "srec", "s19", "s28", "s37", "mot"]

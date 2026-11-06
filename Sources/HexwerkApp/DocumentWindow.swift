@@ -628,9 +628,20 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         return s
     }
 
+    /// The last state whose size mismatch was reported, so opening a project
+    /// that is also the file's remembered state warns only once.
+    private var sizeWarningShown: ProjectState?
+
     /// Applies a remembered or imported state; offsets past the end are dropped.
     func apply(_ s: ProjectState) {
         let n = file.count
+        if n != s.fileSize, !s.bookmarks.isEmpty, s != sizeWarningShown {
+            sizeWarningShown = s
+            let a = NSAlert()
+            a.messageText = L("%@ has changed since the project was saved.", displayURL.lastPathComponent)
+            a.informativeText = L("Size then %1$llu bytes, now %2$llu bytes. Bookmarks may have shifted.", s.fileSize, n)
+            a.runModal()
+        }
         model.bookmarks = s.bookmarks.filter { $0.start < n }.map {
             DocumentModel.Bookmark(name: $0.name, range: $0.start ..< min(n, max($0.start + 1, $0.end)),
                                    color: DocumentModel.bookmarkColors[$0.color % DocumentModel.bookmarkColors.count])

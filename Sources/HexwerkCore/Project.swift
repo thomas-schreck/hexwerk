@@ -108,3 +108,26 @@ public enum ProjectStore {
         try enc.encode(state).write(to: url, options: .atomic)
     }
 }
+
+extension Range where Bound == UInt64 {
+    /// Where a marked range (bookmark) ends up after `edited` was replaced
+    /// by `newLength` bytes, so it keeps marking the same data. Bytes after
+    /// the edit move by the length change; ends inside the edit stay within
+    /// the new bytes; an insert exactly at the start pushes the range back.
+    /// Nil when nothing of the range is left (its bytes were deleted).
+    public func adjustedForEdit(replacing edited: Range<UInt64>, newLength: UInt64) -> Range<UInt64>? {
+        func inside(_ p: UInt64) -> UInt64 { edited.lowerBound + Swift.min(p - edited.lowerBound, newLength) }
+        func shifted(_ p: UInt64) -> UInt64 { p - UInt64(edited.count) + newLength }
+        let start = lowerBound < edited.lowerBound ? lowerBound
+            : lowerBound >= edited.upperBound ? shifted(lowerBound) : inside(lowerBound)
+        let end = upperBound <= edited.lowerBound ? upperBound
+            : upperBound >= edited.upperBound ? shifted(upperBound) : inside(upperBound)
+        return start < end ? start ..< end : nil
+    }
+
+    /// The part of the range inside a document of `count` bytes, nil if none.
+    public func clampedToDocument(count: UInt64) -> Range<UInt64>? {
+        let r = clamped(to: 0 ..< count)
+        return r.isEmpty ? nil : r
+    }
+}
