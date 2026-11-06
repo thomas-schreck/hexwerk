@@ -69,6 +69,9 @@ struct AnalysisTab: View {
                         .buttonStyle(.plain)
                     }
                     if e.count > 500 { Text(L("… %ld more", e.count - 500)).font(.caption).foregroundStyle(.tertiary) }
+                    if e.count >= FileSignatures.maxEmbeddedHits {
+                        Text(L("stopped after %ld hits", FileSignatures.maxEmbeddedHits)).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
         }

@@ -29,6 +29,7 @@ struct Find: ParsableCommand {
             }
             if json { try printJSON(hits.map { ["offset": $0.lowerBound, "length": $0.count] }) }
             else { for h in hits { print(String(format: "0x%08llx  %llu  (", h.lowerBound, h.lowerBound) + L("%@ bytes", String(h.count)) + ")") } }
+            if hits.count >= Search.maxHits { reportStopped(Search.maxHits) }
             return
         }
         let p: SearchPattern?
@@ -53,10 +54,13 @@ struct Find: ParsableCommand {
         } else {
             for h in hits { print(String(format: "0x%08llx  %llu", h.lowerBound, h.lowerBound)) }
         }
-        if hits.count >= Search.maxHits {
-            FileHandle.standardError.write(Data(("hexwerk: " + L("stopped after %ld hits", Search.maxHits) + "\n").utf8))
-        }
+        if hits.count >= Search.maxHits { reportStopped(Search.maxHits) }
     }
+}
+
+/// Results were cut off at a hit limit: say so on stderr, keep stdout clean.
+func reportStopped(_ limit: Int) {
+    FileHandle.standardError.write(Data(("hexwerk: " + L("stopped after %ld hits", limit) + "\n").utf8))
 }
 
 struct Diff: ParsableCommand {
@@ -89,6 +93,7 @@ struct Diff: ParsableCommand {
                 print(String(format: "A 0x%08llx  B 0x%08llx  ", o.a.lowerBound, o.b.lowerBound) + what)
             }
         }
+        if AlignedDiff.isTruncated(ops, sa, sb, positional: positional) { reportStopped(Search.maxHits) }
         if !ops.isEmpty { throw ExitCode(1) }
     }
 }

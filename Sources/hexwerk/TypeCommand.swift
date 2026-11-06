@@ -19,6 +19,7 @@ struct FileType: ParsableCommand {
         let mime = Magic.mime(snap)
         let sigs = FileSignatures.detect(snap)
         let emb = embedded ? FileSignatures.scanEmbedded(snap) : []
+        if emb.count >= FileSignatures.maxEmbeddedHits { reportStopped(FileSignatures.maxEmbeddedHits) }
         if json {
             func hit(_ h: SignatureHit) -> [String: Any] {
                 ["offset": h.offset, "name": h.name, "ext": h.ext, "kaitai": h.kaitai ?? NSNull()]

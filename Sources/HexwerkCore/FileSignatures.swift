@@ -216,9 +216,13 @@ public enum FileSignatures {
         }
     }
 
+    /// Default limit of `scanEmbedded`.
+    public static let maxEmbeddedHits = 10_000
+
     /// Embedded files anywhere in `range` (not at offset 0 of the range).
-    /// One pass with a two-byte index over the specific signatures.
-    public static func scanEmbedded(_ snap: Snapshot, range: Range<UInt64>? = nil, maxHits: Int = 10_000,
+    /// One pass with a two-byte index over the specific signatures. Stops at
+    /// exactly `maxHits` hits (`count >= maxHits`: there may be more).
+    public static func scanEmbedded(_ snap: Snapshot, range: Range<UInt64>? = nil, maxHits: Int = maxEmbeddedHits,
                                     isCancelled: () -> Bool = { false },
                                     progress: (Double) -> Void = { _ in }) -> [SignatureHit] {
         let r = (range ?? 0 ..< snap.count).clamped(to: 0 ..< snap.count)
@@ -235,7 +239,9 @@ public enum FileSignatures {
             let data = snap.read(pos ..< min(snap.count, end + 1))
             data.withUnsafeBytes { buf in
                 let n = Int(end - pos)
-                for i in 0 ..< n where i + 1 < buf.count {
+                // Checked per hit, not per chunk: a hostile file can match at
+                // nearly every offset of a 4 MiB chunk.
+                for i in 0 ..< n where i + 1 < buf.count && hits.count < maxHits {
                     let cands = index[Int(buf[i]) << 8 | Int(buf[i + 1])]
                     if cands.isEmpty { continue }
                     for k in cands {

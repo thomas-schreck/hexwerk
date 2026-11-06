@@ -34,13 +34,23 @@ public enum AlignedDiff {
     }
 
     /// Old behavior: equal offsets, no realignment; a longer tail is
-    /// reported as insert/delete.
+    /// reported as insert/delete. At most `Search.maxHits` operations.
     public static func positional(_ a: Snapshot, _ b: Snapshot) -> [DiffOp] {
         let common = min(a.count, b.count)
-        var out = Compare.differences(a, b).filter { $0.upperBound <= common }.map { DiffOp(.replace, a: $0, b: $0) }
+        let ranges = Compare.differences(a, b)
+        if ranges.count >= Search.maxHits {
+            return ranges.prefix(Search.maxHits).map { DiffOp(.replace, a: $0, b: $0) }
+        }
+        var out = ranges.filter { $0.upperBound <= common }.map { DiffOp(.replace, a: $0, b: $0) }
         if a.count > b.count { out.append(DiffOp(.delete, a: common ..< a.count, b: common ..< common)) }
         if b.count > a.count { out.append(DiffOp(.insert, a: common ..< common, b: common ..< b.count)) }
         return out
+    }
+
+    /// True if `ops` from `diff(a, b)` / `positional` stopped at the hit
+    /// limit (only the positional comparison has one).
+    public static func isTruncated(_ ops: [DiffOp], _ a: Snapshot, _ b: Snapshot, positional: Bool = false) -> Bool {
+        (positional || a.count > maxSize || b.count > maxSize) && ops.count >= Search.maxHits
     }
 
     public static func diff(_ x: [UInt8], _ y: [UInt8]) -> [DiffOp] {
