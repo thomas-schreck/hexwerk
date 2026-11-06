@@ -61,11 +61,12 @@ struct Dump: ParsableCommand {
     func run() throws {
         let src = try openSource(file)
         let start = offset.value
-        let end = length.map { min(src.count, start + $0.value) } ?? src.count
         guard start <= src.count else {
             FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
+        // Clamp the length before adding: start + length can exceed UInt64.max.
+        let end = length.map { start + min($0.value, src.count - start) } ?? src.count
         // Stream in blocks so large ranges never sit in memory at once.
         let block = UInt64(width * 4096)
         var pos = start
