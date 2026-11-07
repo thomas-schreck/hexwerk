@@ -324,5 +324,12 @@ extension L10n {
         "The helper process did not answer in time and was stopped.":
             "Der Hilfsprozess hat nicht rechtzeitig geantwortet und wurde beendet.",
         "Only .ksy files can be read": "Nur .ksy-Dateien können gelesen werden",
+        // About panel (#115)
+        "Hex editor for macOS with Kaitai Struct formats, YARA-X and scripting.":
+            "Hex-Editor für macOS mit Kaitai-Struct-Formaten, YARA-X und Skripten.",
+        "Released under the MIT License.": "Veröffentlicht unter der MIT-Lizenz.",
+        "Includes YARA-X %@ (BSD-3-Clause) and libmagic %@ (BSD-2-Clause).":
+            "Enthält YARA-X %@ (BSD-3-Clause) und libmagic %@ (BSD-2-Clause).",
+        "Third-Party Notices": "Hinweise zu Drittanbieter-Software",
     ]
 }

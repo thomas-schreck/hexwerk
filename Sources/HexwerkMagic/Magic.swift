@@ -4,6 +4,12 @@ import HexwerkCore
 
 /// File type description via libmagic, like `file`.
 public enum Magic {
+    /// Version of the linked libmagic, e.g. `5.46`.
+    public static var version: String {
+        let v = magic_version()
+        return "\(v / 100).\(String(format: "%02d", v % 100))"
+    }
+
     /// Database search order: $HEXWERK_MAGIC, the app bundle, next to the executable, Homebrew.
     public static var databasePath: String? {
         var candidates: [String] = []
