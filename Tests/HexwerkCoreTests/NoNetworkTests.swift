@@ -72,7 +72,12 @@ import Testing
         try #require(binaries.contains { $0.hasSuffix("/hexwerk") }, "swift build missing")
         for bin in binaries {
             let libs = try tool("/usr/bin/otool", ["-L", bin])
-            for l in Self.forbiddenLibraries { #expect(!libs.contains(l), "\(bin) links \(l)") }
+            // URLSession lives in CFNetwork; the macOS 26 SDK links it into the app.
+            let allowedLibraries = bin.hasSuffix("/HexwerkApp") ? ["CFNetwork.framework"] : []
+            for l in Self.forbiddenLibraries where !allowedLibraries.contains(l) {
+                // "/Network.framework", or it would match inside "CFNetwork.framework".
+                #expect(!libs.contains("/" + l), "\(bin) links \(l)")
+            }
             let symbols = try undefinedSymbols([bin])
             #expect(symbols.count > 100, "nm returned too little for \(bin)")
             for s in symbols {
