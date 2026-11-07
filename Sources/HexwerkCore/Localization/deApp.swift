@@ -343,5 +343,8 @@ extension L10n {
         "Later": "Später",
         "hexwerk %@ is up to date.": "hexwerk %@ ist aktuell.",
         "The update check failed.": "Die Update-Prüfung ist fehlgeschlagen.",
+        // Image tab: fit and shown range
+        "Fit": "Einpassen",
+        "%1$@ – %2$@, %3$ld bytes": "%1$@ – %2$@, %3$ld Bytes",
     ]
 }
