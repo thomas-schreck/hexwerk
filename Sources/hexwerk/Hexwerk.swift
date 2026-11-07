@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import HexwerkCore
+import HexwerkHelper
 
 @main
 struct Hexwerk: ParsableCommand {
@@ -12,6 +13,17 @@ struct Hexwerk: ParsableCommand {
             FileType.self, StringsCmd.self, Convert.self, OpenCmd.self,
         ]
     )
+
+    /// The sandboxed child process (#129) is this executable started with a
+    /// marker argument; it is not a subcommand, so it stays out of help,
+    /// completions and the man page.
+    static func main() {
+        let args = CommandLine.arguments
+        if args.count > 1, args[1] == SandboxedChild.argument {
+            SandboxedChild.serve(arguments: Array(args.dropFirst(2)))
+        }
+        main(nil)
+    }
 }
 
 /// Offsets and lengths accept decimal or 0x-prefixed hex.
@@ -47,6 +59,17 @@ func openSnapshot(_ path: String, failure: Int32 = 1) throws -> Snapshot {
     do { return try Document(url: URL(fileURLWithPath: path), readOnly: true).snapshot() } catch {
         FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
         throw ExitCode(failure)
+    }
+}
+
+/// Runs untrusted-input work in the sandboxed child process (#129). The
+/// child crashing ends the command with a message and status 1, a child
+/// killed at its time limit with `timeoutStatus`.
+func sandboxed<T>(timeoutStatus: Int32 = 1, _ work: (SandboxedChild) throws -> T) throws -> T {
+    do { return try work(SandboxedChild()) } catch {
+        FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
+        if case SandboxedChildError.timedOut = error { throw ExitCode(timeoutStatus) }
+        throw ExitCode(1)
     }
 }
 

@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import HexwerkCore
 import HexwerkKaitai
+import HexwerkMagic
 import HexwerkScript
 import HexwerkYARA
 
@@ -109,6 +110,7 @@ public final class HelperClient: Sendable {
         switch try ParseOutcome(encoded: data) {
         case .result(let r): return .success(r)
         case .loadError(let e): return .failure(KaitaiError(e))
+        case .loaded: throw HelperError.failed(L("Invalid reply from the helper: %@", "no parse result"))
         }
     }
 
@@ -147,6 +149,20 @@ public final class HelperClient: Sendable {
             p.runScript(try RequestCoder.encode(req), file: file, reply: reply)
         }
         return (try ScriptOutcome(encoded: data), map)
+    }
+
+    /// libmagic's description and MIME type of the snapshot's start (#129),
+    /// both nil without a database. libmagic is C code with a history of
+    /// CVEs, so it runs in the helper like the parsers.
+    public func detectType(_ snapshot: Snapshot, database: URL?, timeout: TimeInterval = 30) async throws -> TypeOutcome {
+        guard let database, let handle = try? FileHandle(forReadingFrom: database) else {
+            return TypeOutcome(description: nil, mime: nil)
+        }
+        let req = TypeRequest(language: L10n.language.rawValue, sample: Magic.sample(snapshot))
+        let data = try await call(id: UUID().uuidString, timeout: timeout) { p, reply in
+            p.detectType(try RequestCoder.encode(req), database: handle, reply: reply)
+        }
+        return try TypeOutcome(encoded: data)
     }
 
     private func header(_ snapshot: Snapshot, wire: SnapshotWire? = nil) -> (RequestHeader, FileHandle?) {

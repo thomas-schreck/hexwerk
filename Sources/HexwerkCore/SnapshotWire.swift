@@ -23,6 +23,12 @@ public struct SnapshotWire: Codable, Sendable, Equatable {
     /// also holds undone and overwritten edits, which are left out).
     public var added: Data
     public var count: UInt64
+
+    public init(pieces: [Piece], added: Data, count: UInt64) {
+        self.pieces = pieces
+        self.added = added
+        self.count = count
+    }
 }
 
 /// Where each compacted run of `SnapshotWire.added` came from in the

@@ -67,14 +67,16 @@ let package = Package(
             name: "hexwerk",
             dependencies: [
                 "HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
+                "HexwerkHelper",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             swiftSettings: brewHeaders  // dependency scanning sees CYaraX/CMagic too
         ),
-        // Sandboxed helper (#102): runs the parsers for the app over XPC.
+        // Sandboxed helper (#102): runs the parsers for the app over XPC, and
+        // for the CLI in a sandboxed child process (#129).
         .target(
             name: "HexwerkHelper",
-            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript"],
+            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic"],
             swiftSettings: brewHeaders
         ),
         // The helper's XPC service executable; `make app` wraps it into

@@ -3,7 +3,7 @@ import HexwerkCore
 import HexwerkYARA
 
 /// The sandboxed helper (#102): Kaitai parsing (with .ksy loading), YARA-X
-/// scans and JavaScript run in an XPC service inside the app bundle, so a
+/// scans, JavaScript and libmagic (#129) run in an XPC service inside the app bundle, so a
 /// hostile file that hits a bug takes down the helper, not the app with its
 /// unsaved edits. The service has no network and no file access; it reads
 /// the document through a descriptor the app passes along with each request
@@ -16,6 +16,9 @@ import HexwerkYARA
     func parse(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void)
     func scan(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void)
     func runScript(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void)
+    /// libmagic on the start of the document (#129); `database` is magic.mgc,
+    /// opened by the app.
+    func detectType(_ request: Data, database: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void)
     /// Stops the request with this id (parse and script; a YARA-X scan cannot
     /// be interrupted and ends at its timeout).
     func cancel(_ requestID: String)
@@ -53,7 +56,8 @@ struct ScanRequest: Codable, Sendable {
     var rules: YaraRuleBundle
     var range: Range<UInt64>?
     var timeout: Int
-    var maxMatchesPerPattern: Int
+    /// nil: YARA-X default (CLI).
+    var maxMatchesPerPattern: Int?
 }
 
 struct ScriptRequest: Codable, Sendable {
@@ -65,6 +69,38 @@ struct ScriptRequest: Codable, Sendable {
     var fileName: String
     var readOnly: Bool
     var timeout: Double
+}
+
+/// libmagic works on the first MiB only (`Magic.sample`), so the request
+/// carries those bytes instead of the document.
+struct TypeRequest: Codable, Sendable {
+    var language: String
+    var sample: Data
+}
+
+/// libmagic's description and MIME type; nil without a usable database.
+public struct TypeOutcome: Sendable, Equatable {
+    public var description: String?
+    public var mime: String?
+
+    func encoded() -> Data {
+        var w = WireWriter()
+        w.optional(description) { $0.string($1) }
+        w.optional(mime) { $0.string($1) }
+        return w.data
+    }
+
+    public init(description: String?, mime: String?) {
+        self.description = description
+        self.mime = mime
+    }
+
+    init(encoded data: Data) throws {
+        var r = WireReader(data)
+        description = try r.optional { try $0.string() }
+        mime = try r.optional { try $0.string() }
+        try r.expectEnd()
+    }
 }
 
 enum RequestCoder {

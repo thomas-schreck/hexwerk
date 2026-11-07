@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import HexwerkCore
+import HexwerkHelper
 import HexwerkScript
 
 struct Script: ParsableCommand {
@@ -31,14 +32,25 @@ struct Script: ParsableCommand {
             FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
             throw ExitCode(1)
         }
-        let r = ScriptRunner.run(
-            source, name: eval ? "-e" : (script as NSString).lastPathComponent, document: doc,
-            context: ScriptContext(fileName: (file as NSString).lastPathComponent),
-            timeout: timeout)
+        // The script runs in the sandboxed child on a copy; its changes are
+        // taken over here, checked like the app does.
+        let base = doc.snapshot()
+        let (outcome, map) = try sandboxed(timeoutStatus: 3) {
+            try $0.runScript(
+                source, name: eval ? "-e" : (script as NSString).lastPathComponent, base: base,
+                fileName: (file as NSString).lastPathComponent, timeout: timeout)
+        }
+        let r = outcome.result
         for line in r.output { print(TerminalText.escape(line, keepingLayout: true)) }
         if let e = r.error {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             throw ExitCode(e.isTimeout ? 3 : 2)
+        }
+        if let edited = outcome.edited {
+            do { try doc.adopt(edited, map: map, base: base) } catch {
+                FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
+                throw ExitCode(1)
+            }
         }
         guard doc.isModified else { return }
         if write {

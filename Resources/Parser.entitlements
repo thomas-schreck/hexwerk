@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Sandboxed helper (#102), signed with the Hardened Runtime. No network
-     and no file access: the document comes as a descriptor, .ksy files
-     through the app, YARA rules as text.
+     and no file access: the document and magic.mgc (#129) come as
+     descriptors, .ksy files through the app, YARA rules as text.
      JIT: YARA-X (wasmtime) maps its compiled rules executable without
      MAP_JIT and is killed without allow-unsigned-executable-memory;
      allow-jit lets JavaScriptCore use its JIT (it falls back to the

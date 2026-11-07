@@ -324,6 +324,13 @@ extension L10n {
         "The helper process did not answer in time and was stopped.":
             "Der Hilfsprozess hat nicht rechtzeitig geantwortet und wurde beendet.",
         "Only .ksy files can be read": "Nur .ksy-Dateien können gelesen werden",
+        // Sandboxed child process of the CLI (#129)
+        "The sandboxed parser process could not be started: %@":
+            "Der abgeschottete Parser-Prozess konnte nicht gestartet werden: %@",
+        "The sandboxed parser process stopped unexpectedly.":
+            "Der abgeschottete Parser-Prozess wurde unerwartet beendet.",
+        "The sandboxed parser process did not answer in time and was stopped.":
+            "Der abgeschottete Parser-Prozess hat nicht rechtzeitig geantwortet und wurde beendet.",
         // About panel (#115)
         "Hex editor for macOS with Kaitai Struct formats, YARA-X and scripting.":
             "Hex-Editor für macOS mit Kaitai-Struct-Formaten, YARA-X und Skripten.",

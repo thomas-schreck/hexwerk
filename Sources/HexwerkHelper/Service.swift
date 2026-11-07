@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import HexwerkCore
 import HexwerkKaitai
+import HexwerkMagic
 import HexwerkScript
 import HexwerkYARA
 
@@ -19,14 +20,18 @@ public final class HelperListener: NSObject, NSXPCListenerDelegate, @unchecked S
 }
 
 /// Parse result or the .ksy loading error, as the app showed it in-process.
-enum ParseOutcome {
+public enum ParseOutcome: Sendable {
     case result(ParseResult)
     case loadError(String)
+    /// The .ksy loaded, but there was no file to parse (CLI, #129: the
+    /// format's errors come before those of the file, as they did in-process).
+    case loaded
 
     func encoded() -> Data {
         switch self {
         case .result(let r): Data([0]) + r.encoded()
         case .loadError(let e): Data([1]) + Data(e.utf8)
+        case .loaded: Data([2])
         }
     }
 
@@ -37,6 +42,7 @@ enum ParseOutcome {
         switch tag {
         case 0: self = .result(try onLargeStack { Result { try ParseResult(encoded: rest) } }.get())
         case 1: self = .loadError(String(decoding: rest, as: UTF8.self))
+        case 2 where rest.isEmpty: self = .loaded
         default: throw WireError("bad parse outcome")
         }
     }
@@ -93,53 +99,45 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
 
     func parse(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) {
         run(ParseRequest.self, request, header: \.header, file: file, reply: reply) { [weak self] req, snapshot, token in
-            let file: KsyFile
-            do {
-                let loader = KsyLoader(
-                    libraryRoots: req.libraryRoots.map { URL(fileURLWithPath: $0) },
-                    read: { url in try self?.readFormatFile(url) ?? nil })
-                file = try loader.load(URL(fileURLWithPath: req.ksy))
-            } catch {
-                return ParseOutcome.loadError(String(describing: error)).encoded()
-            }
-            let result = KaitaiInterpreter.parse(snapshot, file: file, shouldContinue: { !token.isSet })
-            return ParseOutcome.result(result).encoded()
+            HelperWork.parse(
+                req, snapshot, isCancelled: { token.isSet }, read: { url in try self?.readFormatFile(url) ?? nil })
         }
     }
 
     func scan(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) {
         run(ScanRequest.self, request, header: \.header, file: file, reply: reply) { req, snapshot, _ in
-            let rules: YaraRules
-            do {
-                rules = try req.rules.compile(
-                    materializingIn: FileManager.default.temporaryDirectory
-                        .appendingPathComponent("yara-\(UUID().uuidString)"))
-            } catch let e as YaraCompileError {
-                return YaraScanOutcome.compileErrors(e.diagnostics).encoded()
-            }
-            do {
-                let hits = try rules.scan(
-                    snapshot, range: req.range, timeout: req.timeout,
-                    maxMatchesPerPattern: req.maxMatchesPerPattern)
-                return YaraScanOutcome.hits(hits, warnings: rules.warnings).encoded()
-            } catch {
-                return YaraScanOutcome.failed(String(describing: error), warnings: rules.warnings).encoded()
-            }
+            try HelperWork.scan(req, snapshot, scratch: FileManager.default.temporaryDirectory)
         }
     }
 
     func runScript(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) {
         run(ScriptRequest.self, request, header: \.header, file: file, reply: reply) { req, snapshot, token in
-            let copy = Document(editing: snapshot, readOnly: req.readOnly)
-            let ctx = ScriptContext(cursor: req.cursor, selection: req.selection, fileName: req.fileName)
-            let r = ScriptRunner.run(
-                req.source, name: req.name, document: copy, context: ctx,
-                timeout: req.timeout, isCancelled: { token.isSet })
-            let edited =
-                r.error == nil && copy.isModified
-                ? copy.editedContent(sentAddedCount: req.header.snapshot.added.count) : nil
-            return ScriptOutcome(result: r, edited: edited).encoded()
+            HelperWork.runScript(req, snapshot, isCancelled: { token.isSet })
         }
+    }
+
+    /// The database is loaded once per helper process; later requests carry
+    /// the descriptor too but it is not read again.
+    private static let magic = Mutex<MagicDatabase?>(nil)
+
+    func detectType(_ request: Data, database: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) {
+        let req: TypeRequest
+        do { req = try RequestCoder.decode(TypeRequest.self, request) } catch {
+            reply(nil, L("Invalid request: %@", String(describing: error)))
+            return
+        }
+        let box = UncheckedSendable(database)
+        let thread = Thread {
+            if let lang = L10n.Language(rawValue: req.language), lang != L10n.language { L10n.override = lang }
+            let db = Self.magic.withLock { cached in
+                if cached == nil, let h = box.value { cached = MagicDatabase(handle: h) }
+                return cached
+            }
+            try? box.value?.close()
+            reply(HelperWork.detectType(req, database: db), nil)
+        }
+        thread.stackSize = 16 << 20
+        thread.start()
     }
 
     /// Asks the app for a .ksy file; waits for the answer.

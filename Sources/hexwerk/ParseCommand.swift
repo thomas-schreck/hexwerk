@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import HexwerkCore
+import HexwerkHelper
 import HexwerkKaitai
 
 /// Where the Kaitai format collection lives (`make formats` clones it there).
@@ -40,12 +41,19 @@ struct Parse: ParsableCommand {
             }
             url = hit
         }
-        let schema: KsyFile
-        do { schema = try KsyLoader(libraryRoots: [formatLibrary]).load(url) } catch {
-            FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
+        // The .ksy is loaded and the file parsed in the sandboxed child. A
+        // file that cannot be opened is reported after the format's errors.
+        let opened = Result { try Document(url: URL(fileURLWithPath: file), readOnly: true).snapshot() }
+        let result: ParseResult
+        switch try sandboxed({ try $0.parse(try? opened.get(), ksy: url, libraryRoots: [formatLibrary]) }) {
+        case .loadError(let e):
+            FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             throw ExitCode(2)
+        case .loaded:
+            _ = try openSnapshot(file)  // reports the error and exits
+            throw ExitCode(1)
+        case .result(let r): result = r
         }
-        let result = KaitaiInterpreter.parse(try openSnapshot(file), file: schema)
         if json {
             try printJSON(jsonObject(result.root, depth: depth))
         } else {

@@ -43,7 +43,10 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
             let here = URL(fileURLWithPath: file.path).deletingLastPathComponent().path
             for name in includeNames(in: file.text) {
                 let candidates = name.hasPrefix("/") ? [name] : ([here] + dirs).map { $0 + "/" + name }
-                for c in candidates.map({ URL(fileURLWithPath: $0).standardizedFileURL.path }) where !seen.contains(c) {
+                // `standardized`, not `standardizedFileURL`: the latter turns
+                // /private/tmp/x into /tmp/x for existing files only, and the
+                // include would then be written where YARA-X does not look.
+                for c in candidates.map({ URL(fileURLWithPath: $0).standardized.path }) where !seen.contains(c) {
                     guard let text = try? String(contentsOfFile: c, encoding: .utf8) else { continue }
                     seen.insert(c)
                     let e = Entry(path: c, text: text)

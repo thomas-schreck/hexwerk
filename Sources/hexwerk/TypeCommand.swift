@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import HexwerkCore
+import HexwerkHelper
 import HexwerkMagic
 
 struct FileType: ParsableCommand {
@@ -15,8 +16,10 @@ struct FileType: ParsableCommand {
 
     func run() throws {
         let snap = try openSnapshot(file)
-        let desc = Magic.describe(snap)
-        let mime = Magic.mime(snap)
+        // libmagic runs in the sandboxed child; the signatures are plain Swift.
+        let type = try sandboxed { try $0.detectType(snap, database: Magic.databasePath.map(URL.init(fileURLWithPath:))) }
+        let desc = type.description
+        let mime = type.mime
         let sigs = FileSignatures.detect(snap)
         let emb = embedded ? FileSignatures.scanEmbedded(snap) : []
         if emb.count >= FileSignatures.maxEmbeddedHits { reportStopped(FileSignatures.maxEmbeddedHits) }
