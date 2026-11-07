@@ -1,7 +1,8 @@
 import Foundation
 import Testing
 
-/// hexwerk makes no network connections (issue #38).
+/// hexwerk makes no network connections (issue #38), except the app's
+/// update check (#119), which may use URLSession from one file only.
 ///
 /// Checked statically on the build output with `nm`/`otool`, so the test
 /// needs `swift build` first (like the CLI tests):
@@ -60,6 +61,11 @@ import Testing
         return out
     }
 
+    /// The app may use URLSession for the update check (#119); the CLI and
+    /// the parser helper may not.
+    static let appUpdateCheckAPIs = ["URLSession", "URLRequest"]
+    static let updateCheckSource = "Sources/HexwerkApp/UpdateChecker.swift"
+
     @Test func binariesUseNoNetworkingAPIs() throws {
         let binaries = ["hexwerk", "HexwerkApp", "HexwerkParser"].map { Self.build.appendingPathComponent("debug/\($0)").path }
             .filter { FileManager.default.isExecutableFile(atPath: $0) }
@@ -70,11 +76,28 @@ import Testing
             let symbols = try undefinedSymbols([bin])
             #expect(symbols.count > 100, "nm returned too little for \(bin)")
             for s in symbols {
-                for api in Self.forbiddenAPIs where s.contains(api) {
+                let allowed = bin.hasSuffix("/HexwerkApp") ? Self.appUpdateCheckAPIs : []
+                for api in Self.forbiddenAPIs where s.contains(api) && !allowed.contains(api) {
                     Issue.record("\(bin) imports \(s)")
                 }
             }
         }
+    }
+
+    /// Only the update checker uses URLSession, so the exception above
+    /// cannot spread unnoticed.
+    @Test func onlyUpdateCheckerUsesURLSession() throws {
+        let sources = Self.root.appendingPathComponent("Sources")
+        let e = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)
+        var users: [String] = []
+        while let u = e?.nextObject() as? URL {
+            guard u.pathExtension == "swift" else { continue }
+            let text = try String(contentsOf: u, encoding: .utf8)
+            if text.contains("URLSession") || text.contains("URLRequest") {
+                users.append(String(u.path.dropFirst(Self.root.path.count + 1)))
+            }
+        }
+        #expect(users == [Self.updateCheckSource])
     }
 
     @Test func ownCodeCallsNoSocketFunctions() throws {

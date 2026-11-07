@@ -331,5 +331,17 @@ extension L10n {
         "Includes YARA-X %@ (BSD-3-Clause) and libmagic %@ (BSD-2-Clause).":
             "Enthält YARA-X %@ (BSD-3-Clause) und libmagic %@ (BSD-2-Clause).",
         "Third-Party Notices": "Hinweise zu Drittanbieter-Software",
+        // Update check (#119)
+        "Check for Updates…": "Nach Updates suchen …",
+        "Check for Updates Automatically": "Automatisch nach Updates suchen",
+        "Update Available: %@…": "Update verfügbar: %@ …",
+        "Update checks are not available for development builds.":
+            "Für Entwicklungs-Builds gibt es keine Update-Prüfung.",
+        "hexwerk %@ is available.": "hexwerk %@ ist verfügbar.",
+        "You are using version %@.": "Sie verwenden Version %@.",
+        "Show Release": "Release anzeigen",
+        "Later": "Später",
+        "hexwerk %@ is up to date.": "hexwerk %@ ist aktuell.",
+        "The update check failed.": "Die Update-Prüfung ist fehlgeschlagen.",
     ]
 }
