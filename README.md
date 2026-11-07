@@ -102,6 +102,11 @@ hexwerk script patch.js file.bin --write  # without --write: dry run
 `parse`, `yara`, `entropy`, `export`, `script`, `type`, `strings`,
 `convert`, `open`.
 
+Shell completions (zsh, bash, fish; `parse --format` completes the IDs of the
+format collection) and a man page are installed by the Homebrew formula and
+included in the CLI archive under `completions/` and `man/`. For a source build,
+`hexwerk --generate-completion-script zsh` prints the script.
+
 ## Where hexwerk stores data
 
 | What | Where |

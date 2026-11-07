@@ -14,7 +14,13 @@ struct Parse: ParsableCommand {
 
     @Argument(help: .init(L("File"))) var file: String
     @Option(help: .init(L("Path to a .ksy file"))) var ksy: String?
-    @Option(help: .init(L("Format ID from the collection, e.g. png or zip"))) var format: String?
+    @Option(
+        help: .init(L("Format ID from the collection, e.g. png or zip")),
+        // Shell completion: the IDs of the installed collection.
+        completion: .custom { _, _, prefix in
+            FormatCatalog(root: formatLibrary).entries.map(\.id).filter { $0.hasPrefix(prefix) }.sorted()
+        }
+    ) var format: String?
     @Option(help: .init(L("Maximum output depth"))) var depth: Int = 64
     @Flag(help: .init(L("Output as JSON"))) var json = false
 
