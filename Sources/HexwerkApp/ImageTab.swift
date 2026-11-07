@@ -12,7 +12,11 @@ final class ImageModel: ObservableObject {
     @Published var width = Settings.shared.object(forKey: "imageWidth") as? Int ?? 64 {
         didSet { Settings.shared.set(width, forKey: "imageWidth") }
     }
-    @Published var zoom = 2
+    /// Pixel scale; `fit` scales the picture to the panel width.
+    @Published var zoom = Settings.shared.object(forKey: "imageZoom") as? Int ?? ImageModel.fit {
+        didSet { Settings.shared.set(zoom, forKey: "imageZoom") }
+    }
+    static let fit = 0
     /// Follow the cursor, or stay at a fixed start offset.
     @Published var follow = true
     /// First byte shown. With `follow` it only moves when the cursor leaves
@@ -32,6 +36,8 @@ final class ImageModel: ObservableObject {
         let start: UInt64, format: PixelFormat, width: Int, revision: Int
     }
     private var cached: (key: Key, image: (NSImage, Int, Int)?)?
+    /// Number of bytes in the last picture (less than requested at the end of the file).
+    private(set) var shownBytes = 0
 
     func image(_ doc: HexwerkCore.Document, cursor: UInt64, revision: Int) -> (NSImage, Int, Int)? {
         let n = min(Self.maxBytes, format.bytes(forPixels: width * Self.rows))
@@ -46,6 +52,7 @@ final class ImageModel: ObservableObject {
     private func render(_ doc: HexwerkCore.Document, bytes n: Int) -> (NSImage, Int, Int)? {
         let origin = start
         let data = doc.read(origin ..< origin + UInt64(n))
+        shownBytes = data.count
         guard !data.isEmpty else { return nil }
         let r = format.rgba(data, width: width)
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -61,6 +68,11 @@ final class ImageModel: ObservableObject {
     /// File offset of the pixel at (x, y) in image coordinates.
     func offset(x: Int, y: Int) -> UInt64 {
         start + UInt64(format.byteOffset(ofPixel: y * width + x))
+    }
+
+    /// Screen points per image pixel for a panel `available` points wide.
+    func scale(imageWidth w: Int, available: CGFloat) -> CGFloat {
+        zoom == Self.fit ? max(available, 1) / CGFloat(max(w, 1)) : CGFloat(zoom)
     }
 }
 
@@ -91,6 +103,7 @@ struct ImageTab: View {
                     .labelsHidden().fixedSize()
                     Spacer()
                     Picker("Zoom", selection: $image.zoom) {
+                        Text(L("Fit")).tag(ImageModel.fit)
                         ForEach([1, 2, 4, 8], id: \.self) { Text("\($0)×").tag($0) }
                     }
                     .pickerStyle(.menu).fixedSize()
@@ -116,23 +129,37 @@ struct ImageTab: View {
             Divider()
             // Cached: renders again only for a new start, format, width or edit.
             if let (img, w, h) = image.image(model.doc, cursor: model.cursor, revision: model.revision) {
-                ScrollView([.vertical, .horizontal]) {
-                    Image(nsImage: img)
-                        .interpolation(.none)
-                        .resizable()
-                        .frame(width: CGFloat(w * image.zoom), height: CGFloat(h * image.zoom))
-                        .onContinuousHover { phase in
-                            if case .active(let p) = phase {
-                                image.hover.offset = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
-                            } else {
-                                image.hover.offset = nil
-                            }
+                GeometryReader { geo in
+                    let pad: CGFloat = 8
+                    let k = image.scale(imageWidth: w, available: geo.size.width - 2 * pad)
+                    // Fit only scrolls vertically; fixed zooms may be wider than the panel.
+                    ScrollView(image.zoom == ImageModel.fit ? [.vertical] : [.vertical, .horizontal]) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Image(nsImage: img)
+                                .interpolation(.none)
+                                .resizable()
+                                .frame(width: CGFloat(w) * k, height: CGFloat(h) * k)
+                                .onContinuousHover { phase in
+                                    if case .active(let p) = phase {
+                                        image.hover.offset = image.offset(x: Int(p.x / k), y: Int(p.y / k))
+                                    } else {
+                                        image.hover.offset = nil
+                                    }
+                                }
+                                .onTapGesture { p in
+                                    let off = image.offset(x: Int(p.x / k), y: Int(p.y / k))
+                                    model.jump?(min(off, model.doc.count), nil)
+                                }
+                            Text(
+                                L(
+                                    "%1$@ – %2$@, %3$ld bytes", hex(image.start),
+                                    hex(image.start + UInt64(max(image.shownBytes, 1)) - 1), image.shownBytes)
+                            )
+                            .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                         }
-                        .onTapGesture { p in
-                            let off = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
-                            model.jump?(min(off, model.doc.count), nil)
-                        }
-                        .padding(8)
+                        .padding(pad)
+                        .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
+                    }
                 }
                 .id(model.revision)
             } else {
