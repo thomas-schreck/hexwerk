@@ -22,6 +22,11 @@ extension AppDelegate {
 @MainActor
 enum AboutPanel {
     static let repository = URL(string: "https://github.com/thomas-schreck/hexwerk")!
+    /// Notices at the commit this build came from, so they match the bundled
+    /// library versions; `main` for builds without a commit.
+    static var notices: URL {
+        repository.appending(path: "blob/\(BuildInfo.current.commit ?? "main")/THIRD_PARTY_NOTICES.md")
+    }
 
     static func credits() -> NSAttributedString {
         let center = NSMutableParagraphStyle()
@@ -43,9 +48,7 @@ enum AboutPanel {
             NSAttributedString(
                 string: L("Includes YARA-X %@ (BSD-3-Clause) and libmagic %@ (BSD-2-Clause).", YaraX.version, Magic.version) + "\n",
                 attributes: muted))
-        if let notices = Bundle.main.url(forResource: "THIRD_PARTY_NOTICES", withExtension: "md") {
-            text.append(NSAttributedString(string: L("Third-Party Notices"), attributes: muted.merging([.link: notices]) { $1 }))
-        }
+        text.append(NSAttributedString(string: L("Third-Party Notices"), attributes: muted.merging([.link: notices]) { $1 }))
         return text
     }
 }
