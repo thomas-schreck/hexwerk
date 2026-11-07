@@ -246,6 +246,9 @@ public final class KaitaiInterpreter {
     private var nextStreamID = 1
     private var deadline = Date()
     private var allObjects: [KObj] = []  // keeps weakly linked objects alive
+    /// Parsed primitive type names ("u4le", …; nil: not a primitive), so
+    /// struct fields and small arrays do not parse the name for every value.
+    private var primitives: [String: Primitive?] = [:]
 
     private init(file: KsyFile, limits: ParseLimits, shouldContinue: @escaping () -> Bool) {
         self.file = file
@@ -651,7 +654,16 @@ public final class KaitaiInterpreter {
         }
     }
 
-    private func readPrimitive(_ tn: String, _ io: KStream, _ obj: KObj) throws -> KValue? {
+    /// A primitive type name taken apart: kind ("u", "s", "f" or "b"),
+    /// size (bytes; bits for "b") and the endianness from the name, if any.
+    private struct Primitive {
+        let kind: Character
+        let n: Int
+        let endian: Endian?
+    }
+
+    private func primitive(_ tn: String) -> Primitive? {
+        if let cached = primitives[tn] { return cached }
         var name = tn
         var endian: Endian? = nil
         if name.hasSuffix("le") && name.count > 2 {
@@ -659,28 +671,40 @@ public final class KaitaiInterpreter {
         } else if name.hasSuffix("be") && name.count > 2 {
             endian = .big; name.removeLast(2)
         }
-        guard let kind = name.first, let n = Int(name.dropFirst()) else { return nil }
-        switch kind {
+        var p: Primitive? = nil
+        if let kind = name.first, let n = Int(name.dropFirst()) {
+            let valid =
+                switch kind {
+                case "u", "s": [1, 2, 4, 8].contains(n)
+                case "f": n == 4 || n == 8
+                case "b": (1 ... 64).contains(n)
+                default: false
+                }
+            if valid { p = Primitive(kind: kind, n: n, endian: endian) }
+        }
+        primitives[tn] = .some(p)
+        return p
+    }
+
+    private func readPrimitive(_ tn: String, _ io: KStream, _ obj: KObj) throws -> KValue? {
+        guard let p = primitive(tn) else { return nil }
+        let n = p.n
+        switch p.kind {
         case "u", "s":
-            guard [1, 2, 4, 8].contains(n) else { return nil }
-            let e = endian ?? obj.endian ?? (n == 1 ? .little : nil)
+            let e = p.endian ?? obj.endian ?? (n == 1 ? .little : nil)
             guard let e else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
             let raw = try io.readUInt(n, e)
-            if kind == "u" { return .int(Int64(bitPattern: raw)) }
+            if p.kind == "u" { return .int(Int64(bitPattern: raw)) }
             let shift = UInt64(64 - n * 8)
             return .int(Int64(bitPattern: raw << shift) >> Int64(shift))
         case "f":
-            guard n == 4 || n == 8 else { return nil }
-            guard let e = endian ?? obj.endian else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
+            guard let e = p.endian ?? obj.endian else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
             let raw = try io.readUInt(n, e)
             return .float(n == 4 ? Double(Float(bitPattern: UInt32(raw))) : Double(bitPattern: raw))
-        case "b":
-            guard (1 ... 64).contains(n) else { return nil }
-            let be = (endian ?? obj.bitEndian) == .big
+        default:  // "b"
+            let be = (p.endian ?? obj.bitEndian) == .big
             let v = be ? try io.readBitsBE(n) : try io.readBitsLE(n)
             return n == 1 ? .bool(v == 1) : .int(Int64(bitPattern: v))
-        default:
-            return nil
         }
     }
 

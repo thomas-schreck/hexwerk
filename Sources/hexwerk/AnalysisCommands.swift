@@ -21,7 +21,7 @@ struct Entropy: ParsableCommand {
     )
 
     @Argument(help: .init(L("File"))) var file: String
-    @Option(help: .init(L("Start offset (decimal or 0x…)"))) var offset: Number?
+    @Option(help: .init(L("Start offset (decimal or 0x...)"))) var offset: Number?
     @Option(help: .init(L("Number of bytes"))) var length: Number?
     @Option(help: .init(L("Number of blocks for the profile"))) var blocks: Int = 64
     @Flag(help: .init(L("Output as JSON (including histogram)"))) var json = false
@@ -63,7 +63,7 @@ struct Export: ParsableCommand {
     enum Format: String, ExpressibleByArgument, CaseIterable { case raw, hex, c, python, swift, base64 }
 
     @Argument(help: .init(L("File"))) var file: String
-    @Option(help: .init(L("Start offset (decimal or 0x…)"))) var offset: Number?
+    @Option(help: .init(L("Start offset (decimal or 0x...)"))) var offset: Number?
     @Option(help: .init(L("Number of bytes"))) var length: Number?
     @Option(help: .init(L("Format: %@", Format.allCases.map(\.rawValue).joined(separator: ", ")))) var format: Format = .hex
     @Option(help: .init(L("Variable name for c/python/swift"))) var name = "data"

@@ -59,7 +59,7 @@ struct Dump: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: L("Output a range as a hex dump (format like hexdump -C)."))
 
     @Argument(help: .init(L("File"))) var file: String
-    @Option(help: .init(L("Start offset (decimal or 0x…)"))) var offset: Number = Number(argument: "0")!
+    @Option(help: .init(L("Start offset (decimal or 0x...)"))) var offset: Number = Number(argument: "0")!
     @Option(help: .init(L("Number of bytes (default: to end of file)"))) var length: Number?
     @Option(help: .init(L("Bytes per line"))) var width: Int = 16
 
@@ -95,7 +95,7 @@ struct Inspect: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: L("Interpret the bytes at an offset as data types."))
 
     @Argument(help: .init(L("File"))) var file: String
-    @Argument(help: .init(L("Offset (decimal or 0x…)"))) var offset: Number
+    @Argument(help: .init(L("Offset (decimal or 0x...)"))) var offset: Number
     @Option(help: .init(L("Byte order: little or big"))) var endian: EndianArg = .little
     @Flag(help: .init(L("Output as JSON"))) var json = false
 
