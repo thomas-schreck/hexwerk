@@ -467,6 +467,77 @@ func run(_ tool: String, _ args: [String], cwd: URL) throws {
         #expect(Set([e.id, tail.id, tail.child(5).id, values.child(0).id]).count == 4)
     }
 
+    /// #118: packed number arrays give exactly the elements, ranges and
+    /// expression results of the per-element path. `valid: true` changes
+    /// nothing but forces the per-element path.
+    @Test func packedArraysMatchPerElementPath() throws {
+        let types = ["u1", "s1", "u2", "s2le", "u2be", "s4", "u4be", "u8le", "s8be", "s8", "f4", "f4be", "f8", "f8be"]
+        var d = Data()
+        var x: UInt64 = 0x9E37_79B9_7F4A_7C15
+        let bytes = types.reduce(0) { $0 + Int(String($1.dropFirst().prefix(1)))! }  // element sizes
+        for _ in 0 ..< 1100 * bytes + 4096 {
+            x ^= x << 13; x ^= x >> 7; x ^= x << 17
+            d.append(UInt8(truncatingIfNeeded: x >> 24))
+        }
+        func yaml(eager: Bool) -> String {
+            let v = eager ? ", valid: { expr: 'true' }" : ""
+            var s = "meta: { id: p, endian: le }\nseq:\n"
+            for (i, t) in types.enumerated() { s += "  - { id: a\(i), type: \(t), repeat: expr, repeat-expr: 1100\(v) }\n" }
+            s += "  - { id: rest, type: s2be, repeat: eos\(v) }\ninstances:\n"
+            for i in types.indices {
+                s += "  x\(i): { value: '[a\(i)[0], a\(i)[777], a\(i).size, a\(i).first, a\(i).last, a\(i).min, a\(i).max]' }\n"
+            }
+            return s + "  r: { value: '[rest[3], rest.size, rest.last, _io.pos, _io.size]' }\n"
+        }
+        func lines(_ r: ParseResult) -> [String] {
+            var out = ["\(r.error?.description ?? "-")"]
+            func add(_ n: ParseNode) {
+                out.append("\(n.name) \(n.typeName) \(n.value ?? "-") \(String(describing: n.range)) \(n.number.map(String.init) ?? "-")")
+                for c in n.allChildren { add(c) }
+            }
+            add(r.root)
+            return out
+        }
+        let fast = try parse(d, yaml: yaml(eager: false))
+        let eager = try parse(d, yaml: yaml(eager: true))
+        #expect(fast.lazyElementCount == 1100 * types.count + 2048 && eager.lazyElementCount == 0)
+        #expect(fast.error == nil)
+        let a = lines(fast), b = lines(eager)
+        #expect(a.count == b.count)
+        for (l, r) in zip(a, b) where l != r {
+            Issue.record("\(l) != \(r)")
+            break
+        }
+        // The helper sends packed arrays as they are.
+        let back = try onLargeStack { Result { try ParseResult(encoded: fast.encoded()) } }.get()
+        #expect(lines(back) == a)
+        #expect(back.root.at("a3")?.lazy?.values.packed != nil)
+    }
+
+    /// #118: a big number array keeps its raw bytes, not a boxed value per
+    /// element (64M u4 took seconds and 1.6 GB that way).
+    @Test func largeNumberArrayStaysPacked() throws {
+        let count = 8 << 20
+        var d = Data(count: count * 4)
+        d.withUnsafeMutableBytes { $0.storeBytes(of: UInt32(0x1234_5678).bigEndian, toByteOffset: (count - 1) * 4, as: UInt32.self) }
+        let start = Date()
+        let r = try parse(
+            d,
+            yaml: """
+                meta: { id: big, endian: be }
+                seq:
+                  - { id: words, type: u4, repeat: eos }
+                instances:
+                  last: { value: 'words[words.size - 1]' }
+                """)
+        #expect(Date().timeIntervalSince(start) < 60)  // hang guard only; CI under load is slow
+        #expect(r.error == nil && r.lazyElementCount == count)
+        let words = try #require(r.root.at("words")?.lazy)
+        #expect(words.values.packed?.bytes.count == count * 4)
+        #expect(words.child(count - 1).number == 0x1234_5678)
+        #expect(r.root.at("last")?.number == 0x1234_5678)
+    }
+
     @Test func smallAndSpecialArraysStayEager() throws {
         let yaml = """
             meta: { id: small, endian: le }

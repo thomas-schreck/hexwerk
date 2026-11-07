@@ -37,13 +37,13 @@ public struct ParseNode: Sendable, Identifiable {
 /// ParseNode per element is created when the tree shows it.
 public final class LazyArray: @unchecked Sendable {
     // Immutable after creation.
-    let values: [KValue]
+    let values: KArray
     public let base: UInt64  // file offset of element 0
     public let elementSize: UInt64
     public let typeName: String
     let firstID: Int
 
-    init(values: [KValue], base: UInt64, elementSize: UInt64, typeName: String, firstID: Int) {
+    init(values: KArray, base: UInt64, elementSize: UInt64, typeName: String, firstID: Int) {
         self.values = values
         self.base = base
         self.elementSize = elementSize
@@ -114,10 +114,66 @@ enum KValue {
     case bool(Bool)
     case str(String)
     case bytes([UInt8])
-    case array([KValue])
+    case array(KArray)
     case obj(KObj)
     case io(KStream)
     case enumv(KEnum, Int64)
+}
+
+/// Elements of an array value. Large arrays of plain fixed-size numbers stay
+/// as their raw bytes: a boxed KValue per element costs ~24 bytes and most
+/// of the parse time for millions of elements (#118).
+struct KArray: RandomAccessCollection {
+    private enum Storage {
+        case values([KValue])
+        case packed(PackedNumbers)
+    }
+    private let storage: Storage
+
+    init(_ values: [KValue]) { storage = .values(values) }
+    init(packed: PackedNumbers) { storage = .packed(packed) }
+
+    var packed: PackedNumbers? { if case .packed(let p) = storage { p } else { nil } }
+    var startIndex: Int { 0 }
+    var endIndex: Int {
+        switch storage {
+        case .values(let v): v.count
+        case .packed(let p): p.count
+        }
+    }
+    subscript(i: Int) -> KValue {
+        switch storage {
+        case .values(let v): v[i]
+        case .packed(let p): p[i]
+        }
+    }
+}
+
+/// Raw bytes of `count` numbers of one primitive type (u1…u8, s1…s8, f4, f8);
+/// an element is decoded exactly as `readPrimitive` would read it.
+struct PackedNumbers {
+    enum Kind: UInt8 {
+        case unsigned = 0, signed = 1, float = 2
+    }
+    let bytes: [UInt8]
+    let width: Int
+    let kind: Kind
+    let littleEndian: Bool
+
+    var count: Int { bytes.count / width }
+
+    subscript(i: Int) -> KValue {
+        let o = i * width
+        var raw: UInt64 = 0
+        for k in 0 ..< width { raw = raw << 8 | UInt64(bytes[littleEndian ? o + width - 1 - k : o + k]) }
+        switch kind {
+        case .unsigned: return .int(Int64(bitPattern: raw))
+        case .signed:
+            let shift = UInt64(64 - width * 8)
+            return .int(Int64(bitPattern: raw << shift) >> Int64(shift))
+        case .float: return .float(width == 4 ? Double(Float(bitPattern: UInt32(raw))) : Double(bitPattern: raw))
+        }
+    }
 }
 
 struct FieldInfo {
@@ -379,11 +435,11 @@ public final class KaitaiInterpreter {
                 return v
             } catch let e as ChildFailed {
                 if let v = e.partial { items.append(v); elements.append((s, io.pos)) }
-                onPartial(.array(items), current())
+                onPartial(.array(KArray(items)), current())
                 throw ChildFailed(
                     error: KaitaiError(e.error.message, path: join("[\(items.count - 1)]", e.error.path), offset: e.error.offset))
             } catch var e as KaitaiError {
-                onPartial(.array(items), current())
+                onPartial(.array(KArray(items)), current())
                 e.path = join("[\(items.count)]", e.path)
                 throw e
             }
@@ -404,11 +460,12 @@ public final class KaitaiInterpreter {
                 if try bool(eval(cond, ctx)) { break }
             }
         }
-        return (.array(items), current())
+        return (.array(KArray(items)), current())
     }
 
-    /// Arrays of plain integers/floats are read in one loop without a node
-    /// or checks per element: 10⁶ entries take milliseconds.
+    /// Arrays of plain integers/floats are read as one block of raw bytes,
+    /// without a node, check or boxed value per element; elements are decoded
+    /// when used (#118: 64M u4 took seconds and 1.6 GB before).
     /// Anything special (enum, valid, process, switch, …) takes the normal path.
     private func fastNumberArray(
         _ attr: AttrSpec, _ rep: RepeatSpec, _ obj: KObj, io: KStream,
@@ -435,16 +492,25 @@ public final class KaitaiInterpreter {
         // Division instead of count * size, which overflows for hostile counts.
         guard count >= 1024, size > 0, UInt64(count) <= (io.size - io.pos) / size else { return nil }
         try tick()
-        var items: [KValue] = []
-        items.reserveCapacity(Int(count))
-        for i in 0 ..< Int(count) {
-            guard let v = try readPrimitive(tn, io, obj) else { return nil }
-            items.append(v)
-            if i % 65536 == 0, Date() > deadline { throw KaitaiError(L("Time limit of %ld s exceeded", Int(limits.maxSeconds))) }
+        // Same type and endianness rules as readPrimitive.
+        let kind: PackedNumbers.Kind = tn.hasPrefix("f") ? .float : tn.hasPrefix("s") ? .signed : .unsigned
+        guard kind != .float || size == 4 || size == 8 else { return nil }
+        let suffix = tn.count > 2 ? tn.suffix(2) : ""
+        let endian = suffix == "le" ? .little : suffix == "be" ? .big : obj.endian ?? (size == 1 ? .little : nil)
+        guard let endian else { throw KaitaiError(L("Endianness for %@ not specified", "\(tn)")) }
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(Int(UInt64(count) * size))
+        var left = UInt64(count) * size
+        while left > 0 {
+            try checkTime()  // between blocks: deadline and cancel for huge arrays
+            let n = min(left, 16 << 20)
+            bytes += try io.readBytes(n)
+            left -= n
         }
+        let packed = PackedNumbers(bytes: bytes, width: Int(size), kind: kind, littleEndian: endian == .little)
         var info = FieldInfo(stream: io, start: start, end: io.pos, typeName: tn + "[]")
         info.elementSize = size
-        return (.array(items), info)
+        return (.array(KArray(packed: packed)), info)
     }
 
     /// Range of a just-read value. Bit fields after the first one in a byte
@@ -702,7 +768,7 @@ public final class KaitaiInterpreter {
     private func forceChildren(_ v: KValue, depth: Int) {
         switch v {
         case .obj(let o): forceInstances(o, depth: depth + 1)
-        case .array(let items): for i in items { forceChildren(i, depth: depth) }
+        case .array(let items) where items.packed == nil: for i in items { forceChildren(i, depth: depth) }
         default: break
         }
     }
@@ -758,7 +824,7 @@ public final class KaitaiInterpreter {
         case .float(let d): return .float(d)
         case .str(let s): return .str(s)
         case .bool(let b): return .bool(b)
-        case .array(let items): return .array(try items.map { try eval($0, c) })
+        case .array(let items): return .array(KArray(try items.map { try eval($0, c) }))
         case .name(let n): return try lookup(n, c)
         case .enumLit(let path, let value):
             let en = try resolveEnum(path.joined(separator: "::"), from: c.obj.type)
@@ -855,10 +921,10 @@ public final class KaitaiInterpreter {
         default: break
         }
         // first/last/min/max on arrays and bytes.
-        let items: [KValue]? =
+        let items: KArray? =
             switch v {
             case .array(let a): a
-            case .bytes(let b): b.map { .int(Int64($0)) }
+            case .bytes(let b): KArray(b.map { .int(Int64($0)) })
             default: nil
             }
         if let items {

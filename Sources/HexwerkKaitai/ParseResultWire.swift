@@ -51,6 +51,15 @@ extension ParseResult {
             w.int(l.firstID)
             // Lazy arrays hold up to millions of numbers of one kind: those
             // go as one packed block instead of a tag per value.
+            if let p = l.values.packed {  // as read from the file: no decoding, width bytes per value
+                w.u8(4)
+                w.u8(UInt8(p.width))
+                w.u8(p.kind.rawValue)
+                w.bool(p.littleEndian)
+                w.uint(UInt64(p.count))
+                p.bytes.withUnsafeBytes { w.raw($0) }
+                return
+            }
             func bits(_ v: KValue) -> UInt64? {
                 switch v {
                 case .int(let i): UInt64(bitPattern: i)
@@ -79,7 +88,7 @@ extension ParseResult {
                 packed.withUnsafeBytes { w.raw($0) }  // little endian on arm64 and x86
             } else {
                 w.u8(3)
-                w.array(l.values) { w, v in
+                w.array(Array(l.values)) { w, v in
                     switch v {
                     case .int(let i): w.u8(0); w.int(i)
                     case .float(let d): w.u8(1); w.double(d)
@@ -105,27 +114,38 @@ extension ParseResult {
             let base = try r.uint(), size = try r.uint()
             let typeName = try r.string()
             let firstID = try r.int()
-            let values: [KValue]
+            let values: KArray
             switch try r.u8() {
+            case 4:
+                let width = Int(try r.u8())
+                guard let kind = PackedNumbers.Kind(rawValue: try r.u8()), [1, 2, 4, 8].contains(width),
+                    kind != .float || width >= 4
+                else { throw WireError("bad packed array") }
+                let little = try r.bool()
+                let n = try r.count(minSize: width)
+                let raw = try r.raw(n * width)
+                values = KArray(packed: PackedNumbers(bytes: [UInt8](raw), width: width, kind: kind, littleEndian: little))
             case let kind where kind == 1 || kind == 2:
                 let n = try r.count(minSize: 8)
                 let raw = try r.raw(n * 8)
-                values = raw.withUnsafeBytes { buf in
-                    (0 ..< n).map { i in
-                        let bits = UInt64(littleEndian: buf.loadUnaligned(fromByteOffset: i * 8, as: UInt64.self))
-                        return kind == 1 ? .int(Int64(bitPattern: bits)) : .float(Double(bitPattern: bits))
-                    }
-                }
+                values = KArray(
+                    raw.withUnsafeBytes { buf in
+                        (0 ..< n).map { i in
+                            let bits = UInt64(littleEndian: buf.loadUnaligned(fromByteOffset: i * 8, as: UInt64.self))
+                            return kind == 1 ? .int(Int64(bitPattern: bits)) : .float(Double(bitPattern: bits))
+                        }
+                    })
             case 3:
-                values = try r.array(minSize: 2) { r -> KValue in
-                    switch try r.u8() {
-                    case 0: return .int(try r.int64())
-                    case 1: return .float(try r.double())
-                    case 2: return .bool(try r.bool())
-                    case 3: return .str(try r.string())
-                    default: throw WireError("bad value tag")
-                    }
-                }
+                values = KArray(
+                    try r.array(minSize: 2) { r -> KValue in
+                        switch try r.u8() {
+                        case 0: return .int(try r.int64())
+                        case 1: return .float(try r.double())
+                        case 2: return .bool(try r.bool())
+                        case 3: return .str(try r.string())
+                        default: throw WireError("bad value tag")
+                        }
+                    })
             default: throw WireError("bad lazy array")
             }
             // Element ranges are base + i * size: reject what would overflow.
