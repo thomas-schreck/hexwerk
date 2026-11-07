@@ -230,7 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let main = NSMenu()
 
         let app = NSMenu()
-        app.addItem(withTitle: L("About hexwerk"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: L("About hexwerk"), action: #selector(showAbout(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(submenu(languageMenu(), L("Language")))
         app.addItem(.separator())

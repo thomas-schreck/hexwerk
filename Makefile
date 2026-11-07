@@ -9,14 +9,31 @@ XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
 # Release version and build number; the release workflow passes them from the tag.
 VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
 BUILD   ?= 1
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)
+# The CLI has no bundle; this Info.plist is linked into its __TEXT,__info_plist
+# section so `hexwerk --version` can read it (BuildInfo.swift).
+CLI_PLIST := .build/cli-Info.plist
 
 .PHONY: test build sign-cli cli app install-app dist sbom clean formats icon coverage bench format lint
 
 test:
 	swift test
 
-build:
+# The second step relinks only the CLI, now with its Info.plist.
+build: $(CLI_PLIST)
 	swift build -c release
+	swift build -c release --product hexwerk \
+		-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $(CLI_PLIST)
+
+# Rewritten on every run so version and commit are never stale.
+.PHONY: $(CLI_PLIST)
+$(CLI_PLIST):
+	mkdir -p .build && rm -f $@
+	/usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string de.schreck-thomas.hexwerk.cli" \
+		-c "Add :CFBundleName string hexwerk" \
+		-c "Add :CFBundleShortVersionString string $(VERSION)" \
+		-c "Add :CFBundleVersion string $(BUILD)" \
+		-c "Add :HexwerkCommit string $(COMMIT)" $@ >/dev/null
 
 # Tests with line coverage per module (Markdown table).
 coverage:
@@ -57,7 +74,7 @@ app: build
 	printf '"Any File" = "Beliebige Datei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
-		-c "Set :CFBundleVersion $(BUILD)" $(APP)/Contents/Info.plist
+		-c "Set :CFBundleVersion $(BUILD)" -c "Add :HexwerkCommit string $(COMMIT)" $(APP)/Contents/Info.plist
 	cp .build/release/HexwerkApp $(APP)/Contents/MacOS/HexwerkApp
 	cp $(HOMEBREW_PREFIX)/share/misc/magic.mgc $(APP)/Contents/Resources/magic.mgc
 	cp THIRD_PARTY_NOTICES.md LICENSE $(APP)/Contents/Resources/

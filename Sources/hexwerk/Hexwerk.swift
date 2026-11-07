@@ -6,6 +6,7 @@ import HexwerkCore
 struct Hexwerk: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Hex tool: view, examine and parse files."),
+        version: "hexwerk \(BuildInfo.current.summary)",
         subcommands: [
             Dump.self, Inspect.self, Find.self, Diff.self, Hash.self, Parse.self, Yara.self, Entropy.self, Export.self, Script.self,
             FileType.self, StringsCmd.self, Convert.self, OpenCmd.self,

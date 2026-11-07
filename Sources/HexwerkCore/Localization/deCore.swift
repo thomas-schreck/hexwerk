@@ -203,5 +203,7 @@ extension L10n {
         // Sandboxed helper (#102)
         "Invalid reply from the helper: %@": "Ungültige Antwort des Hilfsprozesses: %@",
         "Invalid document data: %@": "Ungültige Dokumentdaten: %@",
+        // Version (#115)
+        "build %@": "Build %@",
     ]
 }
