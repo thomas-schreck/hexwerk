@@ -92,7 +92,7 @@ final class UpdateChecker {
     }
 
     private func fetch() async throws -> UpdateCheck.Release? {
-        var request = URLRequest(url: UpdateCheck.latestReleaseAPI, timeoutInterval: 10)
+        var request = URLRequest(url: UpdateCheck.releasesAPI, timeoutInterval: 10)
         request.setValue("hexwerk/\(version)", forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         let config = URLSessionConfiguration.ephemeral  // no cookies, no cache
@@ -100,11 +100,7 @@ final class UpdateChecker {
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
         let (data, response) = try await session.data(for: request)
-        switch (response as? HTTPURLResponse)?.statusCode {
-        case 200: break
-        case 404: return nil  // no published release yet, only pre-releases
-        default: throw URLError(.badServerResponse)
-        }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
         return try UpdateCheck.newerRelease(in: data, running: version)
     }
 

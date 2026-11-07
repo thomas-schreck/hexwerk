@@ -60,8 +60,9 @@ public struct SemanticVersion: Comparable, Sendable, CustomStringConvertible {
 /// lives in the app; everything that can be decided without it is here.
 public enum UpdateCheck {
     public static let repository = "thomas-schreck/hexwerk"
-    /// Latest published release; GitHub leaves out drafts and pre-releases.
-    public static let latestReleaseAPI = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+    /// Recent releases including pre-releases (`/releases/latest` leaves
+    /// those out, so beta users would never hear of the next beta).
+    public static let releasesAPI = URL(string: "https://api.github.com/repos/\(repository)/releases?per_page=20")!
     /// Release pages the hint may link to; anything else falls back to the tag page.
     static let releasePagePrefix = "https://github.com/\(repository)/releases/"
     /// Automatic checks run at most once per interval.
@@ -106,23 +107,52 @@ public enum UpdateCheck {
         case unreadableResponse
     }
 
-    /// Reads the GitHub API answer: the newer release, or nil when the
-    /// running version is current (or newer, e.g. a local build).
-    public static func newerRelease(in json: Data, running: String) throws(Failure) -> Release? {
-        struct Answer: Decodable {
-            let tag_name: String
-            let html_url: String?
+    /// One entry of the GitHub releases list.
+    public struct Candidate: Decodable, Equatable, Sendable {
+        public let tag_name: String
+        public let html_url: String?
+        public let draft: Bool?
+        public let prerelease: Bool?
+
+        public init(tag: String, page: String? = nil, draft: Bool = false, prerelease: Bool = false) {
+            (tag_name, html_url, self.draft, self.prerelease) = (tag, page, draft, prerelease)
         }
-        guard let answer = try? JSONDecoder().decode(Answer.self, from: json), let latest = SemanticVersion(answer.tag_name)
-        else { throw .unreadableResponse }
-        guard isNewer(tag: answer.tag_name, than: running) else { return nil }
-        return Release(version: latest, page: page(tag: answer.tag_name, htmlURL: answer.html_url))
+    }
+
+    /// Whether a release counts for the running version: a stable version
+    /// only considers stable releases, a pre-release (e.g. `0.1.0-beta.1`)
+    /// pre-releases too.
+    static func considers(_ version: SemanticVersion, markedPrerelease: Bool, running: SemanticVersion) -> Bool {
+        running.prerelease.isEmpty ? !markedPrerelease && version.prerelease.isEmpty : true
+    }
+
+    /// The highest release newer than the running version, skipping drafts
+    /// and unparseable tags; nil when the running version is current (or
+    /// newer, e.g. a local build).
+    public static func newestRelease(among candidates: [Candidate], running: String) -> Release? {
+        guard let current = comparableVersion(running) else { return nil }
+        let best =
+            candidates
+            .filter { $0.draft != true }
+            .compactMap { c in SemanticVersion(c.tag_name).map { (c, $0) } }
+            .filter { considers($0.1, markedPrerelease: $0.0.prerelease == true, running: current) }
+            .max { $0.1 < $1.1 }
+        guard let (c, version) = best, current < version else { return nil }
+        return Release(version: version, page: page(tag: c.tag_name, htmlURL: c.html_url))
+    }
+
+    /// Reads the GitHub API answer (a list of releases).
+    public static func newerRelease(in json: Data, running: String) throws(Failure) -> Release? {
+        guard let list = try? JSONDecoder().decode([Candidate].self, from: json) else { throw .unreadableResponse }
+        return newestRelease(among: list, running: running)
     }
 
     /// A release found by an earlier check, if it is still newer than the
     /// running version (it is not after updating).
     public static func pendingRelease(tag: String?, page: String?, running: String) -> Release? {
-        guard let tag, let version = SemanticVersion(tag), isNewer(tag: tag, than: running) else { return nil }
+        guard let tag, let version = SemanticVersion(tag), let current = comparableVersion(running), current < version,
+            considers(version, markedPrerelease: false, running: current)
+        else { return nil }
         return Release(version: version, page: Self.page(tag: tag, htmlURL: page))
     }
 }

@@ -49,23 +49,57 @@ struct UpdateCheckTests {
         #expect(!due("dev", ago: nil))
     }
 
+    typealias C = UpdateCheck.Candidate
+
+    func newest(_ list: [C], _ running: String) -> String? {
+        UpdateCheck.newestRelease(among: list, running: running)?.version.description
+    }
+
+    @Test func betaHearsOfNextBeta() {
+        let list = [C(tag: "v0.1.0-beta.2", prerelease: true), C(tag: "v0.1.0-beta.1", prerelease: true)]
+        #expect(newest(list, "0.1.0-beta.1") == "0.1.0-beta.2")
+    }
+
+    @Test func betaHearsOfFinal() {
+        let list = [C(tag: "v0.1.0"), C(tag: "v0.1.0-beta.2", prerelease: true)]
+        #expect(newest(list, "0.1.0-beta.1") == "0.1.0")
+    }
+
+    @Test func stableIgnoresNewerBeta() {
+        let list = [C(tag: "v0.3.0-beta.1", prerelease: true), C(tag: "v0.2.0"), C(tag: "v0.1.0")]
+        #expect(newest(list, "0.1.0") == "0.2.0")
+        #expect(newest([C(tag: "v0.3.0-beta.1", prerelease: true)], "0.2.0") == nil)
+        // Pre-release by tag even if not marked on GitHub, and marked even with a plain tag.
+        #expect(newest([C(tag: "v0.3.0-rc.1"), C(tag: "v0.3.0", prerelease: true)], "0.2.0") == nil)
+    }
+
+    @Test func skipsDraftsAndGarbageAndPicksHighest() {
+        let list = [C(tag: "v9.0.0", draft: true), C(tag: "nightly"), C(tag: "v0.10.0"), C(tag: "v0.9.0")]
+        #expect(newest(list, "0.2.0") == "0.10.0")
+        #expect(newest(list, "0.10.0") == nil)
+        #expect(newest(list, "dev") == nil)
+        #expect(newest([], "0.2.0") == nil)
+    }
+
     @Test func readsGitHubAnswer() throws {
         let json = Data(
-            #"{"tag_name":"v0.3.0","html_url":"https://github.com/thomas-schreck/hexwerk/releases/tag/v0.3.0","body":"x"}"#.utf8)
-        let r = try UpdateCheck.newerRelease(in: json, running: "0.2.0")
-        #expect(r?.version == v("0.3.0"))
-        #expect(r?.page.absoluteString == "https://github.com/thomas-schreck/hexwerk/releases/tag/v0.3.0")
-        #expect(try UpdateCheck.newerRelease(in: json, running: "0.3.0") == nil)
-        #expect(try UpdateCheck.newerRelease(in: json, running: "0.4.0") == nil)
+            #"""
+            [{"tag_name":"v0.3.0-beta.1","html_url":"https://github.com/thomas-schreck/hexwerk/releases/tag/v0.3.0-beta.1","draft":false,"prerelease":true,"body":"x"},
+             {"tag_name":"v0.2.0","html_url":"https://github.com/thomas-schreck/hexwerk/releases/tag/v0.2.0","draft":false,"prerelease":false}]
+            """#.utf8)
+        let r = try UpdateCheck.newerRelease(in: json, running: "0.1.0")
+        #expect(r?.version == v("0.2.0"))
+        #expect(r?.page.absoluteString == "https://github.com/thomas-schreck/hexwerk/releases/tag/v0.2.0")
+        #expect(try UpdateCheck.newerRelease(in: json, running: "0.2.0") == nil)
+        #expect(try UpdateCheck.newerRelease(in: json, running: "0.2.0-beta.1")?.version == v("0.3.0-beta.1"))
         #expect(throws: UpdateCheck.Failure.unreadableResponse) {
             try UpdateCheck.newerRelease(in: Data(#"{"message":"Not Found"}"#.utf8), running: "0.2.0")
         }
     }
 
     /// The hint only links to this repository's release pages.
-    @Test func foreignLinkFallsBackToTagPage() throws {
-        let json = Data(#"{"tag_name":"v0.3.0","html_url":"https://evil.example/x"}"#.utf8)
-        let r = try UpdateCheck.newerRelease(in: json, running: "0.2.0")
+    @Test func foreignLinkFallsBackToTagPage() {
+        let r = UpdateCheck.newestRelease(among: [C(tag: "v0.3.0", page: "https://evil.example/x")], running: "0.2.0")
         #expect(r?.page.absoluteString == "https://github.com/thomas-schreck/hexwerk/releases/tag/v0.3.0")
     }
 
@@ -73,5 +107,7 @@ struct UpdateCheckTests {
         #expect(UpdateCheck.pendingRelease(tag: "v0.3.0", page: nil, running: "0.2.0")?.version == v("0.3.0"))
         #expect(UpdateCheck.pendingRelease(tag: "v0.3.0", page: nil, running: "0.3.0") == nil)
         #expect(UpdateCheck.pendingRelease(tag: nil, page: nil, running: "0.2.0") == nil)
+        // Remembered from a beta, but the user has moved to a stable version since.
+        #expect(UpdateCheck.pendingRelease(tag: "v0.3.0-beta.1", page: nil, running: "0.2.0") == nil)
     }
 }
