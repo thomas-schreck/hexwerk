@@ -147,7 +147,16 @@ included in the CLI archive under `completions/` and `man/`. For a source build,
 | Settings | `~/.config/hexwerk/settings.json` |
 | Per-file state (bookmarks, format, position) | `<file>.hexwerk` next to the file once it has bookmarks, otherwise `~/.config/hexwerk/projects` |
 
-`$XDG_CONFIG_HOME` is respected. hexwerk makes no network connections.
+`$XDG_CONFIG_HOME` is respected.
+
+The app makes one kind of network request: at most once a day it asks the
+GitHub releases API (`api.github.com/repos/thomas-schreck/hexwerk/releases`)
+for the newest release and shows "Update Available" in the hexwerk menu when it is
+newer (a beta also hears of newer betas, a stable version only of stable
+releases). The request carries only a `hexwerk/<version>` User-Agent, nothing is
+downloaded. Turn it off with *hexwerk > Check for Updates Automatically*
+(`"checkForUpdates": false` in `settings.json`); builds without a version (`dev`)
+never check. The CLI and the parser helper make no network connections.
 
 ## Language
 

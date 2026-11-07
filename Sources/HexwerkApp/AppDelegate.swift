@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for path in args { open(URL(fileURLWithPath: path), readOnly: false) }
         if controllers.isEmpty && !openedAtLaunch { openDocument(nil) }
         NSApp.activate()
+        UpdateChecker.shared.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -231,6 +232,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         let app = NSMenu()
         app.addItem(withTitle: L("About hexwerk"), action: #selector(showAbout(_:)), keyEquivalent: "")
+        app.addItem(UpdateChecker.shared.menuItem)
+        app.addItem(withTitle: L("Check for Updates…"), action: #selector(checkForUpdates(_:)), keyEquivalent: "")
+        app.addItem(
+            withTitle: L("Check for Updates Automatically"), action: #selector(toggleAutomaticUpdateCheck(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(submenu(languageMenu(), L("Language")))
         app.addItem(.separator())
@@ -366,7 +371,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         a.runModal()
     }
 
+    // MARK: Updates (#119)
+
+    @objc func checkForUpdates(_ sender: Any?) { UpdateChecker.shared.checkManually() }
+
+    @objc func toggleAutomaticUpdateCheck(_ sender: Any?) {
+        UpdateChecker.shared.isEnabled.toggle()
+        if UpdateChecker.shared.isEnabled { UpdateChecker.shared.start() }
+    }
+
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleAutomaticUpdateCheck(_:)) {
+            item.state = UpdateChecker.shared.isEnabled ? .on : .off
+            return BuildInfo.current.version != "dev"
+        }
         if item.action == #selector(setLanguage(_:)) {
             let current = Settings.shared.string(forKey: "language") ?? "system"
             item.state = Self.languages[item.tag] == current ? .on : .off
