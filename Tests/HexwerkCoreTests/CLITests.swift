@@ -7,12 +7,12 @@ import Testing
     static let exe = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent(".build/debug/hexwerk")
 
-    func run(_ args: [String]) throws -> (Int32, String) {
+    func run(_ args: [String], env: [String: String] = [:]) throws -> (Int32, String) {
         try #require(FileManager.default.isExecutableFile(atPath: Self.exe.path))
         let p = Process()
         p.executableURL = Self.exe
         p.arguments = args
-        p.environment = ProcessInfo.processInfo.environment.merging(["HEXWERK_LANG": "en"]) { $1 }
+        p.environment = ProcessInfo.processInfo.environment.merging(["HEXWERK_LANG": "en"].merging(env) { $1 }) { $1 }
         let out = Pipe()
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
@@ -28,6 +28,25 @@ import Testing
         #expect(s == 0)
         #expect(out.contains("Output a range as a hex dump"))
         #expect(out.contains("Bytes per line"))
+    }
+
+    /// The shells call `hexwerk ---completion …` for `parse --format`; it answers
+    /// with the meta IDs of the installed collection that match the prefix.
+    @Test func parseFormatCompletesCollectionIDs() throws {
+        let config = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: config) }
+        let formats = config.appendingPathComponent("hexwerk/formats/image")
+        try FileManager.default.createDirectory(at: formats, withIntermediateDirectories: true)
+        for id in ["png", "pcx", "gif"] {
+            try Data("meta:\n  id: \(id)\n".utf8).write(to: formats.appendingPathComponent("file_\(id).ksy"))
+        }
+        let (s, out) = try run(
+            ["---completion", "parse", "--", "--format", "3", "1", "hexwerk", "parse", "--format", "p"],
+            env: ["XDG_CONFIG_HOME": config.path])
+        #expect(s == 0)
+        #expect(out.split(separator: "\n") == ["pcx", "png"])
+        let (_, zsh) = try run(["--generate-completion-script", "zsh"])
+        #expect(zsh.contains("---completion parse -- --format"))
     }
 
     /// Only the failure path: a real `open` would launch the app.

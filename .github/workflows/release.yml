@@ -81,7 +81,7 @@ jobs:
           cat > notes.md <<NOTES
           ## Downloads
           - **hexwerk-$v.dmg** / **hexwerk-$v.zip**: the app (Apple silicon, macOS $min or later)
-          - **hexwerk-cli-$v-arm64.tar.gz**: the \`hexwerk\` command line tool; keep \`magic.mgc\` next to the binary
+          - **hexwerk-cli-$v-arm64.tar.gz**: the \`hexwerk\` command line tool; keep \`magic.mgc\` next to the binary; shell completions in \`completions/\`, man page in \`man/\`
           - **hexwerk-$v.spdx.json**: SBOM (SPDX 2.3) of the app and the CLI, attested for each download: \`gh attestation verify hexwerk-$v.dmg -R thomas-schreck/hexwerk --predicate-type https://spdx.dev/Document/v2.3\`
           - **SHA256SUMS**: checksums (\`shasum -a 256 -c SHA256SUMS\`)
 

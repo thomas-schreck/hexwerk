@@ -14,7 +14,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 # section so `hexwerk --version` can read it (BuildInfo.swift).
 CLI_PLIST := .build/cli-Info.plist
 
-.PHONY: test build sign-cli cli app install-app dist sbom clean formats icon coverage bench format lint
+.PHONY: test build sign-cli cli cli-docs appinstall-app dist sbom clean formats icon coverage bench format lint
 
 test:
 	swift test
@@ -60,6 +60,23 @@ lint:
 sign-cli: build
 	codesign --force --sign - --options runtime --entitlements Resources/cli.entitlements .build/release/hexwerk
 
+# Shell completions and man page for the CLI tarball, generated in English from
+# the release binary. generate-manual is the tool behind argument-parser's
+# GenerateManual plugin, built directly so the plugin cannot relink the CLI
+# without its Info.plist. The man page names the build machine's format
+# folder, so $HOME becomes ~ again.
+CLI_DOCS := .build/cli-docs
+MAN_DATE ?= $(shell git log -1 --format=%cd --date=format:%Y-%m-%d 2>/dev/null)
+cli-docs: sign-cli
+	swift build -c release --product generate-manual
+	rm -rf $(CLI_DOCS) && mkdir -p $(CLI_DOCS)/completions $(CLI_DOCS)/man
+	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script zsh > $(CLI_DOCS)/completions/_hexwerk
+	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script bash > $(CLI_DOCS)/completions/hexwerk.bash
+	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script fish > $(CLI_DOCS)/completions/hexwerk.fish
+	HEXWERK_LANG=en .build/release/generate-manual .build/release/hexwerk \
+		$(if $(MAN_DATE),--date $(MAN_DATE)) --output-directory $(CLI_DOCS)/man
+	sed -i '' "s#$(HOME)/#~/#g" $(CLI_DOCS)/man/hexwerk.1
+
 # CLI nach ~/.local/bin (Konvention aus ~/src/Makefile)
 cli: sign-cli
 	mkdir -p $(PREFIX)/bin
@@ -99,8 +116,9 @@ install-app: app
 	cp -R $(APP) /Applications/hexwerk.app
 	@echo "→ /Applications/hexwerk.app"
 
-# Release artifacts: app as DMG and ZIP, CLI as tarball, SHA256SUMS.
-dist: app sign-cli
+# Release artifacts: app as DMG and ZIP, CLI as tarball (with completions and
+# man page), SHA256SUMS.
+dist: app sign-cli cli-docs
 	rm -rf .build/dist && mkdir -p .build/dist/dmg .build/dist/cli/hexwerk-cli-$(VERSION)
 	rm -f dist/hexwerk-*.dmg dist/hexwerk-*.zip dist/hexwerk-cli-*.tar.gz dist/SHA256SUMS
 	ditto -c -k --keepParent $(APP) dist/hexwerk-$(VERSION).zip
@@ -108,6 +126,7 @@ dist: app sign-cli
 	hdiutil create -quiet -volname "hexwerk $(VERSION)" -srcfolder .build/dist/dmg -ov -format UDZO dist/hexwerk-$(VERSION).dmg
 	cp .build/release/hexwerk $(HOMEBREW_PREFIX)/share/misc/magic.mgc LICENSE THIRD_PARTY_NOTICES.md \
 		.build/dist/cli/hexwerk-cli-$(VERSION)/
+	cp -R $(CLI_DOCS)/completions $(CLI_DOCS)/man .build/dist/cli/hexwerk-cli-$(VERSION)/
 	tar -C .build/dist/cli -czf dist/hexwerk-cli-$(VERSION)-arm64.tar.gz hexwerk-cli-$(VERSION)
 	cd dist && shasum -a 256 hexwerk-$(VERSION).dmg hexwerk-$(VERSION).zip hexwerk-cli-$(VERSION)-arm64.tar.gz > SHA256SUMS
 	@cat dist/SHA256SUMS
