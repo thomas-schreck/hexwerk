@@ -64,7 +64,8 @@ sign-cli: build
 # the release binary. generate-manual is the tool behind argument-parser's
 # GenerateManual plugin, built directly so the plugin cannot relink the CLI
 # without its Info.plist. The man page names the build machine's format
-# folder, so $HOME becomes ~ again.
+# folder, so $HOME becomes ~ again. generate-manual silently drops non-ASCII
+# characters (0x… became 0x), so English help texts must be ASCII.
 CLI_DOCS := .build/cli-docs
 MAN_DATE ?= $(shell git log -1 --format=%cd --date=format:%Y-%m-%d 2>/dev/null)
 cli-docs: sign-cli
@@ -73,6 +74,8 @@ cli-docs: sign-cli
 	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script zsh > $(CLI_DOCS)/completions/_hexwerk
 	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script bash > $(CLI_DOCS)/completions/hexwerk.bash
 	HEXWERK_LANG=en .build/release/hexwerk --generate-completion-script fish > $(CLI_DOCS)/completions/hexwerk.fish
+	@if HEXWERK_LANG=en .build/release/hexwerk --experimental-dump-help | LC_ALL=C grep -o '.\{0,40\}[^ -~]'; then \
+		echo "CLI help text has non-ASCII characters; generate-manual would drop them" >&2; exit 1; fi
 	HEXWERK_LANG=en .build/release/generate-manual .build/release/hexwerk \
 		$(if $(MAN_DATE),--date $(MAN_DATE)) --output-directory $(CLI_DOCS)/man
 	sed -i '' "s#$(HOME)/#~/#g" $(CLI_DOCS)/man/hexwerk.1

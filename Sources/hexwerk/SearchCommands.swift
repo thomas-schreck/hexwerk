@@ -117,7 +117,7 @@ struct Hash: ParsableCommand {
     )
 
     @Argument(help: .init(L("File"))) var file: String
-    @Option(help: .init(L("Algorithms, comma-separated; “all” for all, “common” for CRC32/MD5/SHA-1/SHA-256")))
+    @Option(help: .init(L("Algorithms, comma-separated; 'all' for all, 'common' for CRC32/MD5/SHA-1/SHA-256")))
     var algo: String = "sha-256"
     @Option(help: .init(L("Start offset"))) var offset: Number?
     @Option(help: .init(L("Length"))) var length: Number?

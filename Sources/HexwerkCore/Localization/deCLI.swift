@@ -4,8 +4,8 @@ extension L10n {
         // Shared arguments and options
         "File": "Datei",
         "Start offset": "Start-Offset",
-        "Start offset (decimal or 0x…)": "Start-Offset (dezimal oder 0x…)",
-        "Offset (decimal or 0x…)": "Offset (dezimal oder 0x…)",
+        "Start offset (decimal or 0x...)": "Start-Offset (dezimal oder 0x…)",
+        "Offset (decimal or 0x...)": "Offset (dezimal oder 0x…)",
         "Length": "Länge",
         "Number of bytes": "Anzahl Bytes",
         "Output as JSON": "Ausgabe als JSON",
@@ -40,7 +40,7 @@ extension L10n {
 
         // convert
         "Convert between binary, Intel HEX and Motorola S-Record.": "Zwischen Binärdatei, Intel HEX und Motorola S-Record umwandeln.",
-        "Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to.":
+        "Formats are detected by file extension (.hex/.ihex -> Intel HEX, .srec/.s19/.s28/.s37/.mot -> S-Record, otherwise binary) or set with --from/--to.":
             "Formate werden an der Endung erkannt (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, sonst binär) oder mit --from/--to gesetzt.",
         "Input": "Eingabe",
         "Output": "Ausgabe",
@@ -109,7 +109,7 @@ extension L10n {
         // hash
         "Checksums over a file or range.": "Prüfsummen über Datei oder Bereich.",
         "Algorithms: %@": "Algorithmen: %@",
-        "Algorithms, comma-separated; “all” for all, “common” for CRC32/MD5/SHA-1/SHA-256":
+        "Algorithms, comma-separated; 'all' for all, 'common' for CRC32/MD5/SHA-1/SHA-256":
             "Algorithmen, durch Komma getrennt; „all“ für alle, „common“ für CRC32/MD5/SHA-1/SHA-256",
         "unknown algorithm %@ (see --help)": "unbekannter Algorithmus %@ (siehe --help)",
 
@@ -136,7 +136,7 @@ extension L10n {
             "Regeln: eine Datei oder ein Ordner (alle .yar/.yara darin). Exit 2 bei Kompilierfehler, 3 bei Zeitlimit.",
         "Rule file or folder with rules": "Regeldatei oder Ordner mit Regeln",
         "File to scan": "Zu scannende Datei",
-        "Scan only from this offset (decimal or 0x…)": "Nur ab diesem Offset scannen (dezimal oder 0x…)",
+        "Scan only from this offset (decimal or 0x...)": "Nur ab diesem Offset scannen (dezimal oder 0x…)",
         "Scan only this many bytes": "Nur so viele Bytes scannen",
         "Print matching bytes per pattern (like yr -s)": "Treffer-Bytes je Pattern ausgeben (wie yr -s)",
         "Warning: %@": "Warnung: %@",

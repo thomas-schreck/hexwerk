@@ -12,7 +12,7 @@ struct Yara: ParsableCommand {
     @Argument(help: .init(L("Rule file or folder with rules"))) var rules: String
     @Argument(help: .init(L("File to scan"))) var file: String
     @Option(help: .init(L("Timeout in seconds"))) var timeout: Int = YaraX.defaultTimeout
-    @Option(help: .init(L("Scan only from this offset (decimal or 0x…)"))) var offset: Number?
+    @Option(help: .init(L("Scan only from this offset (decimal or 0x...)"))) var offset: Number?
     @Option(help: .init(L("Scan only this many bytes"))) var length: Number?
     @Flag(name: .shortAndLong, help: .init(L("Print matching bytes per pattern (like yr -s)"))) var showMatches = false
     @Flag(help: .init(L("Output as JSON"))) var json = false

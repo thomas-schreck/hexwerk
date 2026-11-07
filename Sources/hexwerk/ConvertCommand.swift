@@ -6,7 +6,7 @@ struct Convert: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Convert between binary, Intel HEX and Motorola S-Record."),
         discussion: L(
-            "Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to."
+            "Formats are detected by file extension (.hex/.ihex -> Intel HEX, .srec/.s19/.s28/.s37/.mot -> S-Record, otherwise binary) or set with --from/--to."
         )
     )
 
