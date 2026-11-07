@@ -38,6 +38,36 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - JavaScript scripting (JavaScriptCore) with an `hw` API on the open document, run with a time limit and applied as one undo step
 - `hexwerk` command line tool for everything above
 
+### A short tour
+
+**Structure.** Pick a Kaitai format (or let hexwerk detect it) and every field
+gets a color in the hex view; clicking a byte selects its field in the tree.
+Here a universal Mach-O binary, from the fat header down into the arm64 slice:
+
+![Universal Mach-O binary with its parsed structure tree and colored byte ranges](docs/screenshot-structure.png)
+
+**Analysis.** File type from libmagic and signatures, embedded-file search,
+entropy profile and byte distribution for the whole file or a selection:
+
+![Analysis sidebar with file type, entropy profile and byte distribution](docs/screenshot-analysis.png)
+
+**Command line.** The same engine without the GUI, for scripts and pipelines:
+
+```console
+$ hexwerk type ssh
+Type       Mach-O universal binary with 2 architectures: [arm64e …] [arm64 …]
+MIME       application/x-mach-binary; charset=binary
+Signature  Mach-O Universal → Kaitai format mach_o_fat
+
+$ hexwerk parse --format mach_o_fat ssh | head -6
+mach_o_fat : mach_o_fat  [0x0, 48 B]
+  magic : bytes = CA FE BA BE  [0x0, 4 B]
+  num_fat_arch : u4 = 2  [0x4, 4 B]
+  fat_archs : fat_arch[] = 2 entries  [0x8, 40 B]
+    [0] : fat_arch  [0x8, 20 B]
+      cpu_type : u4 = arm64 (0x100000C)  [0x8, 4 B]
+```
+
 ## Requirements
 
 - macOS 26 or later on Apple silicon
