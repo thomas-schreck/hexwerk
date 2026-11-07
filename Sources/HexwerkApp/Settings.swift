@@ -8,8 +8,10 @@ final class Settings: @unchecked Sendable {
     static let shared = Settings()
 
     /// Keys hexwerk used to keep in UserDefaults; copied over once.
-    private static let legacyKeys = ["sidebarTab", "checksums", "vimMode", "yaraRules", "yaraTimeout",
-                                     "scriptSource", "imageFormat", "imageWidth", "stringsMin"]
+    private static let legacyKeys = [
+        "sidebarTab", "checksums", "vimMode", "yaraRules", "yaraTimeout",
+        "scriptSource", "imageFormat", "imageWidth", "stringsMin",
+    ]
 
     private let url: URL
     private let lock = NSLock()
@@ -20,7 +22,8 @@ final class Settings: @unchecked Sendable {
     init(url: URL = HexwerkPaths.settings) {
         self.url = url
         if let data = try? Data(contentsOf: url),
-           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        {
             values = dict
         } else {
             for key in Self.legacyKeys {

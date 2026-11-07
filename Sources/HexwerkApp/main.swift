@@ -22,7 +22,7 @@ if args.count >= 4, args[1] == "--snapshot" || args[1] == "--window" {
             let doc = try Document(url: URL(fileURLWithPath: args[2]), readOnly: false)
             let out = URL(fileURLWithPath: args[3])
             if args[1] == "--snapshot" {
-                let model = DocumentModel(doc: doc)   // HexView holds it unowned
+                let model = DocumentModel(doc: doc)  // HexView holds it unowned
                 let view = HexView(model: model)
                 view.frame = NSRect(x: 0, y: 0, width: 760, height: 900)
                 view.appearance = NSAppearance(named: .aqua)
@@ -31,7 +31,7 @@ if args.count >= 4, args[1] == "--snapshot" || args[1] == "--window" {
                 let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
                 let runs = 50
                 let t0 = Date()
-                for _ in 0..<runs { view.cacheDisplay(in: view.bounds, to: rep) }
+                for _ in 0 ..< runs { view.cacheDisplay(in: view.bounds, to: rep) }
                 let ms = Date().timeIntervalSince(t0) * 1000 / Double(runs)
                 try rep.representation(using: .png, properties: [:])!.write(to: out)
                 print(String(format: "Drawing one page: %.2f ms (mean of %d)", ms, runs))

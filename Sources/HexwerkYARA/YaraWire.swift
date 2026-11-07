@@ -27,9 +27,11 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
     public static func collect(files: [URL]) throws -> YaraRuleBundle {
         let sources = try files.map { url in
             do { return Entry(path: url.path, text: try YaraSource(file: url).text) } catch {
-                throw YaraCompileError(diagnostics: [YaraDiagnostic(
-                    file: url.path, line: nil, column: nil, code: "io",
-                    message: L("cannot be read: %@", error.localizedDescription), report: "")])
+                throw YaraCompileError(diagnostics: [
+                    YaraDiagnostic(
+                        file: url.path, line: nil, column: nil, code: "io",
+                        message: L("cannot be read: %@", error.localizedDescription), report: "")
+                ])
             }
         }
         let dirs = Array(Set(files.map { $0.deletingLastPathComponent().path })).sorted()
@@ -72,12 +74,14 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
         }
         let unprefix = { (s: String) in s.replacingOccurrences(of: prefix, with: "") }
         let fix = { (d: YaraDiagnostic) in
-            YaraDiagnostic(file: d.file.map(unprefix), line: d.line, column: d.column, code: d.code,
-                           message: unprefix(d.message), report: unprefix(d.report))
+            YaraDiagnostic(
+                file: d.file.map(unprefix), line: d.line, column: d.column, code: d.code,
+                message: unprefix(d.message), report: unprefix(d.report))
         }
         do {
-            let rules = try YaraRules.compile(sources.map { YaraSource(origin: prefix + $0.path, text: $0.text) },
-                                              includeDirs: includeDirs.map { prefix + $0 })
+            let rules = try YaraRules.compile(
+                sources.map { YaraSource(origin: prefix + $0.path, text: $0.text) },
+                includeDirs: includeDirs.map { prefix + $0 })
             rules.warnings = rules.warnings.map(fix)
             return rules
         } catch let e as YaraCompileError {
@@ -99,9 +103,10 @@ extension YaraDiagnostic {
     }
 
     init(_ r: inout WireReader) throws {
-        self.init(file: try r.optional { try $0.string() }, line: try r.optional { try $0.int() },
-                  column: try r.optional { try $0.int() }, code: try r.string(), message: try r.string(),
-                  report: try r.string())
+        self.init(
+            file: try r.optional { try $0.string() }, line: try r.optional { try $0.int() },
+            column: try r.optional { try $0.int() }, code: try r.string(), message: try r.string(),
+            report: try r.string())
     }
 }
 
@@ -121,7 +126,9 @@ public enum YaraScanOutcome: Sendable {
                 w.string(h.rule)
                 w.string(h.namespace)
                 w.array(h.tags) { $0.string($1) }
-                w.array(h.metadata) { w, m in w.string(m.key); w.string(m.value) }
+                w.array(h.metadata) { w, m in
+                    w.string(m.key); w.string(m.value)
+                }
                 w.array(h.matches) { w, m in
                     w.string(m.pattern)
                     w.uint(m.offset)
@@ -152,8 +159,9 @@ public enum YaraScanOutcome: Sendable {
                     matches: try r.array(minSize: 4) { r in
                         let pattern = try r.string(), offset = try r.uint(), length = try r.uint()
                         guard !offset.addingReportingOverflow(length).overflow else { throw WireError("match out of range") }
-                        return YaraPatternMatch(pattern: pattern, offset: offset, length: length,
-                                                xorKey: try r.optional { try $0.int() })
+                        return YaraPatternMatch(
+                            pattern: pattern, offset: offset, length: length,
+                            xorKey: try r.optional { try $0.int() })
                     })
             }
             self = .hits(hits, warnings: warnings)

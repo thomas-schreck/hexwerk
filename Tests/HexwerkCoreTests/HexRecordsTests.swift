@@ -5,22 +5,22 @@ import Testing
 @Suite struct HexRecordsTests {
     /// The example from the Intel HEX article (checksums are verified on parse).
     static let ihex = """
-    :10010000214601360121470136007EFE09D2190140
-    :100110002146017E17C20001FF5F16002148011928
-    :10012000194E79234623965778239EDA3F01B2CAA7
-    :100130003F0156702B5E712B722B732146013421C7
-    :00000001FF
-    """
+        :10010000214601360121470136007EFE09D2190140
+        :100110002146017E17C20001FF5F16002148011928
+        :10012000194E79234623965778239EDA3F01B2CAA7
+        :100130003F0156702B5E712B722B732146013421C7
+        :00000001FF
+        """
 
     /// The example from the SREC article.
     static let srec = """
-    S00F000068656C6C6F202020202000003C
-    S11F00007C0802A6900100049421FFF07C6C1B787C8C23783C6000003863000026
-    S11F001C4BFFFFE5398000007D83637880010014382100107C0803A64E800020E9
-    S111003848656C6C6F20776F726C642E0A0042
-    S5030003F9
-    S9030000FC
-    """
+        S00F000068656C6C6F202020202000003C
+        S11F00007C0802A6900100049421FFF07C6C1B787C8C23783C6000003863000026
+        S11F001C4BFFFFE5398000007D83637880010014382100107C0803A64E800020E9
+        S111003848656C6C6F20776F726C642E0A0042
+        S5030003F9
+        S9030000FC
+        """
 
     @Test func parsesReferenceExamples() throws {
         let i = try HexRecords.parse(Self.ihex)
@@ -44,15 +44,18 @@ import Testing
 
     @Test func roundTripWithGapsAnd64KBoundaries() throws {
         var rng = SplitMix(seed: 3)
-        let a = Data((0 ..< 300).map { _ in UInt8.random(in: 0...255, using: &rng) })
-        let b = Data((0 ..< 100).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        let a = Data((0 ..< 300).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
+        let b = Data((0 ..< 100).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
         // Segment A crosses 0x0801_0000, B lies above a gap.
-        let image = HexRecords.Image(segments: [.init(address: 0x0800_FF80, data: a), .init(address: 0x0801_0400, data: b)],
-                                     startAddress: 0x0800_0101, header: nil)
+        let image = HexRecords.Image(
+            segments: [.init(address: 0x0800_FF80, data: a), .init(address: 0x0801_0400, data: b)],
+            startAddress: 0x0800_0101, header: nil)
         let flat = try image.flatten()
         #expect(image.gaps == [0x0801_00AC ..< 0x0801_0400])
-        for text in [try HexRecords.intelHex(flat, base: image.base, start: image.startAddress),
-                     try HexRecords.srec(flat, base: image.base, start: image.startAddress)] {
+        for text in [
+            try HexRecords.intelHex(flat, base: image.base, start: image.startAddress),
+            try HexRecords.srec(flat, base: image.base, start: image.startAddress),
+        ] {
             let back = try HexRecords.parse(text)
             #expect(back.base == 0x0800_FF80)
             #expect(try back.flatten() == flat)
@@ -66,8 +69,9 @@ import Testing
     }
 
     @Test func savingKeepsGaps() throws {
-        let image = HexRecords.Image(segments: [.init(address: 0x100, data: Data([1, 2])), .init(address: 0x200, data: Data([3]))],
-                                     startAddress: nil, header: nil)
+        let image = HexRecords.Image(
+            segments: [.init(address: 0x100, data: Data([1, 2])), .init(address: 0x200, data: Data([3]))],
+            startAddress: nil, header: nil)
         var flat = try image.flatten()
         let segs = HexRecords.segments(flat, base: image.base, gaps: image.gaps)
         #expect(segs == image.segments)
@@ -94,8 +98,10 @@ import Testing
         #expect(throws: HexRecords.HexRecordError.self) { try HexRecords.intelHex(d, start: 0x1_0000_0000) }
         #expect(throws: HexRecords.HexRecordError.self) { try HexRecords.srec(d, start: 0x1_0000_0000) }
         // The last 4 bytes below 4 GiB still work.
-        for text in [try HexRecords.intelHex(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF),
-                     try HexRecords.srec(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF)] {
+        for text in [
+            try HexRecords.intelHex(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF),
+            try HexRecords.srec(d, base: 0xFFFF_FFFC, start: 0xFFFF_FFFF),
+        ] {
             let back = try HexRecords.parse(text)
             #expect(back.segments.map(\.address) == [0xFFFF_FFFC] && back.startAddress == 0xFFFF_FFFF)
         }

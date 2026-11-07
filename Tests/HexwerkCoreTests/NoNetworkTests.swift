@@ -25,9 +25,11 @@ import Testing
 
     static let forbiddenLibraries = ["Network.framework", "CFNetwork.framework", "WebKit.framework", "libcurl"]
     /// Substrings of imported symbol names (Swift-mangled names contain the type name).
-    static let forbiddenAPIs = ["URLSession", "NSURLConnection", "NSURLDownload", "URLRequest", "_nw_",
-                                "CFSocket", "CFStreamCreatePairWithSocket", "CFHost", "getStreamsToHost",
-                                "WKWebView"]
+    static let forbiddenAPIs = [
+        "URLSession", "NSURLConnection", "NSURLDownload", "URLRequest", "_nw_",
+        "CFSocket", "CFStreamCreatePairWithSocket", "CFHost", "getStreamsToHost",
+        "WKWebView",
+    ]
     /// BSD sockets and name resolution, exact symbol names.
     static let forbiddenCalls: Set<String> = [
         "_socket", "_connect", "_bind", "_listen", "_accept", "_sendto", "_sendmsg", "_recvfrom", "_recvmsg",

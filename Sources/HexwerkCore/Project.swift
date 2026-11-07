@@ -170,9 +170,13 @@ extension Range where Bound == UInt64 {
     public func adjustedForEdit(replacing edited: Range<UInt64>, newLength: UInt64) -> Range<UInt64>? {
         func inside(_ p: UInt64) -> UInt64 { edited.lowerBound + Swift.min(p - edited.lowerBound, newLength) }
         func shifted(_ p: UInt64) -> UInt64 { p - UInt64(edited.count) + newLength }
-        let start = lowerBound < edited.lowerBound ? lowerBound
+        let start =
+            lowerBound < edited.lowerBound
+            ? lowerBound
             : lowerBound >= edited.upperBound ? shifted(lowerBound) : inside(lowerBound)
-        let end = upperBound <= edited.lowerBound ? upperBound
+        let end =
+            upperBound <= edited.lowerBound
+            ? upperBound
             : upperBound >= edited.upperBound ? shifted(upperBound) : inside(upperBound)
         return start < end ? start ..< end : nil
     }

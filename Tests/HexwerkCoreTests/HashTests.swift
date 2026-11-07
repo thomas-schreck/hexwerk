@@ -79,15 +79,15 @@ import Testing
         ]
         let lengths = [0, 1, 55, 56, 63, 64, 65, 111, 112, 127, 128, 129, 135, 136, 137, 1000, 4097]
         var rng = SplitMix(seed: 99)
-        let full = Data((0 ..< 4097).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        let full = Data((0 ..< 4097).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
         let url = try tempFile(full)
         defer { try? FileManager.default.removeItem(at: url) }
         let script = """
-        import hashlib, sys
-        d = open(sys.argv[1], 'rb').read()
-        for n in \(lengths):
-            print(' '.join(hashlib.new(a, d[:n]).hexdigest() for a in \(algos.map(\.1))))
-        """
+            import hashlib, sys
+            d = open(sys.argv[1], 'rb').read()
+            for n in \(lengths):
+                print(' '.join(hashlib.new(a, d[:n]).hexdigest() for a in \(algos.map(\.1))))
+            """
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         p.arguments = ["python3", "-I", "-c", script, url.path]
@@ -117,7 +117,7 @@ import Testing
 
     @Test func onePassOverSnapshotMatchesSingle() throws {
         var rng = SplitMix(seed: 5)
-        let d = Data((0 ..< 300_000).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        let d = Data((0 ..< 300_000).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
         let url = try tempFile(d)
         defer { try? FileManager.default.removeItem(at: url) }
         let snap = try Document(url: url).snapshot()
@@ -131,7 +131,9 @@ import Testing
         defer { try? FileManager.default.removeItem(at: url) }
         let snap = try Document(url: url).snapshot()
         var calls = 0
-        let r = Checksum.compute([.sha256], snap) { _ in calls += 1; return false }
+        let r = Checksum.compute([.sha256], snap) { _ in
+            calls += 1; return false
+        }
         #expect(r == nil)
         #expect(calls == 1)
     }

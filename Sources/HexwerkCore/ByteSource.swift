@@ -144,7 +144,7 @@ public final class ByteSource: @unchecked Sendable {
     /// Bytes in `range`, clipped to the file. A range past the end yields
     /// fewer (or no) bytes instead of trapping: offsets come from user input.
     public func read(_ range: Range<UInt64>) -> Data {
-        let r = range.clamped(to: 0..<count)
+        let r = range.clamped(to: 0 ..< count)
         guard let base, !r.isEmpty else { return Data() }
         return Data(bytes: base + Int(r.lowerBound), count: Int(r.count))
     }

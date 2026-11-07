@@ -9,7 +9,7 @@ import Testing
         let rgb = PixelFormat.rgb24.rgba(Data([255, 0, 0, 0, 255, 0, 0, 0, 255]), width: 2)
         #expect(rgb.width == 2 && rgb.height == 2)
         #expect(px(rgb, 0) == [255, 0, 0, 255] && px(rgb, 2) == [0, 0, 255, 255])
-        #expect(px(rgb, 3) == [0, 0, 0, 0])                              // missing pixel stays transparent
+        #expect(px(rgb, 3) == [0, 0, 0, 0])  // missing pixel stays transparent
         #expect(px(PixelFormat.bgr24.rgba(Data([1, 2, 3]), width: 1), 0) == [3, 2, 1, 255])
         #expect(px(PixelFormat.bgra32.rgba(Data([1, 2, 3, 0]), width: 1), 0) == [3, 2, 1, 255])
         #expect(px(PixelFormat.argb32.rgba(Data([0, 1, 2, 3]), width: 1), 0) == [1, 2, 3, 255])

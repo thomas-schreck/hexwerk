@@ -26,6 +26,6 @@ extension CLITests {
         defer { try? FileManager.default.removeItem(at: url) }
         let doc = try Document(url: url)
         #expect(throws: DocumentError.self) { try doc.overwrite(at: .max, with: Data([1, 2])) }
-        #expect(doc.read(0..<3) == Data([1, 2, 3]))
+        #expect(doc.read(0 ..< 3) == Data([1, 2, 3]))
     }
 }

@@ -7,4 +7,4 @@ import HexwerkHelper
 let delegate = HelperListener()
 let listener = NSXPCListener.service()
 listener.delegate = delegate
-listener.resume()      // never returns
+listener.resume()  // never returns

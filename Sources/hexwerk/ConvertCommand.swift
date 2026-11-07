@@ -5,7 +5,9 @@ import HexwerkCore
 struct Convert: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Convert between binary, Intel HEX and Motorola S-Record."),
-        discussion: L("Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to.")
+        discussion: L(
+            "Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to."
+        )
     )
 
     enum Fmt: String, ExpressibleByArgument, CaseIterable { case bin, ihex, srec }
@@ -39,7 +41,11 @@ struct Convert: ParsableCommand {
                 start = image.startAddress
                 startSegment = image.startSegment
                 for w in image.warnings { FileHandle.standardError.write(Data(("hexwerk: \(input): " + L("Warning: %@", w) + "\n").utf8)) }
-                FileHandle.standardError.write(Data((L("%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base, image.segments.reduce(0) { $0 + $1.data.count }, image.gaps.count) + "\n").utf8))
+                FileHandle.standardError.write(
+                    Data(
+                        (L(
+                            "%ld segment(s) from 0x%llX, %ld bytes, %ld gap(s)", image.segments.count, image.base,
+                            image.segments.reduce(0) { $0 + $1.data.count }, image.gaps.count) + "\n").utf8))
                 if outFmt == .bin {
                     // Only a flat binary needs the gaps filled.
                     guard let f = UInt8(fill, radix: 16) else { throw ValidationError(L("--fill expects a hex byte")) }
@@ -58,11 +64,12 @@ struct Convert: ParsableCommand {
                     }
                 }
             }
-            let out: Data = switch outFmt {
-            case .bin: segments.first?.data ?? Data()
-            case .ihex: Data(try HexRecords.intelHex(segments, start: start, startSegment: startSegment).utf8)
-            case .srec: Data(try HexRecords.srec(segments, start: start).utf8)
-            }
+            let out: Data =
+                switch outFmt {
+                case .bin: segments.first?.data ?? Data()
+                case .ihex: Data(try HexRecords.intelHex(segments, start: start, startSegment: startSegment).utf8)
+                case .srec: Data(try HexRecords.srec(segments, start: start).utf8)
+                }
             try out.write(to: URL(fileURLWithPath: output), options: .atomic)
         } catch let e as HexRecords.HexRecordError {
             FileHandle.standardError.write(Data("hexwerk: \(input): \(e)\n".utf8))

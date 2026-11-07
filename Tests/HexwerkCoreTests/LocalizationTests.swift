@@ -16,14 +16,14 @@ import Testing
     static func keys() throws -> [(key: String, at: String)] {
         let re = try NSRegularExpression(pattern: #"(?<![A-Za-z0-9_])(?:L|LKey)\(\s*"((?:[^"\\]|\\.)*)""#)
         var out: [(String, String)] = []
+        // Whole file, not line by line: swift-format may put the literal on
+        // the line after `L(`. The key itself is still a single-line literal.
         for f in swiftFiles() where !f.path.contains("/Localization/") {
             let text = try String(contentsOf: f, encoding: .utf8)
-            for (n, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
-                let s = String(line)
-                for m in re.matches(in: s, range: NSRange(s.startIndex..., in: s)) {
-                    let raw = String(s[Range(m.range(at: 1), in: s)!])
-                    out.append((unescape(raw), "\(f.lastPathComponent):\(n + 1)"))
-                }
+            for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                let raw = String(text[Range(m.range(at: 1), in: text)!])
+                let line = text[..<Range(m.range, in: text)!.lowerBound].reduce(1) { $1 == "\n" ? $0 + 1 : $0 }
+                out.append((unescape(raw), "\(f.lastPathComponent):\(line)"))
             }
         }
         return out
@@ -37,7 +37,7 @@ import Testing
             case "n": r.append("\n")
             case "t": r.append("\t")
             case "0": r.append("\0")
-            default: r.append(n)        // \" \\ \'
+            default: r.append(n)  // \" \\ \'
             }
         }
         return r
@@ -97,7 +97,7 @@ import Testing
         defer { L10n.override = saved }
         L10n.override = .en
         #expect(L("%lld bytes", Int64(3)) == "3 bytes")
-        #expect(L("%lld bytes", Int64(99_999_999)) == "99999999 bytes")   // no grouping
+        #expect(L("%lld bytes", Int64(99_999_999)) == "99999999 bytes")  // no grouping
         #expect(L("%.1f", 0.5) == "0.5")
         #expect(L("not a key") == "not a key")
     }

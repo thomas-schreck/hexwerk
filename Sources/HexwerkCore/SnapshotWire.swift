@@ -85,8 +85,10 @@ extension Snapshot {
                 out.append(.init(added: true, start: at, length: p.length))
             }
         }
-        return (SnapshotWire(pieces: out, added: compact, count: count),
-                AddedMap(segments: segments, wireCount: UInt64(compact.count), bufferCount: UInt64(added.count)))
+        return (
+            SnapshotWire(pieces: out, added: compact, count: count),
+            AddedMap(segments: segments, wireCount: UInt64(compact.count), bufferCount: UInt64(added.count))
+        )
     }
 
     /// Rebuilds a snapshot in the helper over the received file mapping.
@@ -101,8 +103,10 @@ extension Snapshot {
         self.init(original: original, added: wire.added, pieces: pieces, offsets: offsets, count: total)
     }
 
-    static func validated(_ wire: [SnapshotWire.Piece], fileCount: UInt64,
-                          addedCount: UInt64) throws -> [Document.Piece] {
+    static func validated(
+        _ wire: [SnapshotWire.Piece], fileCount: UInt64,
+        addedCount: UInt64
+    ) throws -> [Document.Piece] {
         var total: UInt64 = 0
         return try wire.map { p in
             let limit = p.added ? addedCount : fileCount
@@ -123,8 +127,9 @@ extension Document {
     /// The working copy's content for the app, relative to the wire it was
     /// made from (`init(editing:)` over `Snapshot(wire:original:)`).
     public func editedContent(sentAddedCount: Int) -> EditedContent {
-        EditedContent(pieces: pieceList.map { .init(added: $0.source == .added, start: $0.start, length: $0.length) },
-                      newBytes: addedBuffer.count > sentAddedCount ? addedBuffer.subdata(in: sentAddedCount ..< addedBuffer.count) : Data())
+        EditedContent(
+            pieces: pieceList.map { .init(added: $0.source == .added, start: $0.start, length: $0.length) },
+            newBytes: addedBuffer.count > sentAddedCount ? addedBuffer.subdata(in: sentAddedCount ..< addedBuffer.count) : Data())
     }
 
     /// Takes over a script's result computed in the helper as one undo step,

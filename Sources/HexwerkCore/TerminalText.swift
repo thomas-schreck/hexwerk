@@ -12,7 +12,7 @@ public enum TerminalText {
     /// characters (U+202A–U+202E, U+2066–U+2069).
     public static func isUnsafe(_ u: Unicode.Scalar) -> Bool {
         switch u.value {
-        case 0x00...0x1F, 0x7F...0x9F, 0x202A...0x202E, 0x2066...0x2069: true
+        case 0x00 ... 0x1F, 0x7F ... 0x9F, 0x202A ... 0x202E, 0x2066 ... 0x2069: true
         default: false
         }
     }
@@ -42,8 +42,7 @@ public enum TerminalText {
         guard json.unicodeScalars.contains(where: unsafe) else { return json }
         var out = String.UnicodeScalarView()
         for u in json.unicodeScalars {
-            if unsafe(u) { out.append(contentsOf: String(format: "\\u%04x", u.value).unicodeScalars) }
-            else { out.append(u) }
+            if unsafe(u) { out.append(contentsOf: String(format: "\\u%04x", u.value).unicodeScalars) } else { out.append(u) }
         }
         return String(out)
     }

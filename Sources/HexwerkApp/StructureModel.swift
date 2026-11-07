@@ -46,7 +46,6 @@ final class StructureModel: ObservableObject {
 
     static let genericExtensions: Set<String> = ["bin", "dat", "data", "raw", "img", "dump", "out", "tmp", "rom", "fw", "hex", ""]
 
-
     // MARK: Format
 
     /// Signature first (works for .bin and wrong extensions), then extension.
@@ -180,8 +179,9 @@ final class StructureModel: ObservableObject {
             let id = pageID(n, lower / Self.pageSize)
             let first = n.child(lower).range, last = n.child(upper - 1).range
             let range: Range<UInt64>? = first.flatMap { f in last.map { f.lowerBound ..< max(f.lowerBound, $0.upperBound) } }
-            let page = ParseNode(id: id, name: "[\(lower) … \(upper - 1)]", typeName: "", value: nil,
-                                 range: range, children: [], error: nil, number: nil)
+            let page = ParseNode(
+                id: id, name: "[\(lower) … \(upper - 1)]", typeName: "", value: nil,
+                range: range, children: [], error: nil, number: nil)
             if pages[id] == nil {
                 pages[id] = (n, lower, upper)
                 byID[id] = page
@@ -223,7 +223,8 @@ final class StructureModel: ObservableObject {
             var next: ParseNode?
             if n.childCount > Self.pageSize {
                 // Find the element, then make sure its page and node exist.
-                let i: Int? = n.lazy?.index(of: offset)
+                let i: Int? =
+                    n.lazy?.index(of: offset)
                     ?? n.children.firstIndex { $0.range?.contains(offset) == true }
                 guard let i else { break }
                 let pages = shownChildren(n)

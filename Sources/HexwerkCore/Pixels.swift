@@ -50,7 +50,7 @@ public enum PixelFormat: String, CaseIterable, Sendable {
                 for i in 0 ..< count {
                     switch self {
                     case .gray8: put(i, b[i], b[i], b[i])
-                    case .gray16: let v = b[2 * i + 1]; put(i, v, v, v)          // high byte of LE value
+                    case .gray16: let v = b[2 * i + 1]; put(i, v, v, v)  // high byte of LE value
                     case .mono1:
                         let v: UInt8 = b[i / 8] >> (7 - UInt8(i % 8)) & 1 == 1 ? 255 : 0
                         put(i, v, v, v)

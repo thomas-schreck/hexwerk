@@ -21,14 +21,20 @@ struct Find: ParsableCommand {
     func run() throws {
         if mode == .regex {
             let hits: [Range<UInt64>]
-            do { hits = try RegexSearch.find(pattern, ignoreCase: ignoreCase, in: try openSnapshot(file)) }
-            catch let e as ExitCode { throw e }
-            catch {
-                FileHandle.standardError.write(Data(("hexwerk: " + L("invalid regular expression: %@", error.localizedDescription) + "\n").utf8))
+            do { hits = try RegexSearch.find(pattern, ignoreCase: ignoreCase, in: try openSnapshot(file)) } catch let e as ExitCode {
+                throw e
+            } catch {
+                FileHandle.standardError.write(
+                    Data(("hexwerk: " + L("invalid regular expression: %@", error.localizedDescription) + "\n").utf8))
                 throw ExitCode(1)
             }
-            if json { try printJSON(hits.map { ["offset": $0.lowerBound, "length": $0.count] }) }
-            else { for h in hits { print(String(format: "0x%08llx  %llu  (", h.lowerBound, h.lowerBound) + L("%@ bytes", String(h.count)) + ")") } }
+            if json {
+                try printJSON(hits.map { ["offset": $0.lowerBound, "length": $0.count] })
+            } else {
+                for h in hits {
+                    print(String(format: "0x%08llx  %llu  (", h.lowerBound, h.lowerBound) + L("%@ bytes", String(h.count)) + ")")
+                }
+            }
             if hits.count >= Search.maxHits { reportStopped(Search.maxHits) }
             return
         }
@@ -45,7 +51,8 @@ struct Find: ParsableCommand {
             p = .number(pattern, kind: SearchPattern.NumberKind(rawValue: mode.rawValue)!, endian: endian.value)
         }
         guard let p else {
-            FileHandle.standardError.write(Data(("hexwerk: " + L("invalid pattern \"%@\" for --mode %@", pattern, mode.rawValue) + "\n").utf8))
+            FileHandle.standardError.write(
+                Data(("hexwerk: " + L("invalid pattern \"%@\" for --mode %@", pattern, mode.rawValue) + "\n").utf8))
             throw ExitCode(1)
         }
         let hits = Search.find(p, in: try openSnapshot(file))
@@ -66,7 +73,8 @@ func reportStopped(_ limit: Int) {
 struct Diff: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Compare two files; detects inserted and deleted bytes."),
-        discussion: L("Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.")
+        discussion: L(
+            "Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.")
     )
 
     @Argument(help: .init(L("First file (A)"))) var a: String
@@ -79,17 +87,21 @@ struct Diff: ParsableCommand {
         let sa = try openSnapshot(a, failure: 2), sb = try openSnapshot(b, failure: 2)
         let ops = positional ? AlignedDiff.positional(sa, sb) : AlignedDiff.diff(sa, sb)
         if json {
-            try printJSON(ops.map {
-                ["kind": $0.kind.rawValue, "aOffset": $0.a.lowerBound, "aLength": $0.a.count,
-                 "bOffset": $0.b.lowerBound, "bLength": $0.b.count] as [String: Any]
-            })
+            try printJSON(
+                ops.map {
+                    [
+                        "kind": $0.kind.rawValue, "aOffset": $0.a.lowerBound, "aLength": $0.a.count,
+                        "bOffset": $0.b.lowerBound, "bLength": $0.b.count,
+                    ] as [String: Any]
+                })
         } else {
             for o in ops {
-                let what = switch o.kind {
-                case .replace: L("%ld → %ld bytes replaced", o.a.count, o.b.count)
-                case .insert: L("%ld bytes only in B", o.b.count)
-                case .delete: L("%ld bytes only in A", o.a.count)
-                }
+                let what =
+                    switch o.kind {
+                    case .replace: L("%ld → %ld bytes replaced", o.a.count, o.b.count)
+                    case .insert: L("%ld bytes only in B", o.b.count)
+                    case .delete: L("%ld bytes only in A", o.a.count)
+                    }
                 print(String(format: "A 0x%08llx  B 0x%08llx  ", o.a.lowerBound, o.b.lowerBound) + what)
             }
         }
@@ -119,9 +131,12 @@ struct Hash: ParsableCommand {
             case "common": algos += Checksum.common
             default:
                 let key = name.replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "/", with: "")
-                guard let a = Checksum.allCases.first(where: {
-                    $0.cliName == name || $0.cliName.replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "/", with: "") == key
-                }) else {
+                guard
+                    let a = Checksum.allCases.first(where: {
+                        $0.cliName == name
+                            || $0.cliName.replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "/", with: "") == key
+                    })
+                else {
                     FileHandle.standardError.write(Data(("hexwerk: " + L("unknown algorithm %@ (see --help)", name) + "\n").utf8))
                     throw ExitCode(64)
                 }

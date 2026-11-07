@@ -45,9 +45,10 @@ public struct ScriptOutcome: Sendable {
             ScriptError(message: try r.string(), line: try r.optional { try $0.int() }, isTimeout: try r.bool())
         }
         edited = try r.optional { r in
-            EditedContent(pieces: try r.array(minSize: 3) { r in
-                SnapshotWire.Piece(added: try r.bool(), start: try r.uint(), length: try r.uint())
-            }, newBytes: try r.bytes())
+            EditedContent(
+                pieces: try r.array(minSize: 3) { r in
+                    SnapshotWire.Piece(added: try r.bool(), start: try r.uint(), length: try r.uint())
+                }, newBytes: try r.bytes())
         }
         self.result = result
         try r.expectEnd()

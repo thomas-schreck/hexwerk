@@ -23,12 +23,12 @@ public enum Inspector {
 
         func uint(_ n: Int) -> UInt64? {
             guard b.count >= n else { return nil }
-            let bytes = endian == .little ? Array(b[0..<n]) : b[0..<n].reversed()
+            let bytes = endian == .little ? Array(b[0 ..< n]) : b[0 ..< n].reversed()
             return bytes.enumerated().reduce(0) { $0 | UInt64($1.element) << (8 * $1.offset) }
         }
-        func le(_ n: Int, from: Int = 0) -> UInt64? {   // fixed little endian
+        func le(_ n: Int, from: Int = 0) -> UInt64? {  // fixed little endian
             guard b.count >= from + n else { return nil }
-            return b[from..<from + n].enumerated().reduce(0) { $0 | UInt64($1.element) << (8 * $1.offset) }
+            return b[from ..< from + n].enumerated().reduce(0) { $0 | UInt64($1.element) << (8 * $1.offset) }
         }
 
         add("int8", uint(1).map { String(Int8(truncatingIfNeeded: $0)) })
@@ -44,16 +44,20 @@ public enum Inspector {
         add("binary", b.first.map { String($0, radix: 2).leftPadded(to: 8) })
 
         add("Unix time 32", uint(4).map { iso(Double(UInt32($0))) })
-        add("Unix time 64", uint(8).flatMap { v in
-            let s = Int64(bitPattern: v)
-            // Years 0001–9999; no abs(): abs(Int64.min) traps.
-            return s > -62_135_596_800 && s < 253_402_300_800 ? iso(Double(s)) : nil
-        })
-        add("FILETIME", uint(8).flatMap { v in
-            // 100 ns ticks since 1601-01-01.
-            let secs = Double(v) / 10_000_000 - 11_644_473_600
-            return secs < 253_402_300_800 ? iso(secs) : nil
-        })
+        add(
+            "Unix time 64",
+            uint(8).flatMap { v in
+                let s = Int64(bitPattern: v)
+                // Years 0001–9999; no abs(): abs(Int64.min) traps.
+                return s > -62_135_596_800 && s < 253_402_300_800 ? iso(Double(s)) : nil
+            })
+        add(
+            "FILETIME",
+            uint(8).flatMap { v in
+                // 100 ns ticks since 1601-01-01.
+                let secs = Double(v) / 10_000_000 - 11_644_473_600
+                return secs < 253_402_300_800 ? iso(secs) : nil
+            })
         add("DOS date/time", le(4).flatMap(dosDateTime))
         add("GUID", b.count >= 16 ? guid(b) : nil)
 
@@ -79,14 +83,15 @@ public enum Inspector {
         let time = UInt16(v & 0xFFFF), date = UInt16(v >> 16)
         let day = date & 0x1F, month = (date >> 5) & 0x0F, year = 1980 + Int(date >> 9)
         let sec = (time & 0x1F) * 2, minute = (time >> 5) & 0x3F, hour = time >> 11
-        guard (1...31).contains(day), (1...12).contains(month), hour < 24, minute < 60, sec < 60 else { return nil }
+        guard (1 ... 31).contains(day), (1 ... 12).contains(month), hour < 24, minute < 60, sec < 60 else { return nil }
         return String(format: "%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, sec)
     }
 
     /// Microsoft byte order: the first three fields are little endian.
     private static func guid(_ b: [UInt8]) -> String {
         func hex(_ s: ArraySlice<UInt8>) -> String { s.map { String(format: "%02X", $0) }.joined() }
-        return "{\(hex(b[0..<4].reversed()[...]))-\(hex(b[4..<6].reversed()[...]))-\(hex(b[6..<8].reversed()[...]))-\(hex(b[8..<10]))-\(hex(b[10..<16]))}"
+        return
+            "{\(hex(b[0..<4].reversed()[...]))-\(hex(b[4..<6].reversed()[...]))-\(hex(b[6..<8].reversed()[...]))-\(hex(b[8..<10]))-\(hex(b[10..<16]))}"
     }
 
     private static func leb128(_ b: [UInt8], signed: Bool) -> String? {
@@ -147,7 +152,7 @@ extension Inspector {
         case "Unix time 32": L("Unix time 32")
         case "Unix time 64": L("Unix time 64")
         case "DOS date/time": L("DOS date/time")
-        default: id     // type names like int32, GUID, UTF-8 are not translated
+        default: id  // type names like int32, GUID, UTF-8 are not translated
         }
     }
 }

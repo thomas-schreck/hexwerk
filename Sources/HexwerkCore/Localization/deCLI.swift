@@ -24,21 +24,24 @@ extension L10n {
 
         // entropy, export
         "Entropy and byte distribution (overall and per block).": "Entropie und Byte-Verteilung (gesamt und je Block).",
-        "Entropy in bits per byte: near 0 constant, near 8 compressed or encrypted.": "Entropie in Bit pro Byte: um 0 konstant, um 8 komprimiert oder verschlüsselt.",
+        "Entropy in bits per byte: near 0 constant, near 8 compressed or encrypted.":
+            "Entropie in Bit pro Byte: um 0 konstant, um 8 komprimiert oder verschlüsselt.",
         "Number of blocks for the profile": "Anzahl Blöcke für den Verlauf",
         "Output as JSON (including histogram)": "Ausgabe als JSON (inkl. Histogramm)",
         "Entropy    %@ bits/byte": "Entropie   %@ Bit/Byte",
         "Bytes      %llu, distinct %ld": "Bytes      %llu, verschieden %ld",
         "Ratios     0x00 %@ %%, printable %@ %%, ≥0x80 %@ %%": "Anteile    0x00 %@ %%, druckbar %@ %%, ≥0x80 %@ %%",
         "Profile    per %llu bytes:": "Verlauf    je %llu Byte:",
-        "Output a range as raw data, hex, C array, Python, Swift or Base64.": "Bereich als Rohdaten, Hex, C-Array, Python, Swift oder Base64 ausgeben.",
+        "Output a range as raw data, hex, C array, Python, Swift or Base64.":
+            "Bereich als Rohdaten, Hex, C-Array, Python, Swift oder Base64 ausgeben.",
         "Format: %@": "Format: %@",
         "Variable name for c/python/swift": "Variablenname für c/python/swift",
         "Write to a file instead of stdout": "In Datei schreiben statt auf stdout",
 
         // convert
         "Convert between binary, Intel HEX and Motorola S-Record.": "Zwischen Binärdatei, Intel HEX und Motorola S-Record umwandeln.",
-        "Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to.": "Formate werden an der Endung erkannt (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, sonst binär) oder mit --from/--to gesetzt.",
+        "Formats are detected by file extension (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, otherwise binary) or set with --from/--to.":
+            "Formate werden an der Endung erkannt (.hex/.ihex → Intel HEX, .srec/.s19/.s28/.s37/.mot → S-Record, sonst binär) oder mit --from/--to gesetzt.",
         "Input": "Eingabe",
         "Output": "Ausgabe",
         "Input format": "Eingabeformat",
@@ -54,11 +57,13 @@ extension L10n {
         "One or more files.": "Eine oder mehrere Dateien.",
         "%@: file not found.": "%@: Datei nicht gefunden.",
         "%@ is a folder.": "%@ ist ein Ordner.",
-        "hexwerk.app not found or cannot be launched (make install-app).": "hexwerk.app nicht gefunden oder nicht startbar (make install-app).",
+        "hexwerk.app not found or cannot be launched (make install-app).":
+            "hexwerk.app nicht gefunden oder nicht startbar (make install-app).",
 
         // parse
         "Parse a file with a Kaitai Struct description (.ksy).": "Datei mit einer Kaitai-Struct-Beschreibung (.ksy) zerlegen.",
-        "Formats from the collection (%@) via --format, your own via --ksy.": "Formate aus der Sammlung (%@) per --format, eigene per --ksy.",
+        "Formats from the collection (%@) via --format, your own via --ksy.":
+            "Formate aus der Sammlung (%@) per --format, eigene per --ksy.",
         "Path to a .ksy file": "Pfad zu einer .ksy-Datei",
         "Format ID from the collection, e.g. png or zip": "Format-ID aus der Sammlung, z. B. png oder zip",
         "Maximum output depth": "Maximale Tiefe der Ausgabe",
@@ -69,7 +74,8 @@ extension L10n {
 
         // script
         "Apply a JavaScript script to a file.": "JavaScript-Skript auf eine Datei anwenden.",
-        "Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.": "Ohne --write werden Änderungen nur gezählt, nicht gespeichert. Exit 2 bei Skriptfehler, 3 bei Zeitlimit.",
+        "Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.":
+            "Ohne --write werden Änderungen nur gezählt, nicht gespeichert. Exit 2 bei Skriptfehler, 3 bei Zeitlimit.",
         "API (global object hw):": "API (globales Objekt hw):",
         "Script file (.js); with -e, code instead": "Skriptdatei (.js); mit -e stattdessen Code",
         "First argument is code instead of a file name": "Erstes Argument ist Code statt Dateiname",
@@ -91,7 +97,8 @@ extension L10n {
 
         // diff
         "Compare two files; detects inserted and deleted bytes.": "Zwei Dateien vergleichen; erkennt eingefügte und gelöschte Bytes.",
-        "Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.": "Ausgabe je Unterschied: Offset in A, Offset in B, Art. Exit 0 bei gleichen Dateien, 1 bei Unterschieden, 2 bei Fehlern.",
+        "Output per difference: offset in A, offset in B, kind. Exit 0 if the files are equal, 1 if they differ, 2 on errors.":
+            "Ausgabe je Unterschied: Offset in A, Offset in B, Art. Exit 0 bei gleichen Dateien, 1 bei Unterschieden, 2 bei Fehlern.",
         "First file (A)": "Erste Datei (A)",
         "Second file (B)": "Zweite Datei (B)",
         "Compare at the same offsets only (no realignment)": "Nur an gleichen Offsets vergleichen (ohne Neuausrichtung)",
@@ -102,16 +109,19 @@ extension L10n {
         // hash
         "Checksums over a file or range.": "Prüfsummen über Datei oder Bereich.",
         "Algorithms: %@": "Algorithmen: %@",
-        "Algorithms, comma-separated; “all” for all, “common” for CRC32/MD5/SHA-1/SHA-256": "Algorithmen, durch Komma getrennt; „all“ für alle, „common“ für CRC32/MD5/SHA-1/SHA-256",
+        "Algorithms, comma-separated; “all” for all, “common” for CRC32/MD5/SHA-1/SHA-256":
+            "Algorithmen, durch Komma getrennt; „all“ für alle, „common“ für CRC32/MD5/SHA-1/SHA-256",
         "unknown algorithm %@ (see --help)": "unbekannter Algorithmus %@ (siehe --help)",
 
         // strings
-        "Find printable strings (like strings, with UTF-8 and UTF-16).": "Druckbare Zeichenketten finden (wie strings, mit UTF-8 und UTF-16).",
+        "Find printable strings (like strings, with UTF-8 and UTF-16).":
+            "Druckbare Zeichenketten finden (wie strings, mit UTF-8 und UTF-16).",
         "Minimum length in characters": "Mindestlänge in Zeichen",
         "Encodings: ascii, utf8, utf16le, utf16be (comma-separated)": "Kodierungen: ascii, utf8, utf16le, utf16be (Komma-getrennt)",
 
         // type
-        "Detect the file type (libmagic + signatures) and search for embedded files.": "Dateityp erkennen (libmagic + Signaturen) und eingebettete Dateien suchen.",
+        "Detect the file type (libmagic + signatures) and search for embedded files.":
+            "Dateityp erkennen (libmagic + Signaturen) und eingebettete Dateien suchen.",
         "Also search for embedded files (like binwalk)": "Auch eingebettete Dateien suchen (wie binwalk)",
         "Type       %@": "Typ        %@",
         "— (no libmagic database)": "— (keine libmagic-Datenbank)",
@@ -122,7 +132,8 @@ extension L10n {
 
         // yara
         "Scan a file with YARA rules (YARA-X %@).": "Datei mit YARA-Regeln scannen (YARA-X %@).",
-        "Rules: a file or a folder (all .yar/.yara in it). Exit 2 on compile error, 3 on timeout.": "Regeln: eine Datei oder ein Ordner (alle .yar/.yara darin). Exit 2 bei Kompilierfehler, 3 bei Zeitlimit.",
+        "Rules: a file or a folder (all .yar/.yara in it). Exit 2 on compile error, 3 on timeout.":
+            "Regeln: eine Datei oder ein Ordner (alle .yar/.yara darin). Exit 2 bei Kompilierfehler, 3 bei Zeitlimit.",
         "Rule file or folder with rules": "Regeldatei oder Ordner mit Regeln",
         "File to scan": "Zu scannende Datei",
         "Scan only from this offset (decimal or 0x…)": "Nur ab diesem Offset scannen (dezimal oder 0x…)",

@@ -10,13 +10,13 @@ import Testing
 
     @Test func asciiUtf8AndUtf16() throws {
         var d = Data([0x00, 0x01])
-        d += Data("Hallo Welt".utf8)                        // ASCII at 2
+        d += Data("Hallo Welt".utf8)  // ASCII at 2
         d += Data([0xFF, 0x00, 0x00])
-        d += Data("Grüße aus München".utf8)                 // UTF-8 at 15
+        d += Data("Grüße aus München".utf8)  // UTF-8 at 15
         d += Data([0x00, 0x07])
-        d += Data("Käse".utf16.flatMap { [UInt8($0 & 0xFF), UInt8($0 >> 8)] })   // UTF-16LE at odd offset
+        d += Data("Käse".utf16.flatMap { [UInt8($0 & 0xFF), UInt8($0 >> 8)] })  // UTF-16LE at odd offset
         d += Data([0x00, 0x00])
-        d += Data("abc".utf8)                               // too short
+        d += Data("abc".utf8)  // too short
         let (s, url) = try snap(d)
         defer { try? FileManager.default.removeItem(at: url) }
 

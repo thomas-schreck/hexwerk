@@ -6,8 +6,10 @@ import Testing
 /// filled with 0xFF (that would flash bytes that were never data).
 extension CLITests {
     @Test func convertTextToTextKeepsGaps() throws {
-        let segs = [HexRecords.Segment(address: 0, data: Data([1, 2, 3, 4])),
-                    HexRecords.Segment(address: 0x0800_0000, data: Data([5, 6]))]
+        let segs = [
+            HexRecords.Segment(address: 0, data: Data([1, 2, 3, 4])),
+            HexRecords.Segment(address: 0x0800_0000, data: Data([5, 6])),
+        ]
         let hex = try tempFile(Data(HexRecords.intelHex(segs, start: 0x0800_0000).utf8))
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-conv-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

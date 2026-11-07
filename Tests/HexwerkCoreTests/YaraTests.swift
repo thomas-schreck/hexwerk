@@ -9,17 +9,17 @@ import HexwerkCore
 /// which uses the same `YaraRules.scan`.
 @Suite struct YaraTests {
     static let rules = """
-    rule magic : test { meta: author = "ts" score = 7 strings: $a = "HEXWERK" $b = { DE AD BE EF } condition: $a and $b }
-    rule only_condition { condition: uint32be(0) == 0x7F454C46 }
-    rule xored { strings: $x = "secret" xor(1-255) condition: $x }
-    """
+        rule magic : test { meta: author = "ts" score = 7 strings: $a = "HEXWERK" $b = { DE AD BE EF } condition: $a and $b }
+        rule only_condition { condition: uint32be(0) == 0x7F454C46 }
+        rule xored { strings: $x = "secret" xor(1-255) condition: $x }
+        """
 
     /// 64 bytes: "HEXWERK" at 10, DEADBEEF at 40, "secret" xor 0x20 at 50.
     static let sample: Data = {
         var d = Data(repeating: 0, count: 64)
-        d.replaceSubrange(10..<17, with: Data("HEXWERK".utf8))
-        d.replaceSubrange(40..<44, with: Data([0xDE, 0xAD, 0xBE, 0xEF]))
-        d.replaceSubrange(50..<56, with: Data("secret".utf8.map { $0 ^ 0x20 }))
+        d.replaceSubrange(10 ..< 17, with: Data("HEXWERK".utf8))
+        d.replaceSubrange(40 ..< 44, with: Data([0xDE, 0xAD, 0xBE, 0xEF]))
+        d.replaceSubrange(50 ..< 56, with: Data("secret".utf8.map { $0 ^ 0x20 }))
         return d
     }()
 
@@ -54,7 +54,7 @@ import HexwerkCore
 
     @Test func conditionOnlyRuleHasNoMatches() throws {
         var d = Self.sample
-        d.replaceSubrange(0..<4, with: Data([0x7F, 0x45, 0x4C, 0x46]))
+        d.replaceSubrange(0 ..< 4, with: Data([0x7F, 0x45, 0x4C, 0x46]))
         let hits = try scan(d)
         #expect(hits.contains { $0.rule == "only_condition" && $0.matches.isEmpty })
     }
@@ -69,8 +69,8 @@ import HexwerkCore
 
     @Test func timeoutExitsWith3() throws {
         let slow = """
-        rule slow { condition: for all i in (0..filesize) : (for all j in (0..filesize) : (uint8(i) != uint8(j) or true)) }
-        """
+            rule slow { condition: for all i in (0..filesize) : (for all j in (0..filesize) : (uint8(i) != uint8(j) or true)) }
+            """
         let start = Date()
         let r = try cli(rules: slow, data: Data(repeating: 1, count: 1 << 20), extra: ["--timeout", "1"])
         #expect(r.status == 3)
@@ -87,14 +87,14 @@ import HexwerkCore
         let url = try tempFile(Self.sample)
         defer { try? FileManager.default.removeItem(at: url) }
         let doc = try Document(url: url)
-        let a = doc.snapshot().withContiguousBytes(5..<45) { Data($0) }
-        #expect(a == Self.sample[5..<45])
-        try doc.overwrite(at: 10, with: Data("hexwerk".utf8))     // splits pieces: copy path
-        let b = doc.snapshot().withContiguousBytes(5..<45) { Data($0) }
+        let a = doc.snapshot().withContiguousBytes(5 ..< 45) { Data($0) }
+        #expect(a == Self.sample[5 ..< 45])
+        try doc.overwrite(at: 10, with: Data("hexwerk".utf8))  // splits pieces: copy path
+        let b = doc.snapshot().withContiguousBytes(5 ..< 45) { Data($0) }
         var expected = Self.sample
-        expected.replaceSubrange(10..<17, with: Data("hexwerk".utf8))
-        #expect(b == expected[5..<45])
-        #expect(doc.snapshot().withContiguousBytes(64..<64) { $0.count } == 0)
+        expected.replaceSubrange(10 ..< 17, with: Data("hexwerk".utf8))
+        #expect(b == expected[5 ..< 45])
+        #expect(doc.snapshot().withContiguousBytes(64 ..< 64) { $0.count } == 0)
     }
 
     // MARK: CLI helpers

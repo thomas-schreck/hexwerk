@@ -8,8 +8,10 @@ public enum Compare {
     /// Ranges are offsets valid in both files up to the shorter length.
     /// Stops at exactly `maxHits` ranges (`count >= maxHits`: truncated); the
     /// open difference and the tail are then left out, not cut short.
-    public static func differences(_ a: Snapshot, _ b: Snapshot, maxHits: Int = Search.maxHits,
-                                   progress: (Double) -> Bool = { _ in true }) -> [Range<UInt64>] {
+    public static func differences(
+        _ a: Snapshot, _ b: Snapshot, maxHits: Int = Search.maxHits,
+        progress: (Double) -> Bool = { _ in true }
+    ) -> [Range<UInt64>] {
         var out: [Range<UInt64>] = []
         let common = min(a.count, b.count)
         let chunk: UInt64 = 8 << 20
@@ -18,7 +20,7 @@ public enum Compare {
         var full = false
         while pos < common, !full {
             let end = min(common, pos + chunk)
-            let da = a.read(pos..<end), db = b.read(pos..<end)
+            let da = a.read(pos ..< end), db = b.read(pos ..< end)
             da.withUnsafeBytes { pa in
                 db.withUnsafeBytes { pb in
                     let x = pa.bindMemory(to: UInt8.self), y = pb.bindMemory(to: UInt8.self)
@@ -26,7 +28,8 @@ public enum Compare {
                     while i < x.count {
                         // Fast path: equal 8-byte words while not inside a difference.
                         if start == nil, i + 8 <= x.count,
-                           memcmp(x.baseAddress! + i, y.baseAddress! + i, 8) == 0 {
+                            memcmp(x.baseAddress! + i, y.baseAddress! + i, 8) == 0
+                        {
                             i += 8
                             continue
                         }
@@ -34,7 +37,7 @@ public enum Compare {
                         let at = pos + UInt64(i)
                         if differs, start == nil { start = at }
                         if !differs, let s = start {
-                            out.append(s..<at); start = nil
+                            out.append(s ..< at); start = nil
                             if out.count >= maxHits { full = true; break }
                         }
                         i += 1
@@ -45,7 +48,7 @@ public enum Compare {
             if full || !progress(Double(pos) / Double(max(common, 1))) { break }
         }
         if full { return out }
-        if let s = start { out.append(s..<common) }
+        if let s = start { out.append(s ..< common) }
         if a.count != b.count, out.count < maxHits { out.append(common ..< max(a.count, b.count)) }
         return out
     }
@@ -99,7 +102,8 @@ public enum Checksum: String, CaseIterable, Sendable {
         switch self {
         case .sum8, .sum16, .sum32, .sum64, .xor8, .adler32, .fletcher16, .fletcher32: .simple
         case .crc8, .crc8Maxim, .crc16Arc, .crc16Modbus, .crc16CcittFalse, .crc16Xmodem, .crc16Kermit, .crc16X25,
-             .crc32, .crc32c, .crc32Bzip2, .crc32Mpeg2, .crc64Ecma, .crc64Xz: .crc
+            .crc32, .crc32c, .crc32Bzip2, .crc32Mpeg2, .crc64Ecma, .crc64Xz:
+            .crc
         case .fnv1a32, .fnv1a64, .murmur3, .xxh32, .xxh64: .fast
         default: .crypto
         }
@@ -167,15 +171,19 @@ public enum Checksum: String, CaseIterable, Sendable {
     }
 
     /// Streams `range` of the snapshot through the hash in chunks.
-    public func compute(_ snapshot: Snapshot, range: Range<UInt64>? = nil,
-                        progress: (Double) -> Bool = { _ in true }) -> String? {
+    public func compute(
+        _ snapshot: Snapshot, range: Range<UInt64>? = nil,
+        progress: (Double) -> Bool = { _ in true }
+    ) -> String? {
         Self.compute([self], snapshot, range: range, progress: progress)?[self]
     }
 
     /// Several algorithms in one pass over the data. Nil if cancelled.
-    public static func compute(_ algos: [Checksum], _ snapshot: Snapshot, range: Range<UInt64>? = nil,
-                               progress: (Double) -> Bool = { _ in true }) -> [Checksum: String]? {
-        let r = (range ?? 0..<snapshot.count).clamped(to: 0..<snapshot.count)
+    public static func compute(
+        _ algos: [Checksum], _ snapshot: Snapshot, range: Range<UInt64>? = nil,
+        progress: (Double) -> Bool = { _ in true }
+    ) -> [Checksum: String]? {
+        let r = (range ?? 0 ..< snapshot.count).clamped(to: 0 ..< snapshot.count)
         var hashers = algos.map { $0.makeHasher() }
         let chunk: UInt64 = 4 << 20
         var pos = r.lowerBound

@@ -24,17 +24,18 @@ struct Parse: ParsableCommand {
 
     func run() throws {
         let url: URL
-        if let ksy { url = URL(fileURLWithPath: ksy) }
-        else {
+        if let ksy {
+            url = URL(fileURLWithPath: ksy)
+        } else {
             guard let hit = FormatCatalog(root: formatLibrary).url(forID: format!) else {
-                FileHandle.standardError.write(Data(("hexwerk: " + L("Format %@ not in %@ (make formats)", format!, formatLibrary.path) + "\n").utf8))
+                FileHandle.standardError.write(
+                    Data(("hexwerk: " + L("Format %@ not in %@ (make formats)", format!, formatLibrary.path) + "\n").utf8))
                 throw ExitCode(1)
             }
             url = hit
         }
         let schema: KsyFile
-        do { schema = try KsyLoader(libraryRoots: [formatLibrary]).load(url) }
-        catch {
+        do { schema = try KsyLoader(libraryRoots: [formatLibrary]).load(url) } catch {
             FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
             throw ExitCode(2)
         }

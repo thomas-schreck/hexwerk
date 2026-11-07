@@ -6,7 +6,10 @@ import HexwerkCore
 struct Hexwerk: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Hex tool: view, examine and parse files."),
-        subcommands: [Dump.self, Inspect.self, Find.self, Diff.self, Hash.self, Parse.self, Yara.self, Entropy.self, Export.self, Script.self, FileType.self, StringsCmd.self, Convert.self, OpenCmd.self]
+        subcommands: [
+            Dump.self, Inspect.self, Find.self, Diff.self, Hash.self, Parse.self, Yara.self, Entropy.self, Export.self, Script.self,
+            FileType.self, StringsCmd.self, Convert.self, OpenCmd.self,
+        ]
     )
 }
 
@@ -32,8 +35,7 @@ struct Number: ExpressibleByArgument {
 }
 
 func openSource(_ path: String) throws -> ByteSource {
-    do { return try ByteSource(url: URL(fileURLWithPath: path)) }
-    catch {
+    do { return try ByteSource(url: URL(fileURLWithPath: path)) } catch {
         FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
         throw ExitCode(1)
     }
@@ -41,8 +43,7 @@ func openSource(_ path: String) throws -> ByteSource {
 
 /// `failure`: exit status when the file cannot be opened.
 func openSnapshot(_ path: String, failure: Int32 = 1) throws -> Snapshot {
-    do { return try Document(url: URL(fileURLWithPath: path), readOnly: true).snapshot() }
-    catch {
+    do { return try Document(url: URL(fileURLWithPath: path), readOnly: true).snapshot() } catch {
         FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
         throw ExitCode(failure)
     }
@@ -62,14 +63,15 @@ struct Dump: ParsableCommand {
     @Option(help: .init(L("Bytes per line"))) var width: Int = 16
 
     func validate() throws {
-        guard (1...256).contains(width) else { throw ValidationError(L("--width must be between 1 and 256")) }
+        guard (1 ... 256).contains(width) else { throw ValidationError(L("--width must be between 1 and 256")) }
     }
 
     func run() throws {
         let src = try openSource(file)
         let start = offset.value
         guard start <= src.count else {
-            FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, src.count) + "\n").utf8))
+            FileHandle.standardError.write(
+                Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
         // Clamp the length before adding: start + length can exceed UInt64.max.
@@ -81,7 +83,7 @@ struct Dump: ParsableCommand {
             let chunk = src.read(pos ..< min(pos + block, end))
             var lines = HexDump.lines(chunk, startOffset: pos, width: width)
             let isLast = pos + UInt64(chunk.count) >= end
-            if !isLast { lines.removeLast() }   // trailing offset only once, at the end
+            if !isLast { lines.removeLast() }  // trailing offset only once, at the end
             print(lines.joined(separator: "\n"))
             pos += UInt64(chunk.count)
         } while pos < end
@@ -99,11 +101,13 @@ struct Inspect: ParsableCommand {
     func run() throws {
         let src = try openSource(file)
         guard offset.value < src.count else {
-            FileHandle.standardError.write(Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", offset.value, src.count) + "\n").utf8))
+            FileHandle.standardError.write(
+                Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", offset.value, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
-        let values = Inspector.values(src.read(offset.value ..< offset.value + UInt64(Inspector.window)),
-                                      endian: endian.value)
+        let values = Inspector.values(
+            src.read(offset.value ..< offset.value + UInt64(Inspector.window)),
+            endian: endian.value)
         if json {
             try printJSON(values.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
         } else {

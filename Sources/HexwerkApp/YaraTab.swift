@@ -23,8 +23,12 @@ struct YaraTab: View {
             HStack {
                 Text(L("Rules")).font(.headline)
                 Spacer()
-                Button { addRules() } label: { Label(L("Add"), systemImage: "plus") }
-                    .controlSize(.small)
+                Button {
+                    addRules()
+                } label: {
+                    Label(L("Add"), systemImage: "plus")
+                }
+                .controlSize(.small)
             }
             if yara.ruleFiles.isEmpty {
                 Text(L("Add rule files (.yar) or folders.")).font(.caption).foregroundStyle(.secondary)
@@ -34,9 +38,13 @@ struct YaraTab: View {
                     Image(systemName: isFolder(url) ? "folder" : "doc.text").foregroundStyle(.secondary)
                     Text(url.lastPathComponent).lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Button { yara.removeRules(url) } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain).foregroundStyle(.tertiary)
-                        .help(L("Remove from the list"))
+                    Button {
+                        yara.removeRules(url)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.tertiary)
+                    .help(L("Remove from the list"))
                 }
                 .font(.callout)
                 .help(url.path)
@@ -50,7 +58,7 @@ struct YaraTab: View {
                 .disabled(model.selection == nil)
                 .help(L("Scan the whole file or only the selection"))
                 Spacer()
-                Stepper(L("Time limit %ld s", yara.timeout), value: $yara.timeout, in: 5...600, step: 5)
+                Stepper(L("Time limit %ld s", yara.timeout), value: $yara.timeout, in: 5 ... 600, step: 5)
                     .font(.caption).monospacedDigit().fixedSize()
                     .help(L("Time limit of the scan"))
             }
@@ -61,7 +69,9 @@ struct YaraTab: View {
                     Spacer()
                     Button(L("Cancel")) { yara.cancel() }
                 } else {
-                    Button { scan() } label: {
+                    Button {
+                        scan()
+                    } label: {
                         Label(L("Scan"), systemImage: "shield.lefthalf.filled").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -73,8 +83,9 @@ struct YaraTab: View {
             .onChange(of: model.selection == nil) { _, none in if none { yara.scope = .file } }
 
             if yara.stale {
-                banner(L("Content changed – hits may have shifted"), "arrow.clockwise", .orange,
-                       action: (L("Scan Again"), scan))
+                banner(
+                    L("Content changed – hits may have shifted"), "arrow.clockwise", .orange,
+                    action: (L("Scan Again"), scan))
             }
             ForEach(Array(yara.compileErrors.enumerated()), id: \.offset) { _, d in
                 banner(d.description, "exclamationmark.triangle.fill", .red, action: nil)
@@ -180,9 +191,10 @@ struct YaraTab: View {
 
     private func preview(_ m: YaraPatternMatch) -> String {
         let bytes = model.doc.read(m.offset ..< m.offset + min(m.length, 24))
-        let printable = bytes.allSatisfy { (0x20..<0x7F).contains($0) }
-        return printable ? String(decoding: bytes, as: UTF8.self)
-                         : bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+        let printable = bytes.allSatisfy { (0x20 ..< 0x7F).contains($0) }
+        return printable
+            ? String(decoding: bytes, as: UTF8.self)
+            : bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
     }
 
     // MARK: Helpers

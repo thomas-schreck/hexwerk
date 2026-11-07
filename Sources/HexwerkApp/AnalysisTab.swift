@@ -56,7 +56,9 @@ struct AnalysisTab: View {
                     Text(L("Nothing found")).font(.caption).foregroundStyle(.secondary)
                 } else {
                     ForEach(Array(e.prefix(500).enumerated()), id: \.offset) { _, h in
-                        Button { model.jump?(h.offset, nil) } label: {
+                        Button {
+                            model.jump?(h.offset, nil)
+                        } label: {
                             HStack {
                                 Text(hex(h.offset)).monospaced()
                                 Text(h.title)
@@ -84,7 +86,11 @@ struct AnalysisTab: View {
                     ProgressView(value: analysis.progress).controlSize(.small)
                     Button(L("Cancel")) { analysis.cancel() }.controlSize(.small)
                 } else {
-                    Button { run(selection: false) } label: { Label(L("Whole File"), systemImage: "waveform.path.ecg") }
+                    Button {
+                        run(selection: false)
+                    } label: {
+                        Label(L("Whole File"), systemImage: "waveform.path.ecg")
+                    }
                     Button(L("Selection")) { run(selection: true) }.disabled(model.selection == nil)
                     Spacer()
                 }
@@ -127,8 +133,11 @@ struct AnalysisTab: View {
                 Canvas { ctx, size in drawEntropy(ctx, size, p) }
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
-                        if case .active(let pt) = phase { analysis.hoverBlock = block(at: pt.x, width: geo.size.width, p) }
-                        else { analysis.hoverBlock = nil }
+                        if case .active(let pt) = phase {
+                            analysis.hoverBlock = block(at: pt.x, width: geo.size.width, p)
+                        } else {
+                            analysis.hoverBlock = nil
+                        }
                     }
                     .onTapGesture { pt in
                         let i = block(at: pt.x, width: geo.size.width, p)
@@ -169,8 +178,11 @@ struct AnalysisTab: View {
         }
         area.addLine(to: CGPoint(x: size.width, y: size.height))
         area.closeSubpath()
-        ctx.fill(area, with: .linearGradient(Gradient(colors: [.red.opacity(0.75), .orange.opacity(0.6), .teal.opacity(0.5)]),
-                                             startPoint: CGPoint(x: 0, y: y(8)), endPoint: CGPoint(x: 0, y: y(0))))
+        ctx.fill(
+            area,
+            with: .linearGradient(
+                Gradient(colors: [.red.opacity(0.75), .orange.opacity(0.6), .teal.opacity(0.5)]),
+                startPoint: CGPoint(x: 0, y: y(8)), endPoint: CGPoint(x: 0, y: y(0))))
         // Cursor position.
         let total = analysis.end - p.start
         if total > 0, model.cursor >= p.start, model.cursor < analysis.end {
@@ -228,7 +240,9 @@ struct AnalysisTab: View {
                     .onContinuousHover { phase in
                         if case .active(let pt) = phase {
                             analysis.hoverByte = min(255, max(0, Int(pt.x / max(1, geo.size.width) * 256)))
-                        } else { analysis.hoverByte = nil }
+                        } else {
+                            analysis.hoverByte = nil
+                        }
                     }
             }
             .frame(height: 90)
@@ -252,9 +266,10 @@ struct AnalysisTab: View {
         for (b, c) in s.histogram.enumerated() where c > 0 {
             let f = analysis.logScale ? log(Double(c) + 1) / log(maxV + 1) : Double(c) / maxV
             let h = max(1, CGFloat(f) * (size.height - 4))
-            let color: Color = b == 0 ? .gray : (0x20...0x7E).contains(b) ? .teal : b >= 0x80 ? .purple : .orange
-            ctx.fill(Path(CGRect(x: CGFloat(b) * w, y: size.height - h, width: max(1, w - 0.3), height: h)),
-                     with: .color(analysis.hoverByte == b ? .accentColor : color.opacity(0.8)))
+            let color: Color = b == 0 ? .gray : (0x20 ... 0x7E).contains(b) ? .teal : b >= 0x80 ? .purple : .orange
+            ctx.fill(
+                Path(CGRect(x: CGFloat(b) * w, y: size.height - h, width: max(1, w - 0.3), height: h)),
+                with: .color(analysis.hoverByte == b ? .accentColor : color.opacity(0.8)))
         }
     }
 }

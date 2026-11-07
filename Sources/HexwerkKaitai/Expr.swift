@@ -8,7 +8,7 @@ indirect enum Expr {
     case str(String)
     case bool(Bool)
     case name(String)
-    case enumLit(path: [String], value: String)     // a::b::c → enum path [a, b], value c
+    case enumLit(path: [String], value: String)  // a::b::c → enum path [a, b], value c
     case array([Expr])
     case unary(String, Expr)
     case binary(String, Expr, Expr)
@@ -41,10 +41,15 @@ indirect enum Expr {
         var neg = false
         if t.hasPrefix("-") { neg = true; t.removeFirst() }
         let v: UInt64?
-        if t.hasPrefix("0x") { v = UInt64(t.dropFirst(2), radix: 16) }
-        else if t.hasPrefix("0b") { v = UInt64(t.dropFirst(2), radix: 2) }
-        else if t.hasPrefix("0o") { v = UInt64(t.dropFirst(2), radix: 8) }
-        else { v = UInt64(t) }
+        if t.hasPrefix("0x") {
+            v = UInt64(t.dropFirst(2), radix: 16)
+        } else if t.hasPrefix("0b") {
+            v = UInt64(t.dropFirst(2), radix: 2)
+        } else if t.hasPrefix("0o") {
+            v = UInt64(t.dropFirst(2), radix: 8)
+        } else {
+            v = UInt64(t)
+        }
         guard let v else { return nil }
         // Positive literals up to UInt64.max are kept as bit patterns (u8
         // masks); negative ones must fit into Int64.
@@ -58,8 +63,10 @@ enum Token: Equatable {
 }
 
 enum ExprLexer {
-    static let puncts = ["<<", ">>", "<=", ">=", "==", "!=", "::", "+", "-", "*", "/", "%", "<", ">",
-                         "&", "|", "^", "~", "?", ":", "(", ")", "[", "]", ".", ","]
+    static let puncts = [
+        "<<", ">>", "<=", ">=", "==", "!=", "::", "+", "-", "*", "/", "%", "<", ">",
+        "&", "|", "^", "~", "?", ":", "(", ")", "[", "]", ".", ",",
+    ]
     private static let punctScalars = puncts.map { ($0, Array($0.unicodeScalars)) }
 
     /// Generous: lookup tables in real formats are array literals with a few
@@ -79,14 +86,21 @@ enum ExprLexer {
             if CharacterSet.whitespacesAndNewlines.contains(ch) { i += 1; continue }
             if CharacterSet.decimalDigits.contains(ch) {
                 var j = i
-                while j < c.count, isIdent(c[j]) || (c[j] == "." && j + 1 < c.count && CharacterSet.decimalDigits.contains(c[j + 1]))
-                        || ((c[j] == "+" || c[j] == "-") && j > i && (c[j - 1] == "e" || c[j - 1] == "E") && !String(String.UnicodeScalarView(c[i..<j])).lowercased().hasPrefix("0x")) {
+                while j < c.count,
+                    isIdent(c[j]) || (c[j] == "." && j + 1 < c.count && CharacterSet.decimalDigits.contains(c[j + 1]))
+                        || ((c[j] == "+" || c[j] == "-") && j > i && (c[j - 1] == "e" || c[j - 1] == "E")
+                            && !String(String.UnicodeScalarView(c[i ..< j])).lowercased().hasPrefix("0x"))
+                {
                     j += 1
                 }
-                let lit = String(String.UnicodeScalarView(c[i..<j]))
-                if let n = Expr.parseIntLiteral(lit) { out.append(.int(n)) }
-                else if let d = Double(lit.replacingOccurrences(of: "_", with: "")) { out.append(.float(d)) }
-                else { throw KaitaiError(L("Cannot parse number %@ in \"%@\"", "\(lit)", "\(s)")) }
+                let lit = String(String.UnicodeScalarView(c[i ..< j]))
+                if let n = Expr.parseIntLiteral(lit) {
+                    out.append(.int(n))
+                } else if let d = Double(lit.replacingOccurrences(of: "_", with: "")) {
+                    out.append(.float(d))
+                } else {
+                    throw KaitaiError(L("Cannot parse number %@ in \"%@\"", "\(lit)", "\(s)"))
+                }
                 i = j
                 continue
             }
@@ -116,14 +130,16 @@ enum ExprLexer {
             if isIdent(ch) {
                 var j = i
                 while j < c.count, isIdent(c[j]) { j += 1 }
-                out.append(.ident(String(String.UnicodeScalarView(c[i..<j]))))
+                out.append(.ident(String(String.UnicodeScalarView(c[i ..< j]))))
                 i = j
                 continue
             }
             // Compared in place: building the rest as a String per token was O(n²).
-            guard let (p, u) = punctScalars.first(where: { _, u in
-                i + u.count <= c.count && c[i ..< i + u.count].elementsEqual(u)
-            }) else {
+            guard
+                let (p, u) = punctScalars.first(where: { _, u in
+                    i + u.count <= c.count && c[i ..< i + u.count].elementsEqual(u)
+                })
+            else {
                 throw KaitaiError(L("Unexpected character \"%@\" in \"%@\"", "\(ch)", "\(s)"))
             }
             out.append(.punct(p))
@@ -251,7 +267,9 @@ struct ExprParser {
         var e = try primary()
         while true {
             if accept(.punct(".")) {
-                guard !atEnd, case .ident(let name) = tokens[i] else { throw KaitaiError(L("Expression \"%@\": name expected after .", source)) }
+                guard !atEnd, case .ident(let name) = tokens[i] else {
+                    throw KaitaiError(L("Expression \"%@\": name expected after .", source))
+                }
                 i += 1
                 if name == "as", accept(.punct("<")) {
                     e = try op(.cast(e, try typeName(until: ">")))
@@ -322,7 +340,9 @@ struct ExprParser {
             if !atEnd, tokens[i] == .punct("::") {
                 var parts = [name]
                 while accept(.punct("::")) {
-                    guard !atEnd, case .ident(let n) = tokens[i] else { throw KaitaiError(L("Expression \"%@\": name expected after ::", source)) }
+                    guard !atEnd, case .ident(let n) = tokens[i] else {
+                        throw KaitaiError(L("Expression \"%@\": name expected after ::", source))
+                    }
                     i += 1
                     parts.append(n)
                 }

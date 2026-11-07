@@ -19,7 +19,7 @@ import Testing
         #expect(value(b, "uint64") == "18446744073709551614")
         #expect(value([0x12, 0x34], "uint16", .big) == "4660")
         #expect(value([0x12, 0x34], "uint16", .little) == "13330")
-        #expect(value([0x01], "int16") == nil)     // not enough bytes
+        #expect(value([0x01], "int16") == nil)  // not enough bytes
     }
 
     @Test func floats() {
@@ -59,9 +59,9 @@ import Testing
     /// Random data and every length 0…64 must not trap.
     @Test func robustOnRandomInput() {
         var rng = SplitMix(seed: 7)
-        for len in 0...64 {
-            for _ in 0..<50 {
-                let d = Data((0..<len).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        for len in 0 ... 64 {
+            for _ in 0 ..< 50 {
+                let d = Data((0 ..< len).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
                 _ = Inspector.values(d, endian: .little)
                 _ = Inspector.values(d, endian: .big)
             }
@@ -73,7 +73,7 @@ import Testing
     /// identical to `hexdump -C -v`.
     @Test(arguments: [0, 1, 7, 16, 17, 100]) func matchesHexdump(length: Int) throws {
         var rng = SplitMix(seed: UInt64(length))
-        let data = Data((0..<length).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        let data = Data((0 ..< length).map { _ in UInt8.random(in: 0 ... 255, using: &rng) })
         let url = try tempFile(data)
         defer { try? FileManager.default.removeItem(at: url) }
 

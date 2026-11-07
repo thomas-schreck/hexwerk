@@ -19,8 +19,10 @@ public struct ParseNode: Sendable, Identifiable {
     /// Large arrays of plain numbers: elements are made on demand.
     public var lazy: LazyArray? = nil
 
-    public init(id: Int, name: String, typeName: String, value: String?, range: Range<UInt64>?,
-                children: [ParseNode], error: String?, number: Int64?, lazy: LazyArray? = nil) {
+    public init(
+        id: Int, name: String, typeName: String, value: String?, range: Range<UInt64>?,
+        children: [ParseNode], error: String?, number: Int64?, lazy: LazyArray? = nil
+    ) {
         self.id = id; self.name = name; self.typeName = typeName; self.value = value; self.range = range
         self.children = children; self.error = error; self.number = number; self.lazy = lazy
     }
@@ -36,7 +38,7 @@ public struct ParseNode: Sendable, Identifiable {
 public final class LazyArray: @unchecked Sendable {
     // Immutable after creation.
     let values: [KValue]
-    public let base: UInt64            // file offset of element 0
+    public let base: UInt64  // file offset of element 0
     public let elementSize: UInt64
     public let typeName: String
     let firstID: Int
@@ -63,8 +65,9 @@ public final class LazyArray: @unchecked Sendable {
         var n: Int64? = nil
         if case .int(let x) = v { n = x }
         let s = base + UInt64(i) * elementSize
-        return ParseNode(id: firstID + i, name: "[\(i)]", typeName: typeName, value: display(v),
-                         range: s ..< s + elementSize, children: [], error: nil, number: n)
+        return ParseNode(
+            id: firstID + i, name: "[\(i)]", typeName: typeName, value: display(v),
+            range: s ..< s + elementSize, children: [], error: nil, number: n)
     }
 }
 
@@ -186,7 +189,7 @@ public final class KaitaiInterpreter {
     private var displayNodes = 0
     private var nextStreamID = 1
     private var deadline = Date()
-    private var allObjects: [KObj] = []      // keeps weakly linked objects alive
+    private var allObjects: [KObj] = []  // keeps weakly linked objects alive
 
     private init(file: KsyFile, limits: ParseLimits, shouldContinue: @escaping () -> Bool) {
         self.file = file
@@ -196,8 +199,10 @@ public final class KaitaiInterpreter {
 
     /// Parses `snapshot` with the root type of `file`. Never throws: errors
     /// end up in the result, together with everything parsed before them.
-    public static func parse(_ snapshot: Snapshot, file: KsyFile, limits: ParseLimits = ParseLimits(),
-                             shouldContinue: @escaping () -> Bool = { true }) -> ParseResult {
+    public static func parse(
+        _ snapshot: Snapshot, file: KsyFile, limits: ParseLimits = ParseLimits(),
+        shouldContinue: @escaping () -> Bool = { true }
+    ) -> ParseResult {
         // The interpreter recurses per nesting level. Background threads and
         // Swift tasks have 512 KiB stacks, which a deeply nested (or hostile)
         // .ksy overflows long before the depth limit. So always run on an own
@@ -224,9 +229,11 @@ public final class KaitaiInterpreter {
     /// parse (it ends with a "Cancelled" error). A `shouldContinue` closure
     /// cannot do that: it runs on the parser's own thread, outside any task,
     /// where `Task.isCancelled` is always false.
-    public static func parse(_ snapshot: Snapshot, file: KsyFile,
-                             limits: ParseLimits = ParseLimits()) async -> ParseResult {
-        final class Job: @unchecked Sendable {      // file is only used on the parser thread
+    public static func parse(
+        _ snapshot: Snapshot, file: KsyFile,
+        limits: ParseLimits = ParseLimits()
+    ) async -> ParseResult {
+        final class Job: @unchecked Sendable {  // file is only used on the parser thread
             let snapshot: Snapshot
             let file: KsyFile
             let cancelled = Atomic(false)
@@ -235,7 +242,8 @@ public final class KaitaiInterpreter {
         let job = Job(snapshot, file)
         return await withTaskCancellationHandler {
             await onLargeStackAsync {
-                run(job.snapshot, file: job.file, limits: limits,
+                run(
+                    job.snapshot, file: job.file, limits: limits,
                     shouldContinue: { !job.cancelled.load(ordering: .relaxed) })
             }
         } onCancel: {
@@ -243,8 +251,10 @@ public final class KaitaiInterpreter {
         }
     }
 
-    private static func run(_ snapshot: Snapshot, file: KsyFile, limits: ParseLimits,
-                            shouldContinue: @escaping () -> Bool) -> ParseResult {
+    private static func run(
+        _ snapshot: Snapshot, file: KsyFile, limits: ParseLimits,
+        shouldContinue: @escaping () -> Bool
+    ) -> ParseResult {
         let interp = KaitaiInterpreter(file: file, limits: limits, shouldContinue: shouldContinue)
         interp.deadline = Date().addingTimeInterval(limits.maxSeconds)
         let io = KStream(snapshot: snapshot, id: 0)
@@ -258,8 +268,10 @@ public final class KaitaiInterpreter {
 
     // MARK: Objects
 
-    private func parseObject(_ type: KsyType, io: KStream, parent: KObj?, root: KObj?,
-                             args: [KValue], depth: Int) -> KObj {
+    private func parseObject(
+        _ type: KsyType, io: KStream, parent: KObj?, root: KObj?,
+        args: [KValue], depth: Int
+    ) -> KObj {
         let obj = KObj(type: type, io: io, parent: parent)
         obj.depth = depth
         allObjects.append(obj)
@@ -319,18 +331,24 @@ public final class KaitaiInterpreter {
 
     private func parseSeqAttr(_ attr: AttrSpec, _ obj: KObj, depth: Int) throws {
         if let c = attr.cond, try !bool(eval(c, Ctx(obj: obj))) { return }
-        guard let (value, info) = try parseAttrValue(attr, obj, io: obj.io, depth: depth, onPartial: { partial, info in
-            obj.fields[attr.id] = partial
-            obj.info[attr.id] = info
-        }) else { return }
+        guard
+            let (value, info) = try parseAttrValue(
+                attr, obj, io: obj.io, depth: depth,
+                onPartial: { partial, info in
+                    obj.fields[attr.id] = partial
+                    obj.info[attr.id] = info
+                })
+        else { return }
         obj.fields[attr.id] = value
         obj.info[attr.id] = info
     }
 
     /// Reads one attribute (with repetition) from `io`. `onPartial` stores
     /// what was read before an error, so the tree shows it.
-    private func parseAttrValue(_ attr: AttrSpec, _ obj: KObj, io: KStream, depth: Int,
-                                onPartial: (KValue, FieldInfo) -> Void) throws -> (KValue, FieldInfo)? {
+    private func parseAttrValue(
+        _ attr: AttrSpec, _ obj: KObj, io: KStream, depth: Int,
+        onPartial: (KValue, FieldInfo) -> Void
+    ) throws -> (KValue, FieldInfo)? {
         let start = io.pos
         let typeName = describe(attr.type)
         guard let rep = attr.repeatSpec else {
@@ -362,7 +380,8 @@ public final class KaitaiInterpreter {
             } catch let e as ChildFailed {
                 if let v = e.partial { items.append(v); elements.append((s, io.pos)) }
                 onPartial(.array(items), current())
-                throw ChildFailed(error: KaitaiError(e.error.message, path: join("[\(items.count - 1)]", e.error.path), offset: e.error.offset))
+                throw ChildFailed(
+                    error: KaitaiError(e.error.message, path: join("[\(items.count - 1)]", e.error.path), offset: e.error.offset))
             } catch var e as KaitaiError {
                 onPartial(.array(items), current())
                 e.path = join("[\(items.count)]", e.path)
@@ -375,7 +394,7 @@ public final class KaitaiInterpreter {
         case .expr(let n):
             let count = try int(eval(n, Ctx(obj: obj)))
             guard count >= 0 else { throw KaitaiError(L("repeat-expr negative: %@", "\(count)")) }
-            for _ in 0..<count { _ = try one() }
+            for _ in 0 ..< count { _ = try one() }
         case .until(let cond):
             while true {
                 let v = try one()
@@ -391,11 +410,14 @@ public final class KaitaiInterpreter {
     /// Arrays of plain integers/floats are read in one loop without a node
     /// or checks per element: 10⁶ entries take milliseconds.
     /// Anything special (enum, valid, process, switch, …) takes the normal path.
-    private func fastNumberArray(_ attr: AttrSpec, _ rep: RepeatSpec, _ obj: KObj, io: KStream,
-                                 start: UInt64, typeName tn: String) throws -> (KValue, FieldInfo)? {
+    private func fastNumberArray(
+        _ attr: AttrSpec, _ rep: RepeatSpec, _ obj: KObj, io: KStream,
+        start: UInt64, typeName tn: String
+    ) throws -> (KValue, FieldInfo)? {
         guard case .named(_, let args)? = attr.type, args.isEmpty, attr.contents == nil, attr.size == nil,
-              !attr.sizeEos, attr.process == nil, attr.enumName == nil, attr.valid == nil, attr.terminator == nil,
-              let bits = Self.primitiveBits(tn), !tn.hasPrefix("b"), bits % 8 == 0 else { return nil }
+            !attr.sizeEos, attr.process == nil, attr.enumName == nil, attr.valid == nil, attr.terminator == nil,
+            let bits = Self.primitiveBits(tn), !tn.hasPrefix("b"), bits % 8 == 0
+        else { return nil }
         let size = UInt64(bits / 8)
         let count: Int64
         switch rep {
@@ -404,7 +426,7 @@ public final class KaitaiInterpreter {
             guard count >= 0 else { throw KaitaiError(L("repeat-expr negative: %@", "\(count)")) }
         case .eos:
             let rest = io.size - io.pos
-            guard rest % size == 0 else { return nil }      // partial last element: let the normal path report it
+            guard rest % size == 0 else { return nil }  // partial last element: let the normal path report it
             count = Int64(rest / size)
         case .until:
             return nil
@@ -450,7 +472,9 @@ public final class KaitaiInterpreter {
         if let expected = attr.contents {
             let got = try io.readBytes(UInt64(expected.count))
             guard got == expected else {
-                throw KaitaiError(L("contents: expected %@, found %@", hexString(expected), hexString(got)), offset: io.fileBase.map { $0 + io.pos - UInt64(got.count) })
+                throw KaitaiError(
+                    L("contents: expected %@, found %@", hexString(expected), hexString(got)),
+                    offset: io.fileBase.map { $0 + io.pos - UInt64(got.count) })
             }
             return .bytes(got)
         }
@@ -529,8 +553,9 @@ public final class KaitaiInterpreter {
         } else if attr.sizeEos {
             b = try io.readBytesFull()
         } else if let term {
-            return try io.readBytesTerm(term, include: attr.include, consume: attr.consume, eosError: attr.eosError,
-                                        check: checkTime)
+            return try io.readBytesTerm(
+                term, include: attr.include, consume: attr.consume, eosError: attr.eosError,
+                check: checkTime)
         } else {
             throw KaitaiError(L("Neither size nor size-eos nor terminator given"))
         }
@@ -556,15 +581,18 @@ public final class KaitaiInterpreter {
             default: throw KaitaiError(L("Cannot parse xor key"))
             }
         case .rol(let n): return Process.rotate(b, left: Int(try int(eval(n, ctx))))
-        case .ror(let n): return Process.rotate(b, left: -Int(try int(eval(n, ctx)) % 8))   // % 8 first: -Int64.min traps
+        case .ror(let n): return Process.rotate(b, left: -Int(try int(eval(n, ctx)) % 8))  // % 8 first: -Int64.min traps
         }
     }
 
     private func readPrimitive(_ tn: String, _ io: KStream, _ obj: KObj) throws -> KValue? {
         var name = tn
         var endian: Endian? = nil
-        if name.hasSuffix("le") && name.count > 2 { endian = .little; name.removeLast(2) }
-        else if name.hasSuffix("be") && name.count > 2 { endian = .big; name.removeLast(2) }
+        if name.hasSuffix("le") && name.count > 2 {
+            endian = .little; name.removeLast(2)
+        } else if name.hasSuffix("be") && name.count > 2 {
+            endian = .big; name.removeLast(2)
+        }
         guard let kind = name.first, let n = Int(name.dropFirst()) else { return nil }
         switch kind {
         case "u", "s":
@@ -581,7 +609,7 @@ public final class KaitaiInterpreter {
             let raw = try io.readUInt(n, e)
             return .float(n == 4 ? Double(Float(bitPattern: UInt32(raw))) : Double(bitPattern: raw))
         case "b":
-            guard (1...64).contains(n) else { return nil }
+            guard (1 ... 64).contains(n) else { return nil }
             let be = (endian ?? obj.bitEndian) == .big
             let v = be ? try io.readBitsBE(n) : try io.readBitsLE(n)
             return n == 1 ? .bool(v == 1) : .int(Int64(bitPattern: v))
@@ -594,7 +622,7 @@ public final class KaitaiInterpreter {
         guard let spec = attr.valid else { return }
         var ctx = Ctx(obj: obj)
         ctx.locals["_"] = v
-        ctx.locals[attr.id] = v     // the expression may name the field itself
+        ctx.locals[attr.id] = v  // the expression may name the field itself
         let ok: Bool
         var expected = ""
         switch spec {
@@ -642,10 +670,14 @@ public final class KaitaiInterpreter {
                 let saved = io.pos
                 defer { try? io.seek(saved) }
                 if let p = spec.pos { try io.seek(UInt64(try nonNegative(int(eval(p, ctx))))) }
-                guard let (val, info) = try parseAttrValue(spec, obj, io: io, depth: obj.depth, onPartial: { partial, info in
-                    obj.instanceValues[name] = partial
-                    obj.info[name] = info
-                }) else { return nil }
+                guard
+                    let (val, info) = try parseAttrValue(
+                        spec, obj, io: io, depth: obj.depth,
+                        onPartial: { partial, info in
+                            obj.instanceValues[name] = partial
+                            obj.info[name] = info
+                        })
+                else { return nil }
                 obj.info[name] = info
                 v = val
             }
@@ -814,7 +846,7 @@ public final class KaitaiInterpreter {
             guard args.count == 2 else { throw KaitaiError(L("substring expects 2 arguments")) }
             let chars = Array(s)
             let a = max(0, Int(try int(args[0]))), b = min(chars.count, Int(try int(args[1])))
-            return .str(a < b ? String(chars[a..<b]) : "")
+            return .str(a < b ? String(chars[a ..< b]) : "")
         case (.bytes(let b), "to_s"):
             let enc = args.first.flatMap { if case .str(let s) = $0 { s } else { nil } }
             return .str(decode(b, encoding: enc))
@@ -823,11 +855,12 @@ public final class KaitaiInterpreter {
         default: break
         }
         // first/last/min/max on arrays and bytes.
-        let items: [KValue]? = switch v {
-        case .array(let a): a
-        case .bytes(let b): b.map { .int(Int64($0)) }
-        default: nil
-        }
+        let items: [KValue]? =
+            switch v {
+            case .array(let a): a
+            case .bytes(let b): b.map { .int(Int64($0)) }
+            default: nil
+            }
         if let items {
             switch name {
             case "first": if let f = items.first { return f }
@@ -868,7 +901,7 @@ public final class KaitaiInterpreter {
             return .int((x % y != 0) && ((x < 0) != (y < 0)) ? q - 1 : q)
         case "%":
             guard y != 0 else { throw KaitaiError(L("Division by 0")) }
-            if y == -1 { return .int(0) }       // Int64.min % -1 traps in Swift
+            if y == -1 { return .int(0) }  // Int64.min % -1 traps in Swift
             let m = x % y
             return .int(m != 0 && (m < 0) != (y < 0) ? m + y : m)
         case "<<", ">>":
@@ -933,7 +966,7 @@ public final class KaitaiInterpreter {
         case .bytes(let b): return b
         case .array(let a):
             var out: [UInt8] = []
-            for x in a { guard case .int(let n) = x, (0...255).contains(n) else { return nil }; out.append(UInt8(n)) }
+            for x in a { guard case .int(let n) = x, (0 ... 255).contains(n) else { return nil }; out.append(UInt8(n)) }
             return out
         default: return nil
         }
@@ -971,13 +1004,21 @@ public final class KaitaiInterpreter {
         for a in t.seq {
             guard a.cond == nil else { throw KaitaiError(L("sizeof: %@ has conditional fields", t.name)) }
             var one: Int64
-            if let contents = a.contents { one = Int64(contents.count) * 8 }
-            else if let s = a.size, case .int(let n) = s { one = try checked(n.multipliedReportingOverflow(by: 8)) }
-            else if case .named(let tn, _)? = a.type {
-                if let prim = Self.primitiveBits(tn) { one = prim }
-                else if let sub = resolveType(tn, from: t) { one = try checked(staticSize(sub, c, depth: depth + 1).multipliedReportingOverflow(by: 8)) }
-                else { throw KaitaiError(L("sizeof: unknown type %@", "\(tn)")) }
-            } else { throw KaitaiError(L("sizeof: %@.%@ has no fixed size", t.name, a.id)) }
+            if let contents = a.contents {
+                one = Int64(contents.count) * 8
+            } else if let s = a.size, case .int(let n) = s {
+                one = try checked(n.multipliedReportingOverflow(by: 8))
+            } else if case .named(let tn, _)? = a.type {
+                if let prim = Self.primitiveBits(tn) {
+                    one = prim
+                } else if let sub = resolveType(tn, from: t) {
+                    one = try checked(staticSize(sub, c, depth: depth + 1).multipliedReportingOverflow(by: 8))
+                } else {
+                    throw KaitaiError(L("sizeof: unknown type %@", "\(tn)"))
+                }
+            } else {
+                throw KaitaiError(L("sizeof: %@.%@ has no fixed size", t.name, a.id))
+            }
             switch a.repeatSpec {
             case nil: break
             case .expr(.int(let n)): one = try checked(one.multipliedReportingOverflow(by: n))
@@ -1015,40 +1056,51 @@ public final class KaitaiInterpreter {
             let objRange = o.io.fileBase.map { ($0 + o.start) ..< ($0 + o.end) }
             displayNodes += 1
             guard displayNodes <= limits.maxNodes else {
-                return ParseNode(id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
-                                 children: [], error: L("More than %@ nodes, aborted", "\(limits.maxNodes)"), number: nil)
+                return ParseNode(
+                    id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
+                    children: [], error: L("More than %@ nodes, aborted", "\(limits.maxNodes)"), number: nil)
             }
             // Expanding it again would recurse until the stack overflows.
             guard displayPath.insert(ObjectIdentifier(o)).inserted else {
-                return ParseNode(id: myID, name: name, typeName: o.type.name, value: L("(enclosing object)"),
-                                 range: range ?? objRange, children: [], error: nil, number: nil)
+                return ParseNode(
+                    id: myID, name: name, typeName: o.type.name, value: L("(enclosing object)"),
+                    range: range ?? objRange, children: [], error: nil, number: nil)
             }
             defer { displayPath.remove(ObjectIdentifier(o)) }
             var children: [ParseNode] = []
-            for p in o.type.params { if let v = o.params[p] { children.append(node(name: p, value: v, info: nil, typeName: "param", id: &id)) } }
+            for p in o.type.params {
+                if let v = o.params[p] { children.append(node(name: p, value: v, info: nil, typeName: "param", id: &id)) }
+            }
             for a in o.type.seq {
                 guard let v = o.fields[a.id] else { continue }
                 children.append(node(name: a.id, value: v, info: o.info[a.id], typeName: o.info[a.id]?.typeName ?? "", id: &id))
             }
             for a in o.type.instances {
                 if let v = o.instanceValues[a.id] {
-                    children.append(node(name: a.id, value: v, info: a.value == nil ? o.info[a.id] : nil,
-                                         typeName: a.value == nil ? (o.info[a.id]?.typeName ?? "") : L("value"), id: &id))
+                    children.append(
+                        node(
+                            name: a.id, value: v, info: a.value == nil ? o.info[a.id] : nil,
+                            typeName: a.value == nil ? (o.info[a.id]?.typeName ?? "") : L("value"), id: &id))
                 } else if let e = o.instanceErrors[a.id] {
                     id += 1
-                    children.append(ParseNode(id: id, name: a.id, typeName: "", value: nil, range: nil, children: [], error: e.description, number: nil))
+                    children.append(
+                        ParseNode(id: id, name: a.id, typeName: "", value: nil, range: nil, children: [], error: e.description, number: nil)
+                    )
                 }
             }
-            return ParseNode(id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
-                             children: children, error: o.failed?.message, number: nil)
+            return ParseNode(
+                id: myID, name: name, typeName: o.type.name, value: nil, range: range ?? objRange,
+                children: children, error: o.failed?.message, number: nil)
         case .array(let items):
             if let info, let size = info.elementSize, let base = info.stream.fileBase {
                 // Fast-path array: elements on demand; reserve their ids.
-                let lazy = LazyArray(values: items, base: base + info.start, elementSize: size,
-                                     typeName: String(info.typeName.dropLast(2)), firstID: id + 1)
+                let lazy = LazyArray(
+                    values: items, base: base + info.start, elementSize: size,
+                    typeName: String(info.typeName.dropLast(2)), firstID: id + 1)
                 id += items.count
-                var n = ParseNode(id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
-                                  children: [], error: nil, number: nil)
+                var n = ParseNode(
+                    id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
+                    children: [], error: nil, number: nil)
                 n.lazy = lazy
                 return n
             }
@@ -1056,19 +1108,22 @@ public final class KaitaiInterpreter {
             for (i, v) in items.enumerated() {
                 var elInfo: FieldInfo? = nil
                 if let info, i < info.elements.count {
-                    elInfo = FieldInfo(stream: info.stream, start: info.elements[i].0, end: info.elements[i].1,
-                                       typeName: String(info.typeName.dropLast(2)))
+                    elInfo = FieldInfo(
+                        stream: info.stream, start: info.elements[i].0, end: info.elements[i].1,
+                        typeName: String(info.typeName.dropLast(2)))
                 }
                 children.append(node(name: "[\(i)]", value: v, info: elInfo, typeName: elInfo?.typeName ?? "", id: &id))
             }
-            return ParseNode(id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
-                             children: children, error: nil, number: nil)
+            return ParseNode(
+                id: myID, name: name, typeName: typeName, value: L("%ld entries", items.count), range: range,
+                children: children, error: nil, number: nil)
         default:
             var number: Int64? = nil
             if case .int(let n) = value { number = n }
             if case .enumv(_, let n) = value { number = n }
-            return ParseNode(id: myID, name: name, typeName: typeName, value: display(value), range: range,
-                             children: [], error: nil, number: number)
+            return ParseNode(
+                id: myID, name: name, typeName: typeName, value: display(value), range: range,
+                children: [], error: nil, number: number)
         }
     }
 }

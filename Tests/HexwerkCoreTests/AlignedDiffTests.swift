@@ -15,7 +15,7 @@ import Testing
         return out + a[pos...]
     }
 
-    func random(_ n: Int, _ rng: inout SplitMix) -> [UInt8] { (0 ..< n).map { _ in UInt8.random(in: 0...255, using: &rng) } }
+    func random(_ n: Int, _ rng: inout SplitMix) -> [UInt8] { (0 ..< n).map { _ in UInt8.random(in: 0 ... 255, using: &rng) } }
 
     @Test func simpleCases() {
         let a: [UInt8] = Array(0 ..< 200).map { UInt8($0) }
@@ -35,10 +35,13 @@ import Testing
         let a = random(300_000, &rng)
         var b = a
         b.insert(contentsOf: random(1234, &rng), at: 100_000)
-        b[250_000] ^= 0xFF                                   // and one changed byte later
+        b[250_000] ^= 0xFF  // and one changed byte later
         let ops = AlignedDiff.diff(a, b)
-        #expect(ops == [DiffOp(.insert, a: 100_000 ..< 100_000, b: 100_000 ..< 101_234),
-                        DiffOp(.replace, a: 248_766 ..< 248_767, b: 250_000 ..< 250_001)])
+        #expect(
+            ops == [
+                DiffOp(.insert, a: 100_000 ..< 100_000, b: 100_000 ..< 101_234),
+                DiffOp(.replace, a: 248_766 ..< 248_767, b: 250_000 ..< 250_001),
+            ])
     }
 
     /// Random edit sequences: the ops must rebuild B exactly and stay
@@ -55,7 +58,7 @@ import Testing
                 switch Int.random(in: 0 ... 2, using: &rng) {
                 case 0: b.insert(contentsOf: random(n, &rng), at: pos)
                 case 1: b.removeSubrange(pos ..< min(b.count, pos + n))
-                default: for i in pos ..< min(b.count, pos + n) { b[i] = UInt8.random(in: 0...255, using: &rng) }
+                default: for i in pos ..< min(b.count, pos + n) { b[i] = UInt8.random(in: 0 ... 255, using: &rng) }
                 }
                 changed += n
             }

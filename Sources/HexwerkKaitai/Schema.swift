@@ -29,7 +29,7 @@ enum EndianSpec {
 
 indirect enum TypeRef {
     case named(String, args: [Expr])
-    case switchOn(Expr, cases: [(key: Expr?, type: TypeRef)])   // key nil = `_`
+    case switchOn(Expr, cases: [(key: Expr?, type: TypeRef)])  // key nil = `_`
 }
 
 enum RepeatSpec {
@@ -137,16 +137,16 @@ public final class KsyLoader {
                 throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: url.path])
             }
             text = t
-        }
-        catch { throw KaitaiError("\(url.lastPathComponent): \(error.localizedDescription)") }
+        } catch { throw KaitaiError("\(url.lastPathComponent): \(error.localizedDescription)") }
         let node: Node?
-        do { node = try Yams.compose(yaml: text) }
-        catch { throw KaitaiError(L("%@: YAML error: %@", url.lastPathComponent, "\(error)")) }
+        do { node = try Yams.compose(yaml: text) } catch { throw KaitaiError(L("%@: YAML error: %@", url.lastPathComponent, "\(error)")) }
         // Composing shares aliased subtrees, converting to Any copies them:
         // nested aliases ("billion laughs") would expand to gigabytes.
         if let node, !Self.expandsWithin(Self.maxYAMLNodes, node) {
-            throw KaitaiError(L("%@: YAML has more than %@ nodes after expanding aliases",
-                                url.lastPathComponent, "\(Self.maxYAMLNodes)"))
+            throw KaitaiError(
+                L(
+                    "%@: YAML has more than %@ nodes after expanding aliases",
+                    url.lastPathComponent, "\(Self.maxYAMLNodes)"))
         }
         // Yams traps converting a mapping with a non-scalar key ({[a]: b},
         // "? [a]"); .ksy files never have one.
@@ -161,7 +161,7 @@ public final class KsyLoader {
         let root = KsyType(name: id)
         let exts: [String] = (list(meta["file-extension"]) ?? []).compactMap(str) + [str(meta["file-extension"])].compactMap { $0 }
         let file = KsyFile(url: url, root: root, id: id, title: str(meta["title"]), fileExtensions: exts)
-        cache[url] = file   // before imports: tolerate cycles
+        cache[url] = file  // before imports: tolerate cycles
         source = text
         try fill(root, from: top, file: file)
 
@@ -215,19 +215,22 @@ public final class KsyLoader {
         if name.hasPrefix("/") {
             candidates = libraryRoots.map { $0.appendingPathComponent(String(name.dropFirst()) + ".ksy") }
         } else {
-            candidates = [from.deletingLastPathComponent().appendingPathComponent(name + ".ksy")]
+            candidates =
+                [from.deletingLastPathComponent().appendingPathComponent(name + ".ksy")]
                 + libraryRoots.map { $0.appendingPathComponent(name + ".ksy") }
         }
         // A candidate that exists but cannot be read is taken; load() reports why.
-        guard let hit = candidates.first(where: { c in
-            let c = c.standardizedFileURL
-            if texts[c] != nil { return true }
-            do {
-                guard let t = try read(c) else { return false }
-                texts[c] = t
-            } catch {}
-            return true
-        }) else {
+        guard
+            let hit = candidates.first(where: { c in
+                let c = c.standardizedFileURL
+                if texts[c] != nil { return true }
+                do {
+                    guard let t = try read(c) else { return false }
+                    texts[c] = t
+                } catch {}
+                return true
+            })
+        else {
             throw KaitaiError(L("Import %@ not found (from %@)", "\(name)", from.lastPathComponent))
         }
         return hit
@@ -281,7 +284,8 @@ public final class KsyLoader {
         func position(_ k: String) -> Int {
             let pattern = "(?m)^\\s+" + NSRegularExpression.escapedPattern(for: k) + ":"
             guard let re = try? NSRegularExpression(pattern: pattern),
-                  let m = re.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) else { return .max }
+                let m = re.firstMatch(in: source, range: NSRange(source.startIndex..., in: source))
+            else { return .max }
             return m.range.location
         }
         return keys.map { ($0, position($0)) }.sorted { ($0.1, $0.0) < ($1.1, $1.0) }.map(\.0)
@@ -334,7 +338,7 @@ public final class KsyLoader {
             // "name(arg1, arg2)" passes parameters.
             if let open = s.firstIndex(of: "("), s.hasSuffix(")") {
                 let name = String(s[..<open]).trimmingCharacters(in: .whitespaces)
-                let argText = String(s[s.index(after: open)..<s.index(before: s.endIndex)])
+                let argText = String(s[s.index(after: open) ..< s.index(before: s.endIndex)])
                 return .named(name, args: try Expr.parseList(argText))
             }
             return .named(s, args: [])
@@ -352,8 +356,7 @@ public final class KsyLoader {
         guard let l = v as? [Any] else { throw KaitaiError(L("Cannot parse contents")) }
         var out: [UInt8] = []
         for e in l {
-            if let s = e as? String { out += Array(s.utf8) }
-            else if let n = intValue(e) { out.append(UInt8(truncatingIfNeeded: n)) }
+            if let s = e as? String { out += Array(s.utf8) } else if let n = intValue(e) { out.append(UInt8(truncatingIfNeeded: n)) }
         }
         return out
     }
@@ -362,7 +365,7 @@ public final class KsyLoader {
         if s == "zlib" { return .zlib }
         guard let open = s.firstIndex(of: "("), s.hasSuffix(")") else { throw KaitaiError(L("process %@ not supported", "\(s)")) }
         let name = String(s[..<open])
-        let arg = try Expr.parse(String(s[s.index(after: open)..<s.index(before: s.endIndex)]))
+        let arg = try Expr.parse(String(s[s.index(after: open) ..< s.index(before: s.endIndex)]))
         switch name {
         case "xor": return .xor(arg)
         case "rol": return .rol(arg)
@@ -376,8 +379,9 @@ public final class KsyLoader {
         if let e = m["eq"] { return .eq(try Expr.parse(keyString(e))) }
         if let l = m["any-of"] as? [Any] { return .anyOf(try l.map { try Expr.parse(keyString($0)) }) }
         if let e = m["expr"] { return .expr(try Expr.parse(keyString(e))) }
-        return .range(min: try m["min"].map { try Expr.parse(keyString($0)) },
-                      max: try m["max"].map { try Expr.parse(keyString($0)) })
+        return .range(
+            min: try m["min"].map { try Expr.parse(keyString($0)) },
+            max: try m["max"].map { try Expr.parse(keyString($0)) })
     }
 }
 

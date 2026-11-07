@@ -37,20 +37,24 @@ struct StructureTab: View {
                     .help(L("Color fields in the hex grid"))
             }
             if structure.stale {
-                banner(L("Content changed"), systemImage: "arrow.clockwise", tint: .orange,
-                       action: (L("Parse Again"), { structure.reparse(snapshot: model.doc.snapshot()) }))
+                banner(
+                    L("Content changed"), systemImage: "arrow.clockwise", tint: .orange,
+                    action: (L("Parse Again"), { structure.reparse(snapshot: model.doc.snapshot()) }))
             }
             if let e = structure.loadError {
                 banner(e, systemImage: "exclamationmark.triangle.fill", tint: .red, action: nil)
             } else if let e = structure.result?.error {
-                banner(e.description, systemImage: "exclamationmark.triangle.fill", tint: .red,
-                       action: e.offset.map { off in (L("Go There"), { model.jump?(off, nil) }) })
+                banner(
+                    e.description, systemImage: "exclamationmark.triangle.fill", tint: .red,
+                    action: e.offset.map { off in (L("Go There"), { model.jump?(off, nil) }) })
             }
             if let r = structure.result {
-                Text(r.lazyElementCount > 0
-                     ? L("%1$ld nodes, %2$ld array elements", r.nodeCount, r.lazyElementCount)
-                     : L("%ld nodes", r.nodeCount))
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    r.lazyElementCount > 0
+                        ? L("%1$ld nodes, %2$ld array elements", r.nodeCount, r.lazyElementCount)
+                        : L("%ld nodes", r.nodeCount)
+                )
+                .font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(10)
@@ -90,8 +94,10 @@ struct StructureTab: View {
         structure.apply(url, title: url.deletingPathExtension().lastPathComponent, snapshot: model.doc.snapshot())
     }
 
-    private func banner(_ text: String, systemImage: String, tint: Color,
-                        action: (String, () -> Void)?) -> some View {
+    private func banner(
+        _ text: String, systemImage: String, tint: Color,
+        action: (String, () -> Void)?
+    ) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: systemImage).foregroundStyle(tint)
             Text(text).font(.callout).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
@@ -151,7 +157,9 @@ private struct NodeRow: View {
                 Color.clear.frame(width: 14)
             } else {
                 let expanded = structure.isExpanded(n.id)
-                Button { structure.toggle(n.id) } label: {
+                Button {
+                    structure.toggle(n.id)
+                } label: {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
                         .frame(width: 14, height: 14)

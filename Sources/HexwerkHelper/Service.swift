@@ -59,9 +59,11 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
 
     /// Runs `work` on its own large-stack thread: requests may take long,
     /// and parsers, wasmtime and JavaScriptCore need the stack.
-    private func run<R: Decodable & Sendable>(_ type: R.Type, _ data: Data, header: (R) -> RequestHeader, file: FileHandle?,
-                                   reply: @escaping @Sendable (Data?, String?) -> Void,
-                                   _ work: @escaping (R, Snapshot, CancelToken) throws -> Data) {
+    private func run<R: Decodable & Sendable>(
+        _ type: R.Type, _ data: Data, header: (R) -> RequestHeader, file: FileHandle?,
+        reply: @escaping @Sendable (Data?, String?) -> Void,
+        _ work: @escaping (R, Snapshot, CancelToken) throws -> Data
+    ) {
         let request: R
         do { request = try RequestCoder.decode(type, data) } catch {
             reply(nil, L("Invalid request: %@", String(describing: error)))
@@ -93,8 +95,9 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
         run(ParseRequest.self, request, header: \.header, file: file, reply: reply) { [weak self] req, snapshot, token in
             let file: KsyFile
             do {
-                let loader = KsyLoader(libraryRoots: req.libraryRoots.map { URL(fileURLWithPath: $0) },
-                                       read: { url in try self?.readFormatFile(url) ?? nil })
+                let loader = KsyLoader(
+                    libraryRoots: req.libraryRoots.map { URL(fileURLWithPath: $0) },
+                    read: { url in try self?.readFormatFile(url) ?? nil })
                 file = try loader.load(URL(fileURLWithPath: req.ksy))
             } catch {
                 return ParseOutcome.loadError(String(describing: error)).encoded()
@@ -108,14 +111,16 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
         run(ScanRequest.self, request, header: \.header, file: file, reply: reply) { req, snapshot, _ in
             let rules: YaraRules
             do {
-                rules = try req.rules.compile(materializingIn: FileManager.default.temporaryDirectory
-                    .appendingPathComponent("yara-\(UUID().uuidString)"))
+                rules = try req.rules.compile(
+                    materializingIn: FileManager.default.temporaryDirectory
+                        .appendingPathComponent("yara-\(UUID().uuidString)"))
             } catch let e as YaraCompileError {
                 return YaraScanOutcome.compileErrors(e.diagnostics).encoded()
             }
             do {
-                let hits = try rules.scan(snapshot, range: req.range, timeout: req.timeout,
-                                          maxMatchesPerPattern: req.maxMatchesPerPattern)
+                let hits = try rules.scan(
+                    snapshot, range: req.range, timeout: req.timeout,
+                    maxMatchesPerPattern: req.maxMatchesPerPattern)
                 return YaraScanOutcome.hits(hits, warnings: rules.warnings).encoded()
             } catch {
                 return YaraScanOutcome.failed(String(describing: error), warnings: rules.warnings).encoded()
@@ -127,9 +132,11 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
         run(ScriptRequest.self, request, header: \.header, file: file, reply: reply) { req, snapshot, token in
             let copy = Document(editing: snapshot, readOnly: req.readOnly)
             let ctx = ScriptContext(cursor: req.cursor, selection: req.selection, fileName: req.fileName)
-            let r = ScriptRunner.run(req.source, name: req.name, document: copy, context: ctx,
-                                     timeout: req.timeout, isCancelled: { token.isSet })
-            let edited = r.error == nil && copy.isModified
+            let r = ScriptRunner.run(
+                req.source, name: req.name, document: copy, context: ctx,
+                timeout: req.timeout, isCancelled: { token.isSet })
+            let edited =
+                r.error == nil && copy.isModified
                 ? copy.editedContent(sentAddedCount: req.header.snapshot.added.count) : nil
             return ScriptOutcome(result: r, edited: edited).encoded()
         }
@@ -140,9 +147,10 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
         guard let connection else { throw HelperError.stopped }
         // The synchronous proxy calls one of the two blocks before returning.
         let answer = Mutex<Result<String?, Error>>(.failure(HelperError.stopped))
-        let proxy = connection.synchronousRemoteObjectProxyWithErrorHandler { e in
-            answer.withLock { $0 = .failure(e) }
-        } as? HelperHostXPC
+        let proxy =
+            connection.synchronousRemoteObjectProxyWithErrorHandler { e in
+                answer.withLock { $0 = .failure(e) }
+            } as? HelperHostXPC
         proxy?.readFormatFile(url.path) { text, error in
             answer.withLock { $0 = error.map { .failure(HelperError.failed($0)) } ?? .success(text) }
         }

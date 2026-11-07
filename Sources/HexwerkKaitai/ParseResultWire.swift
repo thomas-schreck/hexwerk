@@ -58,21 +58,25 @@ extension ParseResult {
                 default: nil
                 }
             }
-            let kind: UInt8 = switch l.values.first {
-            case .int?: 1
-            case .float?: 2
-            default: 3
-            }
-            let packed: [UInt64] = kind == 3 ? [] : l.values.compactMap { v in
-                switch (kind, v) {
-                case (1, .int), (2, .float): bits(v)
-                default: nil
+            let kind: UInt8 =
+                switch l.values.first {
+                case .int?: 1
+                case .float?: 2
+                default: 3
                 }
-            }
+            let packed: [UInt64] =
+                kind == 3
+                ? []
+                : l.values.compactMap { v in
+                    switch (kind, v) {
+                    case (1, .int), (2, .float): bits(v)
+                    default: nil
+                    }
+                }
             if kind != 3, packed.count == l.values.count {
                 w.u8(kind)
                 w.uint(UInt64(packed.count))
-                packed.withUnsafeBytes { w.raw($0) }    // little endian on arm64 and x86
+                packed.withUnsafeBytes { w.raw($0) }  // little endian on arm64 and x86
             } else {
                 w.u8(3)
                 w.array(l.values) { w, v in
@@ -80,7 +84,7 @@ extension ParseResult {
                     case .int(let i): w.u8(0); w.int(i)
                     case .float(let d): w.u8(1); w.double(d)
                     case .bool(let b): w.u8(2); w.bool(b)
-                    default: w.u8(3); w.string(display(v))   // not made by fastNumberArray
+                    default: w.u8(3); w.string(display(v))  // not made by fastNumberArray
                     }
                 }
             }
@@ -132,7 +136,8 @@ extension ParseResult {
             return LazyArray(values: values, base: base, elementSize: size, typeName: typeName, firstID: firstID)
         }
         let children = try r.array { r in try readNode(&r, depth: depth + 1) }
-        return ParseNode(id: id, name: name, typeName: typeName, value: value, range: range,
-                         children: children, error: error, number: number, lazy: lazy)
+        return ParseNode(
+            id: id, name: name, typeName: typeName, value: value, range: range,
+            children: children, error: error, number: number, lazy: lazy)
     }
 }

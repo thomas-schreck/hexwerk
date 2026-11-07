@@ -91,7 +91,9 @@ struct CalculatorView: View {
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(value, forType: .string)
-            } label: { Image(systemName: "doc.on.doc") }
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
             .buttonStyle(.borderless)
             .help(L("Copy"))
         }
@@ -107,9 +109,10 @@ final class CalculatorPanel {
     func toggle() {
         if let panel, panel.isVisible { panel.orderOut(nil); return }
         if panel == nil {
-            let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 360),
-                            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
+            let p = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 360),
+                styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+                backing: .buffered, defer: false)
             p.title = L("Calculator")
             p.isFloatingPanel = true
             p.becomesKeyOnlyIfNeeded = false

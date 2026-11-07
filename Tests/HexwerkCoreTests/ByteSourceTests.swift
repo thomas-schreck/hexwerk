@@ -12,15 +12,15 @@ func tempFile(_ data: Data) throws -> URL {
 
 @Suite struct ByteSourceTests {
     @Test func readsRanges() throws {
-        let bytes = Data((0..<1000).map { UInt8($0 % 256) })
+        let bytes = Data((0 ..< 1000).map { UInt8($0 % 256) })
         let url = try tempFile(bytes)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let src = try ByteSource(url: url)
         #expect(src.count == 1000)
-        #expect(src.read(0..<4) == Data([0, 1, 2, 3]))
-        #expect(src.read(256..<258) == Data([0, 1]))
-        #expect(src.read(0..<1000) == bytes)
+        #expect(src.read(0 ..< 4) == Data([0, 1, 2, 3]))
+        #expect(src.read(256 ..< 258) == Data([0, 1]))
+        #expect(src.read(0 ..< 1000) == bytes)
     }
 
     @Test func clipsOutOfRange() throws {
@@ -28,8 +28,8 @@ func tempFile(_ data: Data) throws -> URL {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let src = try ByteSource(url: url)
-        #expect(src.read(2..<10) == Data([3]))
-        #expect(src.read(5..<10).isEmpty)
+        #expect(src.read(2 ..< 10) == Data([3]))
+        #expect(src.read(5 ..< 10).isEmpty)
     }
 
     @Test func emptyFile() throws {
@@ -38,7 +38,7 @@ func tempFile(_ data: Data) throws -> URL {
 
         let src = try ByteSource(url: url)
         #expect(src.count == 0)
-        #expect(src.read(0..<10).isEmpty)
+        #expect(src.read(0 ..< 10).isEmpty)
     }
 
     @Test func rejectsDirectory() {

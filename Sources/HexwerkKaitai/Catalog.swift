@@ -56,7 +56,8 @@ public struct FormatCatalog: Sendable {
         let after = String(text[m.upperBound...])
         guard let r = after.range(of: "(?m)^  file-extension:(.*)$", options: .regularExpression) else { return [] }
         // Value after the colon; empty means a block list follows.
-        let first = after[r].split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        let first =
+            after[r].split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             .dropFirst().first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
         if !first.isEmpty {
             return first.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))

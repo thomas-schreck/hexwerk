@@ -57,7 +57,7 @@ import HexwerkScript
         let (doc, url) = try document()
         defer { try? FileManager.default.removeItem(at: url) }
         try doc.overwrite(at: 10, with: Data(repeating: 0xAA, count: 1000))
-        doc.undo()                                          // stays in the added buffer
+        doc.undo()  // stays in the added buffer
         try doc.insert(Data("abc".utf8), at: 100)
         try doc.delete(200 ..< 300)
         let (remote, wire, _) = try helperSide(doc.snapshot())
@@ -74,16 +74,16 @@ import HexwerkScript
         let fh = try #require(snap.fileHandle())
         let source = try ByteSource(fileDescriptor: fh.fileDescriptor, url: url)
         var wire = snap.wire().0
-        wire.pieces = [.init(added: false, start: 4000, length: 200)]       // past the file
+        wire.pieces = [.init(added: false, start: 4000, length: 200)]  // past the file
         wire.count = 200
         #expect(throws: SnapshotWireError.self) { try Snapshot(wire: wire, original: source) }
-        wire.pieces = [.init(added: true, start: 0, length: 1)]             // no added bytes
+        wire.pieces = [.init(added: true, start: 0, length: 1)]  // no added bytes
         wire.count = 1
         #expect(throws: SnapshotWireError.self) { try Snapshot(wire: wire, original: source) }
-        wire.pieces = [.init(added: false, start: UInt64.max, length: 2)]   // overflow
+        wire.pieces = [.init(added: false, start: UInt64.max, length: 2)]  // overflow
         wire.count = 2
         #expect(throws: SnapshotWireError.self) { try Snapshot(wire: wire, original: source) }
-        wire.pieces = [.init(added: false, start: 0, length: 10)]           // size mismatch
+        wire.pieces = [.init(added: false, start: 0, length: 10)]  // size mismatch
         wire.count = 11
         #expect(throws: SnapshotWireError.self) { try Snapshot(wire: wire, original: source) }
     }
@@ -101,8 +101,8 @@ import HexwerkScript
 
         let copy = Document(editing: remote)
         let edits = { (d: Document) in
-            try d.overwrite(at: 7, with: Data("AB".utf8))   // inside an edited piece
-            try d.delete(51 ..< 52)                       // splits the inserted piece
+            try d.overwrite(at: 7, with: Data("AB".utf8))  // inside an edited piece
+            try d.delete(51 ..< 52)  // splits the inserted piece
             try d.insert(Data("new".utf8), at: 0)
             try d.overwrite(at: 3000, with: Data([1, 2, 3]))
         }
@@ -128,51 +128,53 @@ import HexwerkScript
     // MARK: Results
 
     static let ksy = """
-    meta:
-      id: wiretest
-      endian: le
-    seq:
-      - id: magic
-        contents: [0x48, 0x57]
-      - id: n
-        type: u2
-      - id: recs
-        type: rec
-        repeat: expr
-        repeat-expr: n
-      - id: ints
-        type: u4
-        repeat: expr
-        repeat-expr: 1100
-      - id: floats
-        type: f4
-        repeat: expr
-        repeat-expr: 1100
-      - id: tail
-        type: u4
-    types:
-      rec:
+        meta:
+          id: wiretest
+          endian: le
         seq:
-          - id: a
-            type: u1
-          - id: s
-            type: str
-            size: 3
-            encoding: ASCII
-    """
+          - id: magic
+            contents: [0x48, 0x57]
+          - id: n
+            type: u2
+          - id: recs
+            type: rec
+            repeat: expr
+            repeat-expr: n
+          - id: ints
+            type: u4
+            repeat: expr
+            repeat-expr: 1100
+          - id: floats
+            type: f4
+            repeat: expr
+            repeat-expr: 1100
+          - id: tail
+            type: u4
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u1
+              - id: s
+                type: str
+                size: 3
+                encoding: ASCII
+        """
 
     static var ksyData: Data {
         var d = Data([0x48, 0x57, 3, 0])
         for i in 0 ..< 3 { d += [UInt8(i)] + Data("ab\(i)".utf8) }
         for i in 0 ..< 1100 { withUnsafeBytes(of: UInt32(i * 1000).littleEndian) { d += $0 } }
         for i in 0 ..< 1100 { withUnsafeBytes(of: Float(i).bitPattern.littleEndian) { d += $0 } }
-        return d + [1, 2]                                   // tail is cut short: an error
+        return d + [1, 2]  // tail is cut short: an error
     }
 
     static func lines(_ r: ParseResult) -> [String] {
         var out = ["\(r.nodeCount) \(r.lazyElementCount) \(r.error?.description ?? "-")"]
         func add(_ n: ParseNode, _ depth: Int) {
-            out.append("\(depth) \(n.id) \(n.name) \(n.typeName) \(n.value ?? "-") \(String(describing: n.range)) \(n.error ?? "-") \(String(describing: n.number))")
+            out.append(
+                "\(depth) \(n.id) \(n.name) \(n.typeName) \(n.value ?? "-") \(String(describing: n.range)) \(n.error ?? "-") \(String(describing: n.number))"
+            )
             for c in n.allChildren { add(c, depth + 1) }
         }
         add(r.root, 0)
@@ -194,9 +196,14 @@ import HexwerkScript
 
     @Test func scanOutcomeRoundTrips() throws {
         let d = YaraDiagnostic(file: "/r.yar", line: 3, column: 4, code: "E1", message: "m", report: "rep")
-        let hits = [YaraRuleMatch(rule: "r", namespace: "default", tags: ["t"], metadata: [YaraMeta(key: "k", value: "v")],
-                                  matches: [YaraPatternMatch(pattern: "$a", offset: 1 << 40, length: 4, xorKey: 3),
-                                            YaraPatternMatch(pattern: "$b", offset: 7, length: 0, xorKey: nil)])]
+        let hits = [
+            YaraRuleMatch(
+                rule: "r", namespace: "default", tags: ["t"], metadata: [YaraMeta(key: "k", value: "v")],
+                matches: [
+                    YaraPatternMatch(pattern: "$a", offset: 1 << 40, length: 4, xorKey: 3),
+                    YaraPatternMatch(pattern: "$b", offset: 7, length: 0, xorKey: nil),
+                ])
+        ]
         guard case .hits(let h, let w) = try YaraScanOutcome(encoded: YaraScanOutcome.hits(hits, warnings: [d]).encoded()) else {
             Issue.record("wrong case"); return
         }

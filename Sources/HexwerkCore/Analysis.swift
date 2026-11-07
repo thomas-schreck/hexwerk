@@ -16,7 +16,7 @@ public struct ByteStats: Sendable, Codable, Equatable {
     public var zeroRatio: Double { ratio(histogram[0]) }
     /// Printable ASCII plus tab, LF, CR.
     public var printableRatio: Double {
-        ratio(histogram[0x20...0x7E].reduce(0, +) + histogram[9] + histogram[10] + histogram[13])
+        ratio(histogram[0x20 ... 0x7E].reduce(0, +) + histogram[9] + histogram[10] + histogram[13])
     }
     public var highRatio: Double { ratio(histogram[0x80...].reduce(0, +)) }
 
@@ -50,9 +50,11 @@ public enum Analysis {
     /// Histogram of all bytes in `range` plus entropy of about `blocks`
     /// equal blocks. Returns nil if cancelled. Reads in blocks, so memory
     /// stays small for any file size.
-    public static func analyze(_ snap: Snapshot, range: Range<UInt64>? = nil, blocks: Int = 1024,
-                               isCancelled: () -> Bool = { false },
-                               progress: (Double) -> Void = { _ in }) -> (ByteStats, EntropyProfile)? {
+    public static func analyze(
+        _ snap: Snapshot, range: Range<UInt64>? = nil, blocks: Int = 1024,
+        isCancelled: () -> Bool = { false },
+        progress: (Double) -> Void = { _ in }
+    ) -> (ByteStats, EntropyProfile)? {
         let r = (range ?? 0 ..< snap.count).clamped(to: 0 ..< snap.count)
         let n = UInt64(max(1, blocks))
         // At least 256 bytes per block, otherwise the per-block entropy says little.
@@ -64,13 +66,13 @@ public enum Analysis {
         while pos < r.upperBound {
             if isCancelled() { return nil }
             let end = min(r.upperBound, pos + blockSize)
-            for i in 0..<256 { block[i] = 0 }
+            for i in 0 ..< 256 { block[i] = 0 }
             snap.withContiguousBytes(pos ..< end) { buf in
                 block.withUnsafeMutableBufferPointer { h in
                     for b in buf { h[Int(b)] += 1 }
                 }
             }
-            for i in 0..<256 { total[i] += block[i] }
+            for i in 0 ..< 256 { total[i] += block[i] }
             profile.append(entropy(block, total: end - pos))
             pos = end
             progress(Double(pos - r.lowerBound) / Double(max(1, r.count)))

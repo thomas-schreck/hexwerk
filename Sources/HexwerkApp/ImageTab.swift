@@ -50,9 +50,10 @@ final class ImageModel: ObservableObject {
         let r = format.rgba(data, width: width)
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let provider = CGDataProvider(data: Data(r.pixels) as CFData),
-              let cg = CGImage(width: r.width, height: r.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: r.width * 4,
-                               space: cs, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-                               provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+            let cg = CGImage(
+                width: r.width, height: r.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: r.width * 4,
+                space: cs, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
         else { return nil }
         return (NSImage(cgImage: cg, size: NSSize(width: r.width, height: r.height)), r.width, r.height)
     }
@@ -98,7 +99,7 @@ struct ImageTab: View {
                     Text(L("Width")).foregroundStyle(.secondary)
                     TextField("", value: $image.width, format: .number)
                         .textFieldStyle(.roundedBorder).frame(width: 56).monospacedDigit()
-                    Stepper("", value: $image.width, in: 1...4096).labelsHidden()
+                    Stepper("", value: $image.width, in: 1 ... 4096).labelsHidden()
                     Button("÷2") { image.width = max(1, image.width / 2) }.help(L("Halve"))
                     Button("×2") { image.width = min(4096, image.width * 2) }.help(L("Double"))
                     Spacer(minLength: 0)
@@ -123,7 +124,9 @@ struct ImageTab: View {
                         .onContinuousHover { phase in
                             if case .active(let p) = phase {
                                 image.hover.offset = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)
-                            } else { image.hover.offset = nil }
+                            } else {
+                                image.hover.offset = nil
+                            }
                         }
                         .onTapGesture { p in
                             let off = image.offset(x: Int(p.x) / image.zoom, y: Int(p.y) / image.zoom)

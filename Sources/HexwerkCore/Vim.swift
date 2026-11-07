@@ -17,18 +17,18 @@ public enum VimMode: String, Sendable {
 }
 
 public enum VimAction: Equatable, Sendable {
-    case moveBytes(Int64)          // h/l/w/b, with count
-    case moveRows(Int64)           // j/k
-    case movePages(Double)         // Ctrl-f/b (1), Ctrl-d/u (0.5)
+    case moveBytes(Int64)  // h/l/w/b, with count
+    case moveRows(Int64)  // j/k
+    case movePages(Double)  // Ctrl-f/b (1), Ctrl-d/u (0.5)
     case rowStart, rowEnd, top, bottom
     case enterInsert(after: Bool)  // i / a
-    case enterReplace              // R
-    case enterNormal               // Esc
+    case enterReplace  // R
+    case enterNormal  // Esc
     case startVisual, endVisual
-    case yank(count: Int)          // y (visual: selection)
-    case paste(after: Bool)        // p / P
-    case delete(count: Int)        // x (visual: d/x selection)
-    case replaceByte(UInt8)        // r + two hex digits
+    case yank(count: Int)  // y (visual: selection)
+    case paste(after: Bool)  // p / P
+    case delete(count: Int)  // x (visual: d/x selection)
+    case replaceByte(UInt8)  // r + two hex digits
     case undo, redo
     case search, searchNext, searchPrevious, goToPrompt
     case setMark(Character), jumpMark(Character)

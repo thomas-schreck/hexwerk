@@ -26,7 +26,7 @@ public struct WireWriter {
         data.append(UInt8(v))
     }
 
-    public mutating func int(_ v: Int64) { uint(UInt64(bitPattern: (v << 1) ^ (v >> 63))) }   // zigzag
+    public mutating func int(_ v: Int64) { uint(UInt64(bitPattern: (v << 1) ^ (v >> 63))) }  // zigzag
     public mutating func int(_ v: Int) { int(Int64(v)) }
     public mutating func double(_ v: Double) { fixed64(v.bitPattern) }
 

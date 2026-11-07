@@ -5,7 +5,8 @@ import SwiftUI
 
 /// One window per open file: toolbar, find bar, hex view, status bar and an
 /// inspector sidebar that can be toggled like in Xcode or the Finder.
-final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSToolbarDelegate {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSToolbarDelegate
+{
     let model: DocumentModel
     let hexView: HexView
     private let split = NSSplitViewController()
@@ -21,9 +22,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         model = DocumentModel(doc: file)
         hexView = HexView(model: model)
         findHost = NSHostingView(rootView: FindBar(model: model))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 720),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                              backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1180, height: 720),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered, defer: false)
         window.tabbingMode = .preferred
         window.tabbingIdentifier = "hexwerk.document"
         window.toolbarStyle = .unified
@@ -72,7 +74,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     required init?(coder: NSCoder) { fatalError("not used") }
 
     private func buildContent(in window: NSWindow) {
-        let status = NSHostingView(rootView: StatusBar(model: model, structure: model.structure, yara: model.yara, analysis: model.analysis))
+        let status = NSHostingView(
+            rootView: StatusBar(model: model, structure: model.structure, yara: model.yara, analysis: model.analysis))
         findHost.isHidden = true
         let stack = NSStackView(views: [findHost, hexView, status])
         stack.orientation = .vertical
@@ -143,19 +146,25 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Item.open, Item.save, .space, Item.undo, Item.redo, .space, Item.cut, Item.copy, Item.paste,
-         .space, Item.find, Item.goTo, Item.bookmark, .flexibleSpace, Item.mode,
-         .inspectorTrackingSeparator, .flexibleSpace, .toggleInspector]
+        [
+            Item.open, Item.save, .space, Item.undo, Item.redo, .space, Item.cut, Item.copy, Item.paste,
+            .space, Item.find, Item.goTo, Item.bookmark, .flexibleSpace, Item.mode,
+            .inspectorTrackingSeparator, .flexibleSpace, .toggleInspector,
+        ]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Item.open, Item.save, Item.undo, Item.redo, Item.cut, Item.copy, Item.paste, Item.find, Item.goTo,
-         Item.bookmark, Item.compare, Item.fill, Item.mode,
-         .space, .flexibleSpace, .inspectorTrackingSeparator, .toggleInspector]
+        [
+            Item.open, Item.save, Item.undo, Item.redo, Item.cut, Item.copy, Item.paste, Item.find, Item.goTo,
+            Item.bookmark, Item.compare, Item.fill, Item.mode,
+            .space, .flexibleSpace, .inspectorTrackingSeparator, .toggleInspector,
+        ]
     }
 
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
-                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+    func toolbar(
+        _ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
         switch id {
         case Item.open: button(id, L("Open"), "folder", #selector(tbOpen(_:)), L("Open File (⌘O)"))
         case Item.save: button(id, L("Save"), "square.and.arrow.down", #selector(saveDocument(_:)), L("Save (⌘S)"))
@@ -175,8 +184,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     private func modeItem(_ id: NSToolbarItem.Identifier) -> NSToolbarItem {
-        let seg = NSSegmentedControl(labels: [L("Overwrite"), L("Insert")], trackingMode: .selectOne,
-                                     target: self, action: #selector(modeChanged(_:)))
+        let seg = NSSegmentedControl(
+            labels: [L("Overwrite"), L("Insert")], trackingMode: .selectOne,
+            target: self, action: #selector(modeChanged(_:)))
         seg.selectedSegment = model.insertMode ? 1 : 0
         let item = NSToolbarItem(itemIdentifier: id)
         item.view = seg
@@ -186,8 +196,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         return item
     }
 
-    private func button(_ id: NSToolbarItem.Identifier, _ label: String, _ symbol: String,
-                        _ action: Selector, _ tip: String) -> NSToolbarItem {
+    private func button(
+        _ id: NSToolbarItem.Identifier, _ label: String, _ symbol: String,
+        _ action: Selector, _ tip: String
+    ) -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: id)
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         item.label = label
@@ -239,8 +251,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         model.script.run(on: file, cursor: hexView.cursor, selection: hexView.selection) { [weak self] changed, r in
             guard let self else { return }
             if changed { hexView.reload() }
-            if let s = r.select { hexView.jump(to: s.lowerBound, select: s) }
-            else if let g = r.goTo { hexView.jump(to: g, select: nil) }
+            if let s = r.select { hexView.jump(to: s.lowerBound, select: s) } else if let g = r.goTo { hexView.jump(to: g, select: nil) }
             refresh()
         }
     }
@@ -252,8 +263,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// pos, sel, size and the integers under the cursor (current endianness).
     func calculatorVariables() -> [String: UInt64] {
         let c = hexView.cursor
-        var vars: [String: UInt64] = ["pos": c + model.offsetBase, "size": file.count,
-                                      "sel": UInt64(hexView.selection?.count ?? 0)]
+        var vars: [String: UInt64] = [
+            "pos": c + model.offsetBase, "size": file.count,
+            "sel": UInt64(hexView.selection?.count ?? 0),
+        ]
         let bytes = file.read(c ..< c + 8)
         for (name, n) in [("u8", 1), ("u16", 2), ("u32", 4), ("u64", 8)] where bytes.count >= n {
             let slice = Array(bytes.prefix(n))
@@ -330,12 +343,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func previousDifference(_ sender: Any?) { model.jumpToDiff(forward: false) }
 
     @objc func goToOffset(_ sender: Any?) {
-        prompt(title: L("Go to Offset"),
-               message: model.offsetBase != 0
-                   ? L("Address in decimal or hex (0x…), from %@. + or − for relative.", hex(model.offsetBase))
-                   : L("Decimal or hex (0x…). + or − relative to the current position."),
-               placeholder: "0x1000", text: "",
-               validate: { [unowned self] in parseOffset($0) != nil }) { [self] text in
+        prompt(
+            title: L("Go to Offset"),
+            message: model.offsetBase != 0
+                ? L("Address in decimal or hex (0x…), from %@. + or − for relative.", hex(model.offsetBase))
+                : L("Decimal or hex (0x…). + or − relative to the current position."),
+            placeholder: "0x1000", text: "",
+            validate: { [unowned self] in parseOffset($0) != nil }
+        ) { [self] text in
             guard let text, let target = parseOffset(text) else { return }
             hexView.jump(to: target, select: nil)
             window?.makeFirstResponder(hexView)
@@ -352,19 +367,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let c = hexView.cursor
         // Absolute values are addresses when the file has a load address.
         if sign == 0, v < model.offsetBase { return nil }
-        let target: UInt64 = switch sign {
-        case 1: c.addingReportingOverflow(v).overflow ? .max : c + v
-        case -1: c >= v ? c - v : 0
-        default: v - model.offsetBase
-        }
+        let target: UInt64 =
+            switch sign {
+            case 1: c.addingReportingOverflow(v).overflow ? .max : c + v
+            case -1: c >= v ? c - v : 0
+            default: v - model.offsetBase
+            }
         return target <= file.count ? target : nil
     }
 
     @objc func addBookmark(_ sender: Any?) {
-        prompt(title: L("Add Bookmark"),
-               message: hexView.selection.map { L("Selection: %1$ld bytes at %2$@", $0.count, hex($0.lowerBound)) }
-                   ?? L("Position %@", hex(hexView.cursor)),
-               placeholder: L("Name"), text: "", validate: { _ in true }) { [self] name in
+        prompt(
+            title: L("Add Bookmark"),
+            message: hexView.selection.map { L("Selection: %1$ld bytes at %2$@", $0.count, hex($0.lowerBound)) }
+                ?? L("Position %@", hex(hexView.cursor)),
+            placeholder: L("Name"), text: "", validate: { _ in true }
+        ) { [self] name in
             guard let name else { return }
             model.addBookmark(name: name)
         }
@@ -373,9 +391,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func fillSelection(_ sender: Any?) {
         guard let sel = hexView.selection else { NSSound.beep(); return }
         guard confirmFillSize(UInt64(sel.count)) else { return }
-        prompt(title: L("Fill Selection"), message: L("Hex pattern, repeated over the selection."),
-               placeholder: L("00 or DE AD BE EF"), text: "00",
-               validate: { Self.fixedBytes($0) != nil }) { [self] text in
+        prompt(
+            title: L("Fill Selection"), message: L("Hex pattern, repeated over the selection."),
+            placeholder: L("00 or DE AD BE EF"), text: "00",
+            validate: { Self.fixedBytes($0) != nil }
+        ) { [self] text in
             guard let text, let bytes = Self.fixedBytes(text) else { return }
             hexView.fillSelection(with: bytes)
         }
@@ -427,12 +447,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
     @objc func setCharset(_ sender: NSMenuItem) { model.charset = TextEncodingView.allCases[sender.tag] }
 
-    private func prompt(title: String, message: String, placeholder: String, text: String,
-                        validate: @escaping (String) -> Bool, done: @escaping (String?) -> Void) {
+    private func prompt(
+        title: String, message: String, placeholder: String, text: String,
+        validate: @escaping (String) -> Bool, done: @escaping (String?) -> Void
+    ) {
         guard let window else { return }
         let sheet = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
-        let view = PromptSheet(title: title, message: message, placeholder: placeholder, input: PromptText(text),
-                               validate: validate) { [weak window, weak sheet] result in
+        let view = PromptSheet(
+            title: title, message: message, placeholder: placeholder, input: PromptText(text),
+            validate: validate
+        ) { [weak window, weak sheet] result in
             if let sheet { window?.endSheet(sheet) }
             done(result)
         }
@@ -451,7 +475,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         // Text renderings grow 4–6×; beyond a few MB the clipboard is the wrong tool.
         guard r.count <= 4 << 20 else {
             let a = NSAlert()
-            a.messageText = L("Selection too large to copy (%@).", ByteCountFormatter.string(fromByteCount: Int64(r.count), countStyle: .binary))
+            a.messageText = L(
+                "Selection too large to copy (%@).", ByteCountFormatter.string(fromByteCount: Int64(r.count), countStyle: .binary))
             a.informativeText = L("At most 4 MiB. Save larger ranges with File → Export Selection.")
             a.runModal()
             return
@@ -464,7 +489,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let window else { return }
         let r = exportRange
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = file.url.deletingPathExtension().lastPathComponent
+        panel.nameFieldStringValue =
+            file.url.deletingPathExtension().lastPathComponent
             + "_\(String(r.lowerBound, radix: 16, uppercase: true))-\(String(r.upperBound, radix: 16, uppercase: true)).bin"
         panel.message = L("Save %1$ld bytes at %2$@ as raw data", r.count, hex(r.lowerBound))
         panel.beginSheetModal(for: window) { [self] response in
@@ -528,17 +554,20 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         }
         let progress = SaveProgress(total: job.byteCount, cancellable: job.isCancellable)
         let sheet = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
-        sheet.contentViewController = NSHostingController(rootView: SaveProgressSheet(
-            name: job.target.lastPathComponent, progress: progress) { [weak self] in self?.saveTask?.cancel() })
+        sheet.contentViewController = NSHostingController(
+            rootView: SaveProgressSheet(
+                name: job.target.lastPathComponent, progress: progress
+            ) { [weak self] in self?.saveTask?.cancel() })
         window.beginSheet(sheet)
         afterSave.append(done)
         saveTask = Task.detached(priority: .userInitiated) { [weak self] in
             var throttle = ProgressThrottle()
             let result = Result {
-                try job.write(progress: { n in
-                    guard throttle.shouldReport() else { return }
-                    Task { @MainActor in progress.done = n }
-                }, isCancelled: { Task.isCancelled })
+                try job.write(
+                    progress: { n in
+                        guard throttle.shouldReport() else { return }
+                        Task { @MainActor in progress.done = n }
+                    }, isCancelled: { Task.isCancelled })
             }
             await MainActor.run {
                 window.endSheet(sheet)
@@ -618,7 +647,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             if file.isModified {
                 let a = NSAlert()
                 a.messageText = L("%@ was changed by another program.", name)
-                a.informativeText = L("It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost.")
+                a.informativeText = L(
+                    "It was modified in place, so the content shown can no longer be trusted or saved. hexwerk reloads it from disk; your unsaved changes are lost."
+                )
                 a.addButton(withTitle: L("Reload"))
                 a.runModal()
             }
@@ -631,9 +662,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return
         }
         let a = NSAlert()
-        a.messageText = exists ? L("%@ was replaced by another program.", name)
-                               : L("%@ was moved or deleted by another program.", name)
-        a.informativeText = L("Your version with the unsaved changes is still intact. Keep Mine continues editing; saving then overwrites the file on disk.")
+        a.messageText =
+            exists
+            ? L("%@ was replaced by another program.", name)
+            : L("%@ was moved or deleted by another program.", name)
+        a.informativeText = L(
+            "Your version with the unsaved changes is still intact. Keep Mine continues editing; saving then overwrites the file on disk.")
         a.addButton(withTitle: L("Keep Mine"))
         a.addButton(withTitle: L("Save As…"))
         if exists { a.addButton(withTitle: L("Reload")) }
@@ -663,7 +697,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private func writeBack(_ i: DocumentModel.ImportInfo) throws {
         let data = file.read(0 ..< file.count)
         let segs = HexRecords.segments(data, base: model.offsetBase, gaps: i.gaps)
-        let text = i.format == .intelHex
+        let text =
+            i.format == .intelHex
             ? try HexRecords.intelHex(segs, start: i.start, startSegment: i.startSegment)
             : try HexRecords.srec(segs, start: i.start, header: i.header ?? "hexwerk")
         // Not String.write(atomically:): that drops xattrs (quarantine) and
@@ -804,8 +839,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func projectState() -> ProjectState {
         var s = ProjectState(filePath: displayURL.standardizedFileURL.path, fileSize: file.count)
         s.bookmarks = model.bookmarks.map {
-            .init(name: $0.name, start: $0.range.lowerBound, end: $0.range.upperBound,
-                  color: DocumentModel.bookmarkColors.firstIndex(of: $0.color) ?? 0)
+            .init(
+                name: $0.name, start: $0.range.lowerBound, end: $0.range.upperBound,
+                color: DocumentModel.bookmarkColors.firstIndex(of: $0.color) ?? 0)
         }
         if let u = model.structure.formatURL { s.format = .init(path: u.path, title: model.structure.formatTitle ?? u.lastPathComponent) }
         s.yaraRules = model.yara.ruleFiles.map(\.path)
@@ -831,8 +867,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             a.runModal()
         }
         model.bookmarks = s.bookmarks.filter { $0.start < n }.map {
-            DocumentModel.Bookmark(name: $0.name, range: $0.start ..< min(n, max($0.start + 1, $0.end)),
-                                   color: DocumentModel.bookmarkColors[$0.color % DocumentModel.bookmarkColors.count])
+            DocumentModel.Bookmark(
+                name: $0.name, range: $0.start ..< min(n, max($0.start + 1, $0.end)),
+                color: DocumentModel.bookmarkColors[$0.color % DocumentModel.bookmarkColors.count])
         }
         if let f = s.format, FileManager.default.fileExists(atPath: f.path) {
             model.structure.apply(URL(fileURLWithPath: f.path), title: f.title, snapshot: file.snapshot())
@@ -849,8 +886,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func restoreProject() {
-        do { if let s = try ProjectStore.read(for: displayURL) { apply(s) } }
-        catch { showError(error) }   // saveProject() then leaves the file alone
+        // On a read error saveProject() leaves the file alone.
+        do { if let s = try ProjectStore.read(for: displayURL) { apply(s) } } catch { showError(error) }
     }
 
     func saveProject() {

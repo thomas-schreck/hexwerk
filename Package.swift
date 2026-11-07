@@ -4,7 +4,8 @@ import PackageDescription
 
 // Homebrew prefix for the YARA-X and libmagic headers and static libraries:
 // $HOMEBREW_PREFIX if set, else the default location for this Mac.
-let brew = ProcessInfo.processInfo.environment["HOMEBREW_PREFIX"]
+let brew =
+    ProcessInfo.processInfo.environment["HOMEBREW_PREFIX"]
     ?? (FileManager.default.fileExists(atPath: "/opt/homebrew/include") ? "/opt/homebrew" : "/usr/local")
 let brewHeaders: [SwiftSetting] = [.unsafeFlags(["-Xcc", "-I\(brew)/include"])]
 
@@ -12,7 +13,8 @@ let brewHeaders: [SwiftSetting] = [.unsafeFlags(["-Xcc", "-I\(brew)/include"])]
 // folder the compiler does not search, so @Test fails with "plugin for module
 // 'TestingMacros' not found". Only add it when the CLT are the
 // active developer directory; with Xcode it is found automatically.
-let developerDir = ProcessInfo.processInfo.environment["DEVELOPER_DIR"]
+let developerDir =
+    ProcessInfo.processInfo.environment["DEVELOPER_DIR"]
     ?? (try? FileManager.default.destinationOfSymbolicLink(atPath: "/var/db/xcode_select_link")) ?? ""
 let cltTestingPlugins = "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
 let testSettings: [SwiftSetting] =
@@ -67,7 +69,7 @@ let package = Package(
                 "HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            swiftSettings: brewHeaders      // dependency scanning sees CYaraX/CMagic too
+            swiftSettings: brewHeaders  // dependency scanning sees CYaraX/CMagic too
         ),
         // Sandboxed helper (#102): runs the parsers for the app over XPC.
         .target(
@@ -86,8 +88,10 @@ let package = Package(
         // hexwerk.app (no Xcode project).
         .executableTarget(
             name: "HexwerkApp",
-            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
-                           "HexwerkHelper"],
+            dependencies: [
+                "HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
+                "HexwerkHelper",
+            ],
             swiftSettings: brewHeaders
         ),
         // Timings on a large generated file: `make bench` (release build).
@@ -99,8 +103,10 @@ let package = Package(
         ),
         .testTarget(
             name: "HexwerkCoreTests",
-            dependencies: ["HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
-                           "HexwerkHelper"],
+            dependencies: [
+                "HexwerkCore", "HexwerkKaitai", "HexwerkYARA", "HexwerkScript", "HexwerkMagic",
+                "HexwerkHelper",
+            ],
             resources: [.copy("Fixtures")],
             swiftSettings: brewHeaders + testSettings
         ),

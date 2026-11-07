@@ -36,7 +36,7 @@ import HexwerkScript
         defer { try? FileManager.default.removeItem(at: ksyURL) }
         let (doc, url) = try document(WireTests.ksyData)
         defer { try? FileManager.default.removeItem(at: url) }
-        try doc.overwrite(at: 5, with: Data("Q".utf8))      // unsaved edit
+        try doc.overwrite(at: 5, with: Data("Q".utf8))  // unsaved edit
         let local = KaitaiInterpreter.parse(doc.snapshot(), file: try KsyLoader().load(ksyURL), shouldContinue: { true })
         let remote = try await HelperClient.inProcess().parse(doc.snapshot(), ksy: ksyURL, libraryRoots: []).get()
         #expect(WireTests.lines(remote) == WireTests.lines(local))
@@ -52,8 +52,9 @@ import HexwerkScript
         let source = "print(hw.hex(0, 6), hw.fileName); hw.write(1, [9, 9]); hw.remove(10, 5); hw.select(1, 3)"
         let ctx = ScriptContext(cursor: 2, selection: 1 ..< 2, fileName: "f.bin")
         let base = doc.snapshot()
-        let (outcome, map) = try await HelperClient.inProcess().runScript(source, name: "t.js", base: base,
-                                                                          context: ctx, readOnly: false)
+        let (outcome, map) = try await HelperClient.inProcess().runScript(
+            source, name: "t.js", base: base,
+            context: ctx, readOnly: false)
         let local = Document(editing: base)
         let expected = ScriptRunner.run(source, document: local, context: ctx)
         #expect(outcome.result.output == expected.output && outcome.result.edits == expected.edits)
@@ -61,8 +62,9 @@ import HexwerkScript
         try doc.adopt(try #require(outcome.edited), map: map, base: base)
         #expect(doc.read(0 ..< doc.count) == local.read(0 ..< local.count))
 
-        let (err, _) = try await HelperClient.inProcess().runScript("hw.write(0, [1])\nfoo(", name: "t.js", base: doc.snapshot(),
-                                                                    context: ctx, readOnly: false)
+        let (err, _) = try await HelperClient.inProcess().runScript(
+            "hw.write(0, [1])\nfoo(", name: "t.js", base: doc.snapshot(),
+            context: ctx, readOnly: false)
         #expect(err.result.error != nil && err.edited == nil)
     }
 
@@ -72,8 +74,9 @@ import HexwerkScript
         let client = HelperClient.inProcess()
         let snap = doc.snapshot()
         let task = Task {
-            try await client.runScript("print('started'); while (true) {}", name: "loop.js", base: snap,
-                                       context: ScriptContext(), readOnly: false)
+            try await client.runScript(
+                "print('started'); while (true) {}", name: "loop.js", base: snap,
+                context: ScriptContext(), readOnly: false)
         }
         try await Task.sleep(for: .milliseconds(500))
         task.cancel()
@@ -104,8 +107,10 @@ import HexwerkScript
         var output: [String] = []
         for _ in 0 ..< 50 where output.isEmpty {
             do {
-                output = try await client.runScript("print(hw.size())", name: "b.js", base: doc.snapshot(),
-                                                    context: ScriptContext(), readOnly: false).0.result.output
+                output = try await client.runScript(
+                    "print(hw.size())", name: "b.js", base: doc.snapshot(),
+                    context: ScriptContext(), readOnly: false
+                ).0.result.output
             } catch {
                 try await Task.sleep(for: .milliseconds(20))
             }
