@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- The CLI runs YARA-X (wasmtime) and JavaScriptCore in-process. Under the
-     Hardened Runtime wasmtime needs executable memory it allocates itself;
+<!-- The CLI runs YARA-X (wasmtime) and JavaScriptCore in its sandboxed
+     child process (#129), which is the same binary. Under the Hardened
+     Runtime wasmtime needs executable memory it allocates itself;
      JavaScriptCore runs ~35x slower without its JIT. Nothing else is allowed. -->
 <plist version="1.0">
 <dict>

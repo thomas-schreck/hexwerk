@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import HexwerkCore
+import HexwerkHelper
 import HexwerkYARA
 
 struct Yara: ParsableCommand {
@@ -18,26 +19,39 @@ struct Yara: ParsableCommand {
     @Flag(help: .init(L("Output as JSON"))) var json = false
 
     func run() throws {
-        let files = try ruleFiles()
-        let compiled: YaraRules
-        do { compiled = try YaraRules.compile(files: files) } catch let e as YaraCompileError {
-            for d in e.diagnostics { FileHandle.standardError.write(Data("\(d.report.isEmpty ? d.description : d.report)\n".utf8)) }
+        // Rules are read here and compiled and run in the sandboxed child.
+        // Messages keep the in-process order: rule errors and warnings
+        // first, then a file that cannot be opened or a bad offset.
+        let bundle: YaraRuleBundle
+        do { bundle = try YaraRuleBundle.collect(files: try ruleFiles()) } catch let e as YaraCompileError {
+            reportCompileErrors(e.diagnostics)
             throw ExitCode(2)
         }
-        for w in compiled.warnings { FileHandle.standardError.write(Data((L("Warning: %@", "\(w)") + "\n").utf8)) }
-
-        let snap = try openSnapshot(file)
+        let opened = try? Document(url: URL(fileURLWithPath: file), readOnly: true).snapshot()
         let start = offset?.value ?? 0
-        guard start <= snap.count else {
+        // Without a file to scan the child only compiles.
+        let target = opened.flatMap { start <= $0.count ? $0 : nil }
+        let range = target.map { snap in start ..< (length.map { start + min($0.value, snap.count - start) } ?? snap.count) }
+        let outcome = try sandboxed(timeoutStatus: 3) { try $0.scan(target, rules: bundle, range: range, timeout: timeout) }
+        let hits: [YaraRuleMatch], warnings: [YaraDiagnostic], failure: (message: String, status: Int32)?
+        switch outcome {
+        case .compileErrors(let d):
+            reportCompileErrors(d)
+            throw ExitCode(2)
+        case .hits(let h, let w): (hits, warnings, failure) = (h, w, nil)
+        case .failed(let m, let w): (hits, warnings, failure) = ([], w, (m, 1))
+        case .timedOut(let m, let w): (hits, warnings, failure) = ([], w, (m, 3))
+        }
+        for w in warnings { FileHandle.standardError.write(Data((L("Warning: %@", "\(w)") + "\n").utf8)) }
+
+        let snap = try opened ?? openSnapshot(file)
+        guard target != nil else {
             FileHandle.standardError.write(Data(("hexwerk: " + L("Offset is past the end of the file") + "\n").utf8))
             throw ExitCode(1)
         }
-        let end = length.map { start + min($0.value, snap.count - start) } ?? snap.count
-        let hits: [YaraRuleMatch]
-        do { hits = try compiled.scan(snap, range: start ..< end, timeout: timeout) } catch let e as YaraScanError {
-            FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
-            if case .timeout = e { throw ExitCode(3) }
-            throw ExitCode(1)
+        if let failure {
+            FileHandle.standardError.write(Data("hexwerk: \(failure.message)\n".utf8))
+            throw ExitCode(failure.status)
         }
 
         if json {
@@ -54,6 +68,10 @@ struct Yara: ParsableCommand {
                 print("0x\(String(m.offset, radix: 16)):\(m.length):\(m.pattern): \(escape(bytes))\(m.length > 64 ? " …" : "")")
             }
         }
+    }
+
+    private func reportCompileErrors(_ diagnostics: [YaraDiagnostic]) {
+        for d in diagnostics { FileHandle.standardError.write(Data("\(d.report.isEmpty ? d.description : d.report)\n".utf8)) }
     }
 
     private func ruleFiles() throws -> [URL] {

@@ -105,6 +105,73 @@ import HexwerkCore
         return try JSONDecoder().decode([YaraRuleMatch].self, from: r.stdout)
     }
 
+    /// The CLI compiles in its sandboxed child (#129): absolute includes
+    /// still resolve, and included files are named as YARA-X names them in
+    /// place (relative to the working folder), byte for byte as before.
+    @Test func cliIncludesResolveAsInPlace() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let exe = root.appendingPathComponent(".build/debug/hexwerk")
+        try #require(FileManager.default.isExecutableFile(atPath: exe.path), "swift build --product hexwerk missing")
+        // The real path: YARA-X names included files by it.
+        let tmp = try #require(YaraRuleBundle.realPath(FileManager.default.temporaryDirectory.path))
+        let dir = URL(fileURLWithPath: tmp).appendingPathComponent("hexwerk-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("rules"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("abs/sub"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        func write(_ name: String, _ text: String) throws {
+            try text.write(to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        try write("abs/sub/x.yar", "rule inc_abs { strings: $h = \"HW\" condition: $h }\n")
+        try write("main.yar", "include \"\(dir.path)/abs/sub/x.yar\"\nrule a { condition: true }\n")
+        try write("rules/main.yar", "include \"inc.yar\"\nrule r { condition: true }\n")
+        try write("rules/inc.yar", "rule bad {\n")
+        try write("hw.bin", "HW")
+        // `..` through folders that exist in place (and must in the copy).
+        try write("dotdot.yar", "include \"\(dir.path)/abs/sub/../../rules/../abs/sub/x.yar\"\nrule d { condition: true }\n")
+        try write("abs/rel.yar", "include \"sub/../sub/x.yar\"\nrule e { condition: true }\n")
+        func run(_ args: [String]) throws -> (Int32, String, String) {
+            let p = Process()
+            p.executableURL = exe
+            p.arguments = args
+            p.currentDirectoryURL = dir
+            p.environment = ProcessInfo.processInfo.environment.merging(["HEXWERK_LANG": "en"]) { $1 }
+            let out = Pipe(), err = Pipe()
+            p.standardOutput = out
+            p.standardError = err
+            try p.run()
+            let o = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            let e = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            p.waitUntilExit()
+            return (p.terminationStatus, o, e)
+        }
+        let (s1, o1, _) = try run(["yara", "main.yar", "hw.bin"])
+        #expect(s1 == 0 && o1 == "inc_abs hw.bin\na hw.bin\n")
+        let (s3, o3, _) = try run(["yara", "dotdot.yar", "hw.bin"])
+        #expect(s3 == 0 && o3 == "inc_abs hw.bin\nd hw.bin\n")
+        let (s4, o4, _) = try run(["yara", "abs/rel.yar", "hw.bin"])
+        #expect(s4 == 0 && o4 == "inc_abs hw.bin\ne hw.bin\n")
+        let (s2, _, e2) = try run(["yara", "rules", "hw.bin"])
+        #expect(s2 == 2)
+        // The rule file as named, the same file as an include relative to the working folder.
+        #expect(e2.contains(" --> \(dir.path)/rules/inc.yar:2:1\n") && e2.contains(" --> rules/inc.yar:2:1\n"))
+        #expect(!e2.contains("yara-"))
+    }
+
+    /// "/a/b.yar" is spelled with the same length, so report columns hold.
+    @Test func absoluteIncludeSpelling() throws {
+        #expect(YaraRuleBundle.relativeSpelling("/a/b/c.yar") == "a//b/c.yar")
+        #expect(YaraRuleBundle.relativeSpelling("/a/b/c.yar").count == "/a/b/c.yar".count)
+        #expect(YaraRuleBundle.relativeSpelling("/c.yar") == "c.yar")
+        #expect(YaraRuleBundle.relative("/x/y/z", to: "/x") == "y/z")
+        #expect(YaraRuleBundle.relative("/x/y/z", to: "/") == "x/y/z")
+        #expect(YaraRuleBundle.relative("/xy/z", to: "/x") == "/xy/z")
+        #expect(YaraRuleBundle.relative("/x/y", to: nil) == "/x/y")
+        // Folders a `..` steps out of, if they exist.
+        let tmp = try #require(YaraRuleBundle.realPath(FileManager.default.temporaryDirectory.path))
+        #expect(YaraRuleBundle.foldersBeforeParent(tmp + "/../x.yar") == [tmp])
+        #expect(YaraRuleBundle.foldersBeforeParent(tmp + "/missing-\(UUID().uuidString)/../x.yar").isEmpty)
+    }
+
     private func cli(rules: String, data: Data, extra: [String]) throws -> (status: Int32, stdout: Data) {
         // Tests/HexwerkCoreTests/YaraTests.swift → package root → .build/debug/hexwerk
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

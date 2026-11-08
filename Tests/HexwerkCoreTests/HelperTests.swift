@@ -3,6 +3,7 @@ import Testing
 @testable import HexwerkCore
 @testable import HexwerkHelper
 @testable import HexwerkKaitai
+import HexwerkMagic
 import HexwerkScript
 
 /// The sandboxed helper (#102): the XPC request path. The XPC service itself
@@ -104,6 +105,14 @@ import HexwerkScript
         await #expect(throws: HelperError.self) {
             _ = try await client.runScript("print(1)", name: "a.js", base: doc.snapshot(), context: ScriptContext(), readOnly: false)
         }
+        // libmagic in the helper (#129) gets the same crash handling.
+        if let db = Magic.databasePath {
+            let only = Endpoints([dying.endpoint])
+            let dyingClient = HelperClient { NSXPCConnection(listenerEndpoint: only.next()) }
+            await #expect(throws: HelperError.self) {
+                _ = try await dyingClient.detectType(doc.snapshot(), database: URL(fileURLWithPath: db))
+            }
+        }
         var output: [String] = []
         for _ in 0 ..< 50 where output.isEmpty {
             do {
@@ -137,6 +146,7 @@ private final class DyingHelper: NSObject, NSXPCListenerDelegate, HelperXPC, @un
     func parse(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) { die() }
     func scan(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) { die() }
     func runScript(_ request: Data, file: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) { die() }
+    func detectType(_ request: Data, database: FileHandle?, reply: @escaping @Sendable (Data?, String?) -> Void) { die() }
     func cancel(_ requestID: String) {}
 }
 

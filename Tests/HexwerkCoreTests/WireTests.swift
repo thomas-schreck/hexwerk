@@ -212,6 +212,10 @@ import HexwerkScript
             Issue.record("wrong case"); return
         }
         #expect(m == "boom")
+        guard case .timedOut(let t, _) = try YaraScanOutcome(encoded: YaraScanOutcome.timedOut("late", warnings: []).encoded()) else {
+            Issue.record("wrong case"); return
+        }
+        #expect(t == "late")
         #expect(throws: WireError.self) { try YaraScanOutcome(encoded: Data([9])) }
     }
 

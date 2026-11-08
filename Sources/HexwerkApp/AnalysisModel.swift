@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import HexwerkCore
+import HexwerkHelper
 import HexwerkMagic
 
 /// Entropy profile and byte histogram of the file or selection.
@@ -28,12 +29,19 @@ final class AnalysisModel: ObservableObject {
     @Published private(set) var embeddedRunning = false
     private var embeddedTask: Task<Void, Never>?
 
+    /// libmagic runs in the sandboxed helper (#129); a helper failure only
+    /// leaves the description empty.
     func detectType(_ snap: Snapshot) {
         Task.detached(priority: .utility) { [weak self] in
-            let d = Magic.describe(snap), m = Magic.mime(snap), s = FileSignatures.detect(snap).first
+            let s = FileSignatures.detect(snap).first
+            let t: TypeOutcome
+            do { t = try await HelperClient.shared.detectType(snap, database: Magic.databasePath.map(URL.init(fileURLWithPath:))) } catch {
+                NSLog("hexwerk: file type detection failed: %@", String(describing: error))
+                t = TypeOutcome(description: nil, mime: nil)
+            }
             await MainActor.run {
-                self?.typeDescription = d
-                self?.mime = m
+                self?.typeDescription = t.description
+                self?.mime = t.mime
                 self?.signature = s
             }
         }

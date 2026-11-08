@@ -69,7 +69,8 @@ import HexwerkMagic
     @Test func libmagicDescribes() throws {
         let (s, url) = try snap(image(.png, width: 53, height: 37))
         defer { try? FileManager.default.removeItem(at: url) }
-        #expect(Magic.describe(s)?.hasPrefix("PNG image data, 53 x 37") == true)
-        #expect(Magic.mime(s)?.hasPrefix("image/png") == true)
+        let db = try SandboxTests.localMagic()
+        #expect(db.describe(Magic.sample(s))?.hasPrefix("PNG image data, 53 x 37") == true)
+        #expect(db.mime(Magic.sample(s))?.hasPrefix("image/png") == true)
     }
 }

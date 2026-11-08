@@ -55,8 +55,8 @@ format:
 lint:
 	$(SWIFT_FORMAT) lint --strict --recursive --parallel $(FORMAT_PATHS)
 
-# CLI signed with the Hardened Runtime; it runs YARA-X and JavaScriptCore
-# in-process and therefore needs the two JIT entitlements in cli.entitlements.
+# CLI signed with the Hardened Runtime; its sandboxed child process (the same
+# binary, #129) runs YARA-X and JavaScriptCore and needs the two JIT entitlements.
 sign-cli: build
 	codesign --force --sign - --options runtime --entitlements Resources/cli.entitlements .build/release/hexwerk
 

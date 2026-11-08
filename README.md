@@ -25,9 +25,10 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 **Analysis**
 - **Kaitai Struct**: parses files with `.ksy` schemas, structure tree linked to colored byte ranges, lazy arrays for millions of elements; format auto-detection
 - **YARA-X** rule scanning with hits in the hex view
-- In the app, Kaitai parsing, YARA-X scans and scripts run in a sandboxed helper process
-  (no network, no file access): a malformed sample that crashes a parser takes down the
-  helper, not the app with your unsaved edits
+- Kaitai parsing, YARA-X scans, scripts and libmagic run sandboxed (no network, no file
+  access): in the app in a helper process, in the CLI in a child process of its own. A
+  malformed sample that crashes a parser takes down that process, not the app with your
+  unsaved edits or the CLI
 - File type detection (libmagic + signatures) and embedded-file search
 - Entropy profile and byte histogram, image view (9 pixel formats)
 - Strings finder (ASCII, UTF-8, UTF-16), regex search
@@ -157,7 +158,9 @@ newer (a beta also hears of newer betas, a stable version only of stable
 releases). The request carries only a `hexwerk/<version>` User-Agent, nothing is
 downloaded. Turn it off with *hexwerk > Check for Updates Automatically*
 (`"checkForUpdates": false` in `settings.json`); builds without a version (`dev`)
-never check. The CLI and the parser helper make no network connections.
+never check. The CLI and the parser helper make no network connections; the
+sandboxed processes that parse file content could not make any (see
+[SECURITY.md](SECURITY.md#sandboxing)).
 
 ## Language
 
