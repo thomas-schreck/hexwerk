@@ -19,6 +19,20 @@ public struct AddressMap: Sendable, Equatable {
     /// keeps that from happening for the file as it is.
     public func address(of offset: UInt64) -> UInt64 { base &+ offset }
 
+    /// The address of a file offset as the app shows it everywhere (offset
+    /// column style): "0x8000010" or, with `decimal`, "134217744".
+    public func text(of offset: UInt64, decimal: Bool = false) -> String {
+        let a = address(of: offset)
+        return decimal ? String(a) : "0x" + String(a, radix: 16, uppercase: true)
+    }
+
+    /// First and last byte of a non-empty range, "0x10–0x1F"; an empty range
+    /// shows its start only.
+    public func text(of range: Range<UInt64>, decimal: Bool = false) -> String {
+        guard !range.isEmpty else { return text(of: range.lowerBound, decimal: decimal) }
+        return text(of: range.lowerBound, decimal: decimal) + "–" + text(of: range.upperBound - 1, decimal: decimal)
+    }
+
     /// File offset of an address; nil if it lies before the base or past the
     /// end of a file of `count` bytes. The end itself is valid (a cursor
     /// position, like "go to").

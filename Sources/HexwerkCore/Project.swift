@@ -14,6 +14,18 @@ public struct ProjectState: Codable, Sendable, Equatable {
         }
     }
 
+    /// A byte range, stored as file offsets (`end` exclusive).
+    public struct Span: Codable, Sendable, Equatable {
+        public var start: UInt64
+        public var end: UInt64
+        public init(start: UInt64, end: UInt64) { self.start = start; self.end = end }
+        public init(_ r: Range<UInt64>) { self.init(start: r.lowerBound, end: r.upperBound) }
+        /// The range inside a file of `count` bytes; nil if nothing is left.
+        public func range(in count: UInt64) -> Range<UInt64>? {
+            start < end ? (start ..< end).clampedToDocument(count: count) : nil
+        }
+    }
+
     public struct Format: Codable, Sendable, Equatable {
         public var path: String
         public var title: String
@@ -34,6 +46,8 @@ public struct ProjectState: Codable, Sendable, Equatable {
     public var offsetBase: UInt64 = 0
     /// Highlight rules that only apply to this file (#141).
     public var highlightRules: [HighlightRule] = []
+    /// Ranges left out of the checksums (#143), as file offsets.
+    public var checksumExclusions: [Span] = []
 
     public init(filePath: String, fileSize: UInt64) {
         self.filePath = filePath
@@ -43,7 +57,7 @@ public struct ProjectState: Codable, Sendable, Equatable {
     /// Nothing worth remembering beyond the cursor.
     public var isTrivial: Bool {
         bookmarks.isEmpty && format == nil && yaraRules.isEmpty && cursor == 0 && selectionStart == nil && offsetBase == 0
-            && highlightRules.isEmpty
+            && highlightRules.isEmpty && checksumExclusions.isEmpty
     }
 }
 
@@ -64,6 +78,7 @@ extension ProjectState {
         selectionEnd = try c.decodeIfPresent(UInt64.self, forKey: .selectionEnd)
         offsetBase = try c.decodeIfPresent(UInt64.self, forKey: .offsetBase) ?? 0
         highlightRules = try c.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
+        checksumExclusions = try c.decodeIfPresent([Span].self, forKey: .checksumExclusions) ?? []
     }
 }
 
@@ -81,7 +96,8 @@ public enum ProjectError: Error, CustomStringConvertible, LocalizedError {
 }
 
 /// Per-file state lives in `<file>.hexwerk` next to the file as soon as
-/// there is something worth keeping (bookmarks, highlight rules) or that
+/// there is something worth keeping (bookmarks, highlight rules, checksum
+/// exclusions) or that
 /// file already exists.
 /// Cursor and auto-detected format alone go to a central fallback, so merely
 /// looking at a file leaves nothing behind in its folder; read-only folders
@@ -146,7 +162,9 @@ public enum ProjectStore {
         _ = try read(side)
         _ = try read(central)
         let fm = FileManager.default
-        if fm.fileExists(atPath: side.path) || !state.bookmarks.isEmpty || !state.highlightRules.isEmpty {
+        if fm.fileExists(atPath: side.path) || !state.bookmarks.isEmpty || !state.highlightRules.isEmpty
+            || !state.checksumExclusions.isEmpty
+        {
             if (try? write(state, to: side)) != nil {
                 try? fm.removeItem(at: central)
                 return side

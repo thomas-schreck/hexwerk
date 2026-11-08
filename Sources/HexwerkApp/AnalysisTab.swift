@@ -60,7 +60,7 @@ struct AnalysisTab: View {
                             model.jump?(h.offset, nil)
                         } label: {
                             HStack {
-                                Text(hex(h.offset)).monospaced()
+                                Text(model.addressText(h.offset)).monospaced()
                                 Text(h.title)
                                 Spacer()
                                 if h.kaitai != nil { Image(systemName: "list.bullet.indent").foregroundStyle(.tertiary) }
@@ -122,7 +122,7 @@ struct AnalysisTab: View {
                 Spacer()
                 if let i = analysis.hoverBlock, p.blocks.indices.contains(i) {
                     let r = p.range(ofBlock: i, total: analysis.end)
-                    Text("\(hex(r.lowerBound)): \(String(format: "%.2f", p.blocks[i]))")
+                    Text("\(model.addressText(r.lowerBound)): \(String(format: "%.2f", p.blocks[i]))")
                         .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 } else {
                     Text(L("per %@", ByteCountFormatter.string(fromByteCount: Int64(p.blockSize), countStyle: .binary)))
@@ -158,7 +158,7 @@ struct AnalysisTab: View {
             .frame(height: 110)
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
             HStack {
-                Text(hex(p.start)); Spacer(); Text(hex(analysis.end))
+                Text(model.addressText(p.start)); Spacer(); Text(model.addressText(analysis.end))
             }
             .font(.caption2).monospaced().foregroundStyle(.tertiary)
             Text(L("High (> 7.5): compressed or encrypted. Low: padding, tables, text."))

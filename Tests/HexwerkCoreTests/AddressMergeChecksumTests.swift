@@ -190,3 +190,46 @@ extension CLITests {
         #expect(try run(["dump", "--base", "0xffffffffffffffff", url.path]).0 == 1)
     }
 }
+
+/// #149: one address format everywhere, checksum exclusions in the project.
+@Suite struct AddressTextAndExclusionTests {
+    @Test func addressTextFollowsBaseAndFormat() {
+        let m = AddressMap(base: 0x0800_0000)
+        #expect(m.text(of: 0x10) == "0x8000010")
+        #expect(m.text(of: 0x10, decimal: true) == "134217744")
+        #expect(AddressMap().text(of: 0xAB) == "0xAB")
+        #expect(m.text(of: 0x10 ..< 0x20) == "0x8000010–0x800001F")
+        #expect(m.text(of: 0x10 ..< 0x20, decimal: true) == "134217744–134217759")
+        #expect(m.text(of: 0x10 ..< 0x10) == "0x8000010")
+    }
+
+    @Test func checksumExclusionsAreSavedAndRestored() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hexwerk-excl-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("fw.bin")
+        try Data(count: 64).write(to: file)
+        let central = dir.appendingPathComponent("central")
+        var s = ProjectState(filePath: file.path, fileSize: 64)
+        s.checksumExclusions = [.init(0x10 ..< 0x14), .init(0x30 ..< 0x40)]
+        #expect(!s.isTrivial)
+        // Like bookmarks, they are deliberate work: kept next to the file.
+        #expect(try ProjectStore.save(s, for: file, in: central) == ProjectStore.sidecar(for: file))
+        let back = try #require(ProjectStore.load(for: file, in: central))
+        #expect(back.checksumExclusions.compactMap { $0.range(in: 64) } == [0x10 ..< 0x14, 0x30 ..< 0x40])
+    }
+
+    @Test func olderProjectsWithoutExclusionsStillLoad() throws {
+        let old = #"{"filePath": "/x.bin", "fileSize": 4, "cursor": 2}"#
+        let s = try JSONDecoder().decode(ProjectState.self, from: Data(old.utf8))
+        #expect(s.checksumExclusions.isEmpty && s.cursor == 2)
+        let hand = #"{"filePath": "/x.bin", "fileSize": 4, "checksumExclusions": [{"start": 1, "end": 3}]}"#
+        #expect(try JSONDecoder().decode(ProjectState.self, from: Data(hand.utf8)).checksumExclusions == [.init(start: 1, end: 3)])
+    }
+
+    @Test func exclusionsAreClampedToTheFile() {
+        #expect(ProjectState.Span(start: 0x30, end: 0x50).range(in: 0x40) == 0x30 ..< 0x40)
+        #expect(ProjectState.Span(start: 0x50, end: 0x60).range(in: 0x40) == nil)
+        #expect(ProjectState.Span(start: 8, end: 4).range(in: 0x40) == nil)
+    }
+}

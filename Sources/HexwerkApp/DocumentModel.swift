@@ -34,8 +34,12 @@ final class DocumentModel: ObservableObject {
     /// status bar and accepted by "go to"; the content never changes.
     @Published var offsetBase: UInt64 = 0
     var addresses: AddressMap { AddressMap(base: offsetBase) }
-    /// "0x..." address of a file offset, as the offset column shows it.
-    func addressText(_ offset: UInt64) -> String { hex(addresses.address(of: offset)) }
+    /// Address of a file offset as the offset column shows it: "0x..." or,
+    /// with View > Decimal Offsets, decimal. Every offset the app shows goes
+    /// through this (#149).
+    func addressText(_ offset: UInt64) -> String { addresses.text(of: offset, decimal: decimalOffsets) }
+    /// "first–last" byte of a range, formatted like `addressText`.
+    func addressText(_ range: Range<UInt64>) -> String { addresses.text(of: range, decimal: decimalOffsets) }
 
     /// Vim key bindings (View → Vim Key Bindings), app-wide.
     @Published var vimEnabled = Settings.shared.bool(forKey: "vimMode")

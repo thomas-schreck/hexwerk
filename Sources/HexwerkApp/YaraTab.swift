@@ -103,9 +103,9 @@ struct YaraTab: View {
                 }
                 .font(.caption)
             }
-            if !yara.summary.isEmpty {
+            if case let summary = yara.summary({ model.addressText($0) }), !summary.isEmpty {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(yara.summary).font(.caption).foregroundStyle(.secondary)
+                    Text(summary).font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     if yara.matchCount > 0 {
                         Button(L("Bookmark All")) {
@@ -183,7 +183,7 @@ struct YaraTab: View {
     private func matchRow(_ m: YaraPatternMatch) -> some View {
         let selected = yara.selectedMatch == m
         return HStack(spacing: 8) {
-            Text(hex(m.offset)).monospaced()
+            Text(model.addressText(m.offset)).monospaced()
             Text(m.pattern).foregroundStyle(.pink)
             if let k = m.xorKey { Text("xor \(String(format: "0x%02X", k))").font(.caption2).foregroundStyle(.secondary) }
             Spacer(minLength: 6)

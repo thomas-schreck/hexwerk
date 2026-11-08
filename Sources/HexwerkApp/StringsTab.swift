@@ -121,7 +121,7 @@ struct StringsTab: View {
 
     private func row(_ s: FoundString) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(hex(s.offset)).monospaced().foregroundStyle(.secondary)
+            Text(model.addressText(s.offset)).monospaced().foregroundStyle(.secondary)
             if s.encoding != .ascii {
                 Text(s.encoding == .utf8 ? "U8" : s.encoding == .utf16le ? "LE" : "BE")
                     .font(.system(size: 9, weight: .semibold)).foregroundStyle(.purple)

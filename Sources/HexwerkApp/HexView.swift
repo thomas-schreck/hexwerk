@@ -540,7 +540,7 @@ final class HexView: NSView, NSMenuItemValidation {
         guard path.map(\.id) != hoverPath.map(\.id) || generation != hoverGeneration else { return }
         hoverPath = path
         hoverGeneration = generation
-        toolTip = StructureModel.hoverText(path)
+        toolTip = StructureModel.hoverText(path) { [model] in model.addressText($0) }
         needsDisplay = true
     }
 
@@ -744,10 +744,10 @@ final class HexView: NSView, NSMenuItemValidation {
         } else {
             byte = L("end of file")
         }
-        var parts = [L("Offset %1$@, %2$@", hex(cursor), byte)]
+        var parts = [L("Offset %1$@, %2$@", model.addressText(cursor), byte)]
         if let sel = selection { parts.append(L("%ld bytes selected", sel.count)) }
         if !row.isEmpty {
-            parts.append(L("Row %1$@: %2$@", hex(rowStart), row.map { String(format: "%02X", $0) }.joined(separator: " ")))
+            parts.append(L("Row %1$@: %2$@", model.addressText(rowStart), row.map { String(format: "%02X", $0) }.joined(separator: " ")))
         }
         return parts.joined(separator: ". ")
     }

@@ -34,7 +34,13 @@ final class YaraModel: ObservableObject {
     @Published private(set) var warnings: [YaraDiagnostic] = []
     @Published private(set) var scanError: String?
     @Published private(set) var stale = false
-    @Published private(set) var summary = ""
+    /// What the last scan covered; `summary(_:)` turns it into text, so
+    /// the scanned range follows the base address and offset format (#149).
+    struct ScanInfo: Equatable {
+        let range: Range<UInt64>?
+        let elapsed: TimeInterval
+    }
+    @Published private(set) var lastScan: ScanInfo?
     @Published var expanded: Set<String> = []
     @Published var selectedMatch: YaraPatternMatch?
 
@@ -43,6 +49,15 @@ final class YaraModel: ObservableObject {
     private var task: Task<Void, Never>?
     /// Marks a result stale when the content was edited while it was computed.
     private var gate = RunGate()
+
+    /// "2 rules · 5 hits · selection 0x10–0x1F · 0.01 s"; empty before a scan.
+    /// `address` formats the scanned range like the offset column.
+    func summary(_ address: (Range<UInt64>) -> String) -> String {
+        guard let scan = lastScan, let hits = results else { return "" }
+        let scanned = scan.range.map { L("selection %@", address($0)) } ?? L("whole file")
+        let rules = hits.count == 1 ? L("1 rule") : L("%ld rules", hits.count)
+        return L("%1$@ · %2$ld hits · %3$@ · %4$.2f s", rules, matchCount, scanned, scan.elapsed)
+    }
 
     var matchCount: Int { results?.reduce(0) { $0 + $1.matches.count } ?? 0 }
 
@@ -77,7 +92,7 @@ final class YaraModel: ObservableObject {
         running = true
         scanError = nil
         compileErrors = []
-        summary = ""
+        lastScan = nil
         let ticket = gate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let start = Date()
@@ -137,15 +152,13 @@ final class YaraModel: ObservableObject {
         ranges = hits.flatMap { $0.matches.map(\.range) }.filter { !$0.isEmpty }
             .sorted { $0.lowerBound < $1.lowerBound }
         expanded = hits.count <= 3 ? Set(hits.map(\.id)) : []
-        let scanned = range.map { L("selection %1$@–%2$@", hex($0.lowerBound), hex($0.upperBound - 1)) } ?? L("whole file")
-        let rules = hits.count == 1 ? L("1 rule") : L("%ld rules", hits.count)
-        summary = L("%1$@ · %2$ld hits · %3$@ · %4$.2f s", rules, matchCount, scanned, elapsed)
+        lastScan = ScanInfo(range: range, elapsed: elapsed)
     }
 
     func clear() {
         results = nil
         ranges = []
-        summary = ""
+        lastScan = nil
         stale = false
         selectedMatch = nil
     }
