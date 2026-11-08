@@ -710,12 +710,17 @@ public struct DiskStamp: Equatable, Sendable {
     let mtime: timespec
     let device: UInt64
     let inode: UInt64
+    /// Status change time: unlike mtime it cannot be set back by a program.
+    /// Only used by recovery (#139), not by `==`: metadata changes alone
+    /// (xattrs, permissions) must not count as changes of the content.
+    let ctime: timespec
 
     init(_ st: stat) {
         size = UInt64(st.st_size)
         mtime = st.st_mtimespec
         device = UInt64(bitPattern: Int64(st.st_dev))
         inode = UInt64(st.st_ino)
+        ctime = st.st_ctimespec
     }
 
     init(size: UInt64, mtime: timespec, device: UInt64, inode: UInt64) {
@@ -723,6 +728,7 @@ public struct DiskStamp: Equatable, Sendable {
         self.mtime = mtime
         self.device = device
         self.inode = inode
+        ctime = timespec()
     }
 
     public init(_ url: URL) throws {
@@ -793,12 +799,10 @@ extension Document {
     /// it belongs to it unchanged.
     public func recoveryMismatch(_ recovered: RecoveryRecord) -> RecoveryMismatch? {
         guard recovered.path == RecoveryStore.path(for: url) else { return .otherFile }
-        let now = RecoveryFingerprint(of: original)
         let then = recovered.fingerprint
-        if now.size != then.size { return .size(then: then.size, now: now.size) }
-        if now.mtimeSeconds != then.mtimeSeconds || now.mtimeNanoseconds != then.mtimeNanoseconds { return .modificationDate }
-        if now.sample != then.sample { return .content }
-        return nil
+        // Hash the whole file only if the record did (and so only when small).
+        let now = RecoveryFingerprint(of: original, fullHashLimit: then.full.isEmpty ? 0 : .max)
+        return RecoveryFingerprint.mismatch(then: then, now: now)
     }
 
     /// Applies recovered unsaved changes to this freshly opened document.
@@ -854,23 +858,24 @@ extension Document {
 
     /// Replaying the history on a copy (undo all, then redo all) must hit
     /// the recorded pieces at every step and lead back to the file as
-    /// opened, and the states must chain. Otherwise undo could produce
-    /// garbage or mark changed content as saved.
+    /// opened, and the states must chain without repeating: a repeated
+    /// state (above all `savedState`) would let undo or redo mark changed
+    /// content as saved. Otherwise undo could produce garbage.
     static func historyFits(_ p: RecoveryPayload, base: [Piece], fileCount: UInt64) -> Bool {
         guard p.state != p.savedState else { return false }
         let steps = p.undo + p.redo
-        let states = [p.state, p.savedState] + steps.flatMap { [$0.before, $0.after] }
-        guard states.allSatisfy({ $0 >= 0 && $0 <= p.lastState }) else { return false }
-        var expected = p.savedState
+        // savedState → undo steps → state → redo steps (next redo last).
+        var chain = [p.savedState]
         for s in p.undo {
-            guard s.before == expected else { return false }
-            expected = s.after
+            guard s.before == chain.last else { return false }
+            chain.append(s.after)
         }
-        guard expected == p.state else { return false }
+        guard chain.last == p.state else { return false }
         for s in p.redo.reversed() {
-            guard s.before == expected else { return false }
-            expected = s.after
+            guard s.before == chain.last else { return false }
+            chain.append(s.after)
         }
+        guard Set(chain).count == chain.count, chain.allSatisfy({ $0 >= 0 && $0 <= p.lastState }) else { return false }
         // Replaying costs about changes × pieces; beyond that the content
         // alone is restored rather than stalling the open.
         let changes = steps.reduce(0) { $0 + $1.changes.count }

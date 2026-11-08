@@ -27,8 +27,10 @@ import Testing
         return st.st_mode & 0o777
     }
 
-    func files(_ store: RecoveryStore) -> [String] {
-        ((try? FileManager.default.contentsOfDirectory(atPath: store.directory.path)) ?? []).sorted()
+    /// Lock files stay (another instance may hold them) and are left out.
+    func files(_ store: RecoveryStore, locks: Bool = false) -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: store.directory.path)) ?? [])
+            .filter { locks || !$0.hasSuffix(".lock") }.sorted()
     }
 
     /// Edits with an undo history and a redo step.
@@ -77,8 +79,8 @@ import Testing
         try edit(d)
         _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
         #expect(mode(e.store.directory) == 0o700)
-        let names = files(e.store)
-        #expect(names.count == 2)  // metadata + data
+        let names = files(e.store, locks: true)
+        #expect(names.count == 3)  // metadata, data, lock
         for n in names { #expect(mode(e.store.directory.appendingPathComponent(n)) == 0o600, "\(n)") }
     }
 
@@ -98,13 +100,20 @@ import Testing
 
     // MARK: Mismatch detection
 
-    func recordThenChange(_ change: (Env) throws -> Void) throws -> (Error?, Document, Env) {
-        let e = try env()
+    /// 3 MiB: more than the first and last MiB that are sampled.
+    static let large = Data((0 ..< (3 << 20)).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+
+    /// `fullHashLimit: 0` gives the identity checks used for files too large to hash.
+    func recordThenChange(
+        _ content: Data? = nil, fullHashLimit: UInt64? = nil, _ change: (Env) throws -> Void
+    ) throws -> (Error?, Document, Env) {
+        let e = try content.map { try env($0) } ?? env()
+        let store = fullHashLimit.map { RecoveryStore(directory: e.store.directory, fullHashLimit: $0) } ?? e.store
         let d = try Document(url: e.file)
         try edit(d)
-        _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
+        _ = try RecoveryWriter(store: store, url: e.file).write(d.recoveryContent())
         try change(e)
-        let rec = try #require(try e.store.record(for: e.file))
+        let rec = try #require(try store.record(for: e.file))
         let fresh = try Document(url: e.file)
         do { try fresh.restore(rec) } catch { return (error, fresh, e) }
         return (nil, fresh, e)
@@ -137,33 +146,72 @@ import Testing
         #expect(all(fresh) == (try Data(contentsOf: e.file)))
     }
 
-    @Test func refusesWhenModificationDateChanged() throws {
-        let (error, fresh, e) = try recordThenChange { e in setMtime(e.file, 1_000_000, 0) }
+    func expectRefused(_ result: (Error?, Document, Env), _ expected: RecoveryMismatch) {
+        let (error, fresh, e) = result
         defer { e.cleanup() }
-        guard case .fileChanged(.modificationDate) = error as? RecoveryError else {
-            Issue.record("expected a date mismatch, got \(String(describing: error))")
+        guard case .fileChanged(let m) = error as? RecoveryError, m == expected else {
+            Issue.record("expected \(expected), got \(String(describing: error))")
             return
         }
-        #expect(!fresh.isModified)
+        #expect(!fresh.isModified && !fresh.canUndo)
     }
 
-    /// Same size, modification time put back: the sampled hash catches it.
-    @Test func refusesWhenContentChangedBehindTheDate() throws {
-        let (error, fresh, e) = try recordThenChange { e in
-            let t = mtime(e.file)
-            var data = try Data(contentsOf: e.file)
-            data[4095] ^= 0xFF
-            let h = try FileHandle(forWritingTo: e.file)
-            try h.write(contentsOf: data)
-            try h.close()
-            setMtime(e.file, t.tv_sec, t.tv_nsec)
-        }
+    /// Overwrites `offset` in place and sets the mtime back, as a
+    /// reproducible build with SOURCE_DATE_EPOCH would.
+    func changeInPlaceKeepingDate(_ e: Env, at offset: Int) throws {
+        let t = mtime(e.file)
+        var data = try Data(contentsOf: e.file)
+        data[offset] ^= 0xFF
+        let h = try FileHandle(forWritingTo: e.file)
+        try h.write(contentsOf: data)
+        try h.close()
+        setMtime(e.file, t.tv_sec, t.tv_nsec)
+    }
+
+    /// A new file with a changed middle and the old mtime renamed over it.
+    func replaceKeepingDate(_ e: Env, at offset: Int?) throws {
+        let t = mtime(e.file)
+        var data = try Data(contentsOf: e.file)
+        if let offset { data[offset] ^= 0xFF }
+        let tmp = e.dir.appendingPathComponent("new.tmp")
+        try data.write(to: tmp)
+        setMtime(tmp, t.tv_sec, t.tv_nsec)
+        #expect(rename(tmp.path, e.file.path) == 0)
+    }
+
+    @Test func refusesWhenDateChangedOnLargeFile() throws {
+        expectRefused(try recordThenChange(fullHashLimit: 0) { e in setMtime(e.file, 1_000_000, 0) }, .modificationDate)
+    }
+
+    /// Hashed completely, only the bytes count: a touched file is fine.
+    @Test func restoresWhenOnlyTheDateChangedOnHashedFile() throws {
+        let (error, fresh, e) = try recordThenChange { e in setMtime(e.file, 1_000_000, 0) }
         defer { e.cleanup() }
-        guard case .fileChanged(.content) = error as? RecoveryError else {
-            Issue.record("expected a content mismatch, got \(String(describing: error))")
-            return
-        }
-        #expect(!fresh.isModified)
+        #expect(error == nil)
+        #expect(fresh.isModified)
+    }
+
+    /// Same size, mtime put back, change outside the sampled MiB at both ends.
+    @Test func refusesMiddleChangeBehindTheDate() throws {
+        expectRefused(try recordThenChange(Self.large) { e in try changeInPlaceKeepingDate(e, at: 3 << 19) }, .content)
+        // Too large to hash: the ctime still moved.
+        expectRefused(
+            try recordThenChange(Self.large, fullHashLimit: 0) { e in try changeInPlaceKeepingDate(e, at: 3 << 19) },
+            .modificationDate)
+    }
+
+    @Test func refusesReplacedFileWithTheSameDate() throws {
+        expectRefused(try recordThenChange(Self.large) { e in try replaceKeepingDate(e, at: 3 << 19) }, .content)
+        expectRefused(
+            try recordThenChange(Self.large, fullHashLimit: 0) { e in try replaceKeepingDate(e, at: 3 << 19) }, .replaced)
+        // Same bytes in a new file: the pieces mean the same.
+        let (error, fresh, e) = try recordThenChange(Self.large) { e in try replaceKeepingDate(e, at: nil) }
+        defer { e.cleanup() }
+        #expect(error == nil && fresh.isModified)
+    }
+
+    @Test func refusesWhenContentChangedBehindTheDate() throws {
+        expectRefused(try recordThenChange { e in try changeInPlaceKeepingDate(e, at: 4095) }, .content)
     }
 
     @Test func refusesAnotherFile() throws {
@@ -381,5 +429,183 @@ import Testing
         #expect(e.store.pending().count == 1)
         e.store.discardAll()
         #expect(files(e.store).isEmpty)
+    }
+
+    // MARK: Crafted histories (each must fall back to the content alone)
+
+    /// A recorded edit session and its record, for tampering.
+    func recorded() throws -> (Env, Document, RecoveryRecord) {
+        let e = try env()
+        let d = try Document(url: e.file)
+        try edit(d)
+        _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
+        return (e, d, try #require(try e.store.record(for: e.file)))
+    }
+
+    func tampered(_ r: RecoveryRecord, _ change: (inout RecoveryPayload) -> Void) -> RecoveryRecord {
+        var p = r.payload
+        change(&p)
+        return RecoveryRecord(path: r.path, recordedAt: r.recordedAt, hasHistory: true, fingerprint: r.fingerprint, payload: p)
+    }
+
+    /// Restores `bad`; the history must be refused and the content come back
+    /// as one undo step that leads to the file.
+    func expectContentOnly(_ e: Env, _ d: Document, _ bad: RecoveryRecord) throws {
+        let fresh = try Document(url: e.file)
+        #expect(try fresh.restore(bad) == false)
+        #expect(all(fresh) == all(d))
+        fresh.undo()
+        #expect(!fresh.isModified)
+        #expect(all(fresh) == (try Data(contentsOf: e.file)))
+    }
+
+    /// Chains and replays, but undoing everything does not end at the file.
+    @Test func historyNotEndingAtTheFileIsRefused() throws {
+        let (e, d, good) = try recorded()
+        defer { e.cleanup() }
+        let bad = tampered(good) { p in
+            p.undo.removeFirst()
+            p.savedState = p.undo[0].before
+        }
+        try expectContentOnly(e, d, bad)
+    }
+
+    @Test func stateOutsideTheChainIsRefused() throws {
+        let (e, d, good) = try recorded()
+        defer { e.cleanup() }
+        let bad = tampered(good) { p in
+            p.lastState += 1
+            p.state = p.lastState
+        }
+        try expectContentOnly(e, d, bad)
+    }
+
+    @Test func redoThatDoesNotReplayIsRefused() throws {
+        let (e, d, good) = try recorded()
+        defer { e.cleanup() }
+        #expect(!good.payload.redo.isEmpty)
+        let bad = tampered(good) { p in p.redo[0].changes[0].index = 10_000 }
+        try expectContentOnly(e, d, bad)
+    }
+
+    /// A redo step leading back to savedState would show changed content as saved.
+    @Test func repeatedStatesAreRefused() throws {
+        let (e, d, good) = try recorded()
+        defer { e.cleanup() }
+        let bad = tampered(good) { p in p.redo[p.redo.count - 1].after = p.savedState }
+        try expectContentOnly(e, d, bad)
+    }
+
+    // MARK: Data file
+
+    /// Same length, one byte changed: only the checksum notices.
+    @Test func modifiedDataFileIsReported() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let d = try Document(url: e.file)
+        try edit(d)
+        _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
+        let name = try #require(files(e.store).first { $0.hasSuffix(".added") })
+        var bytes = try Data(contentsOf: e.store.dataURL(name))
+        bytes[0] ^= 0x01
+        try bytes.write(to: e.store.dataURL(name))
+        #expect(throws: RecoveryError.self) { try e.store.record(for: e.file) }
+    }
+
+    /// After a save the buffer starts over; more new bytes than before must
+    /// not be appended to the old data file.
+    @Test func saveThenLargerEditStartsANewDataFile() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let d = try Document(url: e.file)
+        let w = RecoveryWriter(store: e.store, url: e.file)
+        try d.insert(Data(repeating: 0x41, count: 10), at: 0)
+        _ = try w.write(d.recoveryContent())
+        try d.save()
+        try d.insert(Data(repeating: 0x42, count: 20), at: 5)
+        _ = try w.write(d.recoveryContent())
+        #expect(all(try restored(e)) == all(d))
+    }
+
+    /// Removed behind the writer's back (another instance, Discard All): the
+    /// next write starts the data file over instead of leaving a hole.
+    @Test func dataFileRemovedBehindTheWritersBack() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let d = try Document(url: e.file)
+        let w = RecoveryWriter(store: e.store, url: e.file)
+        try d.insert(Data(repeating: 0x41, count: 100), at: 0)
+        _ = try w.write(d.recoveryContent())
+        let name = try #require(files(e.store).first { $0.hasSuffix(".added") })
+        unlink(e.store.dataURL(name).path)
+        try d.insert(Data([0x42]), at: 0)
+        #expect(try w.write(d.recoveryContent()) == .saved)
+        #expect(all(try restored(e)) == all(d))
+    }
+
+    /// A FIFO in place of the data file must fail, not block.
+    @Test func fifoAsDataFileDoesNotHang() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let d = try Document(url: e.file)
+        try d.insert(Data([1]), at: 0)
+        _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
+        let name = try #require(files(e.store).first { $0.hasSuffix(".added") })
+        unlink(e.store.dataURL(name).path)
+        #expect(mkfifo(e.store.dataURL(name).path, 0o600) == 0)
+        #expect(throws: RecoveryError.self) { try e.store.record(for: e.file) }
+    }
+
+    @Test func folderBehindASymlinkIsNotTrusted() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let d = try Document(url: e.file)
+        try d.insert(Data([1]), at: 0)
+        _ = try RecoveryWriter(store: e.store, url: e.file).write(d.recoveryContent())
+        let link = RecoveryStore(directory: e.dir.appendingPathComponent("linked"))
+        try FileManager.default.createSymbolicLink(at: link.directory, withDestinationURL: e.store.directory)
+        #expect(throws: RecoveryError.self) { try link.record(for: e.file) }
+        #expect(link.pending().isEmpty)
+    }
+
+    /// Two instances editing one file: the record is always the complete
+    /// state of whichever wrote last, and one instance's discard leaves a
+    /// newer record of the other alone.
+    @Test func twoInstancesKeepTheRecordConsistent() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        let a = try Document(url: e.file), b = try Document(url: e.file)
+        let wa = RecoveryWriter(store: e.store, url: e.file), wb = RecoveryWriter(store: e.store, url: e.file)
+        try a.insert(Data(repeating: 0xAA, count: 50), at: 0)
+        _ = try wa.write(a.recoveryContent())
+        try b.insert(Data(repeating: 0xBB, count: 70), at: 0)
+        _ = try wb.write(b.recoveryContent())
+        #expect(all(try restored(e)) == all(b))
+        try a.insert(Data([0xA1]), at: 0)
+        _ = try wa.write(a.recoveryContent())
+        #expect(all(try restored(e)) == all(a))
+        wb.discard()
+        #expect(all(try restored(e)) == all(a))
+        wa.discard()
+        #expect(try e.store.record(for: e.file) == nil)
+        #expect(files(e.store).isEmpty)
+    }
+
+    /// A write queued before `stop` (window closed after Keep for Later)
+    /// must not run afterwards.
+    @MainActor @Test func queuedWriteAfterStopIsDropped() async throws {
+        let e = try env()
+        defer { e.cleanup() }
+        nonisolated(unsafe) let d = try Document(url: e.file)
+        let a = RecoveryAutosave(store: e.store, url: e.file, delay: .milliseconds(1))
+        try d.insert(Data([1]), at: 0)
+        let release = DispatchSemaphore(value: 0)
+        a.queue.async { release.wait() }  // hold the queue
+        a.schedule { d.recoveryContent() }
+        try await Task.sleep(for: .milliseconds(100))  // taken and queued
+        a.stop()
+        release.signal()
+        a.waitUntilIdle()
+        #expect(try e.store.record(for: e.file) == nil)
     }
 }

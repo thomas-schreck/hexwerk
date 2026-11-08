@@ -219,6 +219,8 @@ extension L10n {
         // Auto-recovery (#139)
         "The recovery data belongs to a different file.": "Die Wiederherstellungsdaten gehören zu einer anderen Datei.",
         "The file's size changed from %1$llu to %2$llu bytes.": "Die Größe der Datei hat sich von %1$llu auf %2$llu Byte geändert.",
+        "The file was replaced by another one after the changes were recorded.":
+            "Die Datei wurde durch eine andere ersetzt, nachdem die Änderungen aufgezeichnet wurden.",
         "The file was modified after the changes were recorded.":
             "Die Datei wurde geändert, nachdem die Änderungen aufgezeichnet wurden.",
         "The file's content changed after the changes were recorded.":
