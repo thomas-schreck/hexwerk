@@ -103,6 +103,7 @@ private final class Session {
     init(document: Document, context: ScriptContext) {
         self.document = document
         self.context = context
+        Watchdog.usePollingTraps()
         js = JSContext()!
     }
 
@@ -355,6 +356,17 @@ private final class Watchdog {
         self.deadline = deadline
         self.isCancelled = isCancelled
     }
+
+    /// JavaScriptCore only JIT-compiles with the allow-jit entitlement (the
+    /// signed CLI and the app's helper; unsigned builds interpret). Its
+    /// optimised loops then contain no time limit check: by default it stops
+    /// them with a signal, which does not reach them here, so `while (true)
+    /// {}` ran forever once it was compiled (#131). Polling traps make
+    /// compiled loops check, at no measurable cost. JavaScriptCore reads
+    /// its options once, when the process creates its first context, so
+    /// this must run before that.
+    private static let pollingTraps: Void = { setenv("JSC_usePollingTraps", "1", 1) }()
+    static func usePollingTraps() { _ = pollingTraps }
 
     nonisolated(unsafe) private static let handle = dlopen(nil, RTLD_NOW)
     private var group: JSContextGroupRef?
