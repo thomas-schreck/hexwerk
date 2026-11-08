@@ -40,6 +40,14 @@ jobs:
       - name: Version script
         run: scripts/version-test.sh
 
+      # Only a binary signed with allow-jit JIT-compiles scripts, and only
+      # there did endless loops ignore the time limit (#131). Ad-hoc signed
+      # like a release; the variable makes the test fail instead of skip.
+      - name: Signed CLI script time limit
+        run: |
+          make sign-cli
+          HEXWERK_REQUIRE_SIGNED_CLI=1 swift test --skip-build --filter SignedScriptTimeoutTests
+
       # The release SBOM generator, checked on every change; the SBOM itself
       # is validated structurally before it is written.
       - name: SBOM
