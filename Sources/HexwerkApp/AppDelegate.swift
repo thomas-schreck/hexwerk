@@ -285,6 +285,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         edit.addItem(withTitle: L("Fill Selection…"), action: #selector(DocumentWindowController.fillSelection(_:)), keyEquivalent: "")
         edit.addItem(withTitle: L("Go to Offset…"), action: #selector(DocumentWindowController.goToOffset(_:)), keyEquivalent: "l")
         edit.addItem(withTitle: L("Add Bookmark…"), action: #selector(DocumentWindowController.addBookmark(_:)), keyEquivalent: "d")
+        // Navigation and selection helpers (#140). ⌘[ / ⌘] are taken by the
+        // diff navigation, ⇧⌘[ / ⇧⌘] by the tabs: ⌃⌘← / ⌃⌘→ like Xcode.
+        edit.addItem(.separator())
+        func key(_ title: String, _ action: Selector, _ key: Int, _ mods: NSEvent.ModifierFlags) {
+            let item = edit.addItem(withTitle: title, action: action, keyEquivalent: String(UnicodeScalar(key)!))
+            item.keyEquivalentModifierMask = mods
+        }
+        key(L("Back"), #selector(DocumentWindowController.goBack(_:)), NSLeftArrowFunctionKey, [.command, .control])
+        key(L("Forward"), #selector(DocumentWindowController.goForward(_:)), NSRightArrowFunctionKey, [.command, .control])
+        key(
+            L("Select Parent Structure"), #selector(DocumentWindowController.selectParentStructure(_:)), NSUpArrowFunctionKey,
+            [.command, .control])
+        key(
+            L("Select Next Record"), #selector(DocumentWindowController.selectNextRecord(_:)), NSRightArrowFunctionKey,
+            [.command, .option])
+        key(
+            L("Select Previous Record"), #selector(DocumentWindowController.selectPreviousRecord(_:)), NSLeftArrowFunctionKey,
+            [.command, .option])
+        key(L("Mark Selection Start"), #selector(DocumentWindowController.markSelectionStart(_:)), 0x62, [.command, .control])
+        key(L("Mark Selection End"), #selector(DocumentWindowController.markSelectionEnd(_:)), 0x65, [.command, .control])
         main.addItem(submenu(edit, L("Edit")))
 
         let find = NSMenu()

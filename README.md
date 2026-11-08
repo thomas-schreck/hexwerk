@@ -19,6 +19,9 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Opens large files via memory mapping; piece-table editing with undo/redo
 - Overwrite and insert mode, hex and text columns (ASCII, Latin-1, UTF-8), Vim key bindings
 - Multiple files as tabs, bookmarks, go to offset/value, fill, copy as C/Python/Swift/Base64/hex
+- Navigation history (Back ⌃⌘← / Forward ⌃⌘→ over jumps), follow pointer from the
+  inspector or structure tree, select parent structure (⌃⌘↑), step the selection by its
+  own length (⌥⌘← / ⌥⌘→), mark selection start/end (⌃⌘B / ⌃⌘E)
 - Data inspector with editable values (integers, floats, times, GUID, LEB128, text)
 - Intel HEX and Motorola S-Record import with write-back
 - Base address per file (e.g. a firmware's load address): addresses in the offset column,

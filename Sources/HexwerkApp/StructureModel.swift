@@ -246,6 +246,31 @@ final class StructureModel: ObservableObject {
 
     func node(_ id: Int) -> ParseNode? { byID[id] }
 
+    /// The nodes with a file range on the path from the root to the deepest
+    /// node containing `offset`, outermost first (#140, select parent).
+    func ancestors(containing offset: UInt64) -> [(id: Int, range: Range<UInt64>)] {
+        guard var n = result?.root else { return [] }
+        var out: [(id: Int, range: Range<UInt64>)] = []
+        while true {
+            if let r = n.range { out.append((n.id, r)) }
+            let next: ParseNode? =
+                if let lazy = n.lazy { lazy.index(of: offset).map { n.child($0) } } else {
+                    n.children.first { $0.range?.contains(offset) == true }
+                }
+            guard let c = next else { break }
+            n = c
+        }
+        return out
+    }
+
+    /// Selects a node in the tree if it is known, opening its path.
+    func select(_ id: Int) {
+        guard byID[id] != nil, selected != id else { return }
+        selected = id
+        reveal(id)
+        rebuildRows()
+    }
+
     // MARK: Drawing
 
     static let palette: [NSColor] = [.systemTeal, .systemPurple, .systemGreen, .systemBlue]

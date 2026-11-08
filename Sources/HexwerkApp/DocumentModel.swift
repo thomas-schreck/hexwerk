@@ -113,6 +113,24 @@ final class DocumentModel: ObservableObject {
         didSet { Settings.shared.set(sidebarTab.rawValue, forKey: "sidebarTab") }
     }
 
+    /// Back/forward through jumps (#140).
+    var history = NavigationHistory()
+    /// "Mark Selection Start" position, for "Mark Selection End".
+    var selectionMark: UInt64?
+
+    /// File offset an integer value points to, nil outside the file. The
+    /// value is an address: the base address (#143) is subtracted; the end
+    /// of the file is allowed like in "go to".
+    func pointerOffset(_ value: UInt64) -> UInt64? {
+        addresses.offset(of: value, count: doc.count)
+    }
+
+    /// Follow pointer: jumps to the offset `value` points to (recorded for Back).
+    func followPointer(_ value: UInt64) {
+        guard let off = pointerOffset(value) else { NSSound.beep(); return }
+        jump?(off, nil)
+    }
+
     /// Moves the hex view (set by the window controller).
     var jump: ((_ cursor: UInt64, _ select: Range<UInt64>?) -> Void)?
     /// Re-syncs the hex view after an edit made outside it.
@@ -159,7 +177,10 @@ final class DocumentModel: ObservableObject {
         refreshInspector()
         // Edits arrive synchronously from main-thread code (hex view, inspector, replace).
         doc.didReplace = { [weak self] range, n in
-            MainActor.assumeIsolated { self?.shiftBookmarks(replacing: range, newLength: n) }
+            MainActor.assumeIsolated {
+                self?.shiftBookmarks(replacing: range, newLength: n)
+                self?.history.adjust(replacing: range, newLength: n)
+            }
         }
     }
 

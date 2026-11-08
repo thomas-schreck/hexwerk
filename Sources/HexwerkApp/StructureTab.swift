@@ -125,7 +125,7 @@ struct StructureTab: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(structure.rows) { row in
-                            NodeRow(row: row, structure: structure) { select(row.node) }
+                            NodeRow(row: row, structure: structure, model: model) { select(row.node) }
                                 .id(row.id)
                         }
                     }
@@ -147,6 +147,7 @@ struct StructureTab: View {
 private struct NodeRow: View {
     let row: StructureModel.Row
     @ObservedObject var structure: StructureModel
+    let model: DocumentModel
     let onSelect: () -> Void
 
     var body: some View {
@@ -188,6 +189,13 @@ private struct NodeRow: View {
                 }
             }
             .rowButton(selected: isSelected, onSelect)
+            .contextMenu {
+                // Follow pointer (#140): integer fields as addresses.
+                if let v = n.number, v >= 0 {
+                    Button(L("Go to Address %@", hex(UInt64(v)))) { model.followPointer(UInt64(v)) }
+                        .disabled(model.pointerOffset(UInt64(v)) == nil)
+                }
+            }
         }
         .font(.system(size: 12))
         .padding(.leading, CGFloat(row.depth) * 14 + 6)
