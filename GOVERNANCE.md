@@ -84,7 +84,10 @@ maintainer decides. The decision and its reasoning are recorded in the issue.
 - The tag starts the *Release* workflow (`.github/workflows/release.yml`): it
   runs the tests, builds the app (DMG and ZIP) and the CLI archive with
   `make dist`, and publishes a GitHub release with checksums. The version in
-  the app comes from the tag.
+  the app comes from the tag. Local builds derive theirs from the nearest tag
+  (`scripts/version.sh`, e.g. `0.2.0+5.gabc1234` after v0.2.0); the version
+  in `Resources/Info.plist` is only the fallback for builds outside git and
+  may be bumped along with a release.
 - The same workflow updates the Homebrew tap
   ([thomas-schreck/homebrew-tap](https://github.com/thomas-schreck/homebrew-tap))
   with the new version and checksums, using the deploy key stored as secret

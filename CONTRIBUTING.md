@@ -20,6 +20,13 @@ Changes to input parsing should survive a longer fuzz run, e.g.
 `HEXWERK_FUZZ_SCALE=100 HEXWERK_FUZZ_SEED=random swift test --filter FuzzTests`
 (see "How hexwerk is tested" in [SECURITY.md](SECURITY.md)).
 
+`make build` and `make app` take the version from the nearest release tag
+(`scripts/version.sh`): `0.2.0` on the tag itself, `0.2.0+5.gabc1234` five
+commits later, `+dirty` with uncommitted changes. Without git or tags (e.g. a
+shallow clone, run `git fetch --tags`) it falls back to
+`Resources/Info.plist`; `make app VERSION=…` overrides it.
+`scripts/version-test.sh` tests the script.
+
 See the README for details and known build limitations.
 
 ## Coverage, benchmarks, formatting

@@ -7,7 +7,9 @@ APP    := dist/hexwerk.app
 # Sandboxed helper for the parsers (#102); the name is its bundle identifier.
 XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
 # Release version and build number; the release workflow passes them from the tag.
-VERSION ?= $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
+# Local builds take the version from the nearest git tag, e.g. 0.2.0+5.gabc1234
+# five commits after v0.2.0 (scripts/version.sh); computed once per run.
+VERSION ?= $(eval VERSION := $(shell scripts/version.sh))$(VERSION)
 BUILD   ?= 1
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 # The CLI has no bundle; this Info.plist is linked into its __TEXT,__info_plist
