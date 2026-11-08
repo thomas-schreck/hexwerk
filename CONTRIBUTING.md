@@ -13,6 +13,7 @@ brew install yara-x libmagic
 swift build          # debug build of library, CLI and app
 swift test           # run the test suite (also needs `swift build` first for CLI tests)
 make app             # assemble dist/hexwerk.app
+make sandbox-probes  # test-only helper bundle; swift test then probes its App Sandbox
 make formats         # download the Kaitai Struct format collection
 ```
 

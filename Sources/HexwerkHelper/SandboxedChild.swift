@@ -439,7 +439,8 @@ public struct SandboxedChild: Sendable {
     }
 }
 
-/// Test probes run inside the sandboxed child: what a compromised parser
+/// Test probes run inside the sandboxed child, and inside the test-only XPC
+/// service of `make sandbox-probes` (#134): what a compromised parser
 /// would try (open, write or list files, connect, start processes, look up
 /// mach services, signal or inspect other processes, read hardware
 /// identifiers), which descriptors it has, and a crash and a hang.
@@ -493,8 +494,9 @@ enum Probe {
             return "started"
         case "mach": return machLookup(arg)
         case "signal-parent":
-            // Signal 0 checks permission only.
-            return kill(getppid(), 0) == 0 ? "sent" : "errno \(errno)"
+            // Signal 0 checks permission only. The XPC service's parent is
+            // launchd, so its probe names the app's process (#134).
+            return kill(Int32(arg) ?? getppid(), 0) == 0 ? "sent" : "errno \(errno)"
         case "procargs":
             // argv and environment of another process.
             var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, Int32(arg) ?? getppid()]

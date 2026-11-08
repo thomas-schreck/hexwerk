@@ -86,6 +86,19 @@ let package = Package(
             dependencies: ["HexwerkHelper"],
             swiftSettings: brewHeaders
         ),
+        // Test-only (#134): the same service with the sandbox probes exported,
+        // and the executable of the bundle that hosts it. `make sandbox-probes`
+        // assembles both below .build; neither goes into hexwerk.app.
+        .executableTarget(
+            name: "HexwerkParserProbes",
+            dependencies: ["HexwerkHelper"],
+            swiftSettings: brewHeaders
+        ),
+        .executableTarget(
+            name: "HexwerkProbeHost",
+            dependencies: ["HexwerkCore", "HexwerkHelper", "HexwerkScript", "HexwerkYARA"],
+            swiftSettings: brewHeaders
+        ),
         // The macOS app. Built as a plain executable; `make app` wraps it into
         // hexwerk.app (no Xcode project).
         .executableTarget(

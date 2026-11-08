@@ -36,6 +36,19 @@ plus a grace period apply.
   and no file access. The app passes the document as an open descriptor,
   `magic.mgc` as another one, rule files and scripts as text, and answers the
   helper's requests for `.ksy` files itself (regular `.ksy` files only).
+  The App Sandbox alone still lets a process fork and start system
+  programs, read other processes' paths, info and arguments, list all
+  processes, read IOKit properties such as the serial number and look up
+  mach services (pasteboard, window server, preferences, ...); the
+  entitlements deny all of that on top (`temporary-exception.sbpl`).
+  `XPCSandboxTests` probe the signed service from inside: no files outside
+  its container, no sockets, no fork or exec, no signals to the app, no
+  process info, no IOKit properties, no mach services, and parsing, YARA-X,
+  scripts and libmagic still work. They need `make sandbox-probes`, which
+  builds a test-only twin of the service (the same code and entitlements
+  with the probes exported, `Sources/HexwerkParserProbes`) below `.build`;
+  the service in the app does not export the probes
+  (`HelperProbeExportTests`), and without the bundle the tests are skipped.
 - **CLI:** `parse`, `yara`, `type` and `script` start the `hexwerk`
   executable again as a child process. Before it reads anything, the child
   enters a sandbox profile of its own (`sandbox_init`, see
@@ -80,9 +93,15 @@ plus a grace period apply.
   exact set is not documented), so the child can read system information
   such as the OS version, CPU model and boot time, but not process lists or
   other processes' arguments.
-- The app's helper relies on the App Sandbox of its entitlements; the
-  probes in `SandboxTests` run against the CLI's child only (the helper
-  needs the assembled app bundle).
+- The app's helper runs in the App Sandbox, which is wider than the CLI's
+  profile in what remains: it can read system locations such as `/etc`,
+  `/Library/Preferences` and `/Applications` (not the user's files), read
+  sysctl values, connect to the syslog socket and look up
+  `com.apple.coreservices.launchservicesd` and `com.apple.lsd.mapdb`, which
+  a `temporary-exception.sbpl` deny does not reach. A second `sandbox_init`
+  inside the helper on top of the App Sandbox is refused (EPERM), so the
+  CLI's profile cannot be applied there. `XPCSandboxTests` run only after
+  `make sandbox-probes`, not in CI.
 - `yara --timeout N` limits the scan only. Compiling the rules has a
   budget of its own of 10 minutes (it had no limit in-process), so hostile
   or very large rule files can keep `yara` busy for up to about 10 minutes
