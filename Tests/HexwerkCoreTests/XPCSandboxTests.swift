@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import HexwerkHelper
 import HexwerkMagic
@@ -126,9 +127,14 @@ enum ProbeBundle {
 }
 
 /// The probes are no attack surface of the shipped helper (#134): its
-/// listener does not export them, so a probe message gets no answer.
+/// listener does not export them, so NSXPC rejects a probe message and the
+/// caller's error handler fires; with probes exported, the probe answers.
+/// Both outcomes are waited for explicitly (the deadline only guards
+/// against a hang), so a slow, loaded machine cannot turn one into the other.
 @Suite struct HelperProbeExportTests {
-    private func probe(listener delegate: HelperListener) -> String? {
+    enum Outcome: Equatable { case answered, rejected, noReply }
+
+    private func probe(listener delegate: HelperListener) -> Outcome {
         let listener = NSXPCListener.anonymous()
         listener.delegate = delegate
         listener.resume()
@@ -137,18 +143,23 @@ enum ProbeBundle {
         c.resume()
         defer { c.invalidate(); listener.invalidate() }
         let done = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var answer: String?
-        let proxy = c.remoteObjectProxyWithErrorHandler { _ in done.signal() } as? HelperProbeXPC
-        proxy?.probe("fds") {
-            answer = $0
-            done.signal()
+        let outcome = Mutex(Outcome.noReply)
+        @Sendable func finish(_ o: Outcome) {
+            let first = outcome.withLock { cur in
+                guard cur == .noReply else { return false }
+                cur = o
+                return true
+            }
+            if first { done.signal() }
         }
-        _ = done.wait(timeout: .now() + 3)
-        return answer
+        let proxy = c.remoteObjectProxyWithErrorHandler { _ in finish(.rejected) } as? HelperProbeXPC
+        proxy?.probe("fds") { _ in finish(.answered) }
+        _ = done.wait(timeout: .now() + 120)
+        return outcome.withLock { $0 }
     }
 
     @Test func shippedListenerDoesNotExportProbes() {
-        #expect(probe(listener: HelperListener()) == nil)
-        #expect(probe(listener: HelperListener(probes: true)) != nil)
+        #expect(probe(listener: HelperListener()) == .rejected)
+        #expect(probe(listener: HelperListener(probes: true)) == .answered)
     }
 }
