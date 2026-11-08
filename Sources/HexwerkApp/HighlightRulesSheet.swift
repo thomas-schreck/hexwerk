@@ -10,7 +10,7 @@ struct HighlightRulesSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("Highlight Rules")).font(.headline)
-            Text(L("Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? wildcards."))
+            Text(L("Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? and 4? / ?D wildcards."))
                 .foregroundStyle(.secondary).font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
             Toggle(L("Highlight zero bytes"), isOn: $rules.zeroBytes)

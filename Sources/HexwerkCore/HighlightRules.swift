@@ -4,7 +4,8 @@ import Foundation
 /// (issue #141). Kept per file in the project and globally in settings.
 public struct HighlightRule: Codable, Sendable, Equatable, Identifiable {
     public enum Kind: String, Codable, Sendable, CaseIterable {
-        /// Hex bytes with `??` wildcards, parsed like the hex search.
+        /// Hex bytes with `??` and nibble (`4?`, `?D`) wildcards, parsed
+        /// like the hex search.
         case hex
         /// UTF-8 text.
         case text

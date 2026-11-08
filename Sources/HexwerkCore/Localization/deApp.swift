@@ -399,8 +399,8 @@ extension L10n {
         // Highlight rules (#141)
         "Highlight Rules…": "Hervorhebungsregeln …",
         "Highlight Rules": "Hervorhebungsregeln",
-        "Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? wildcards.":
-            "Bytes, auf die eine Regel passt, werden in der Hex-Ansicht eingefärbt. Hex-Muster dürfen ??-Platzhalter enthalten.",
+        "Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? and 4? / ?D wildcards.":
+            "Bytes, auf die eine Regel passt, werden in der Hex-Ansicht eingefärbt. Hex-Muster dürfen ??- und 4?-/?D-Platzhalter enthalten.",
         "Highlight zero bytes": "Null-Bytes hervorheben",
         "This File": "Diese Datei",
         "Saved in the project file.": "In der Projektdatei gesichert.",
