@@ -72,6 +72,39 @@ import Testing
         #expect(fresh.isModified && !fresh.canRedo)
     }
 
+    /// A diff take-over (#143, several changes in one undo step) and an
+    /// adopted script result (#142) come back with their undo steps.
+    @Test func restoresTakeOverAndAdoptedScriptEdits() throws {
+        let e = try env()
+        defer { e.cleanup() }
+        var b = [UInt8](try Data(contentsOf: e.file))
+        b[10] = ~b[10]
+        b.insert(contentsOf: [1, 2, 3], at: 500)
+        b.removeSubrange(1000 ..< 1100)
+        let otherURL = e.dir.appendingPathComponent("other.bin")
+        try Data(b).write(to: otherURL)
+        let other = try Document(url: otherURL).snapshot()
+
+        let d = try Document(url: e.file)
+        try d.takeOver(AlignedDiff.diff(d.snapshot(), other), from: other)
+        #expect([UInt8](all(d)) == b)
+        let base = d.snapshot()
+        let copy = Document(editing: base)
+        try copy.insert(Data("script".utf8), at: 0)
+        try d.adopt(copy, base: base)
+        let writer = RecoveryWriter(store: e.store, url: e.file)
+        #expect(try writer.write(d.recoveryContent()) == .saved)
+
+        let fresh = try Document(url: e.file)
+        #expect(try fresh.restore(try #require(try e.store.record(for: e.file))))
+        #expect(all(fresh) == all(d))
+        fresh.undo()  // the script
+        #expect([UInt8](all(fresh)) == b)
+        fresh.undo()  // the whole take-over
+        #expect(!fresh.canUndo && !fresh.isModified)
+        #expect(all(fresh) == (try Data(contentsOf: e.file)))
+    }
+
     @Test func filesArePrivate() throws {
         let e = try env()
         defer { e.cleanup() }
