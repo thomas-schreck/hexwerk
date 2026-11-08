@@ -24,6 +24,13 @@ import HexwerkYARA
     func cancel(_ requestID: String)
 }
 
+/// Test-only extension of `HelperXPC` (#134): runs one of the sandbox
+/// probes (`Probe`) inside the service. Exported only by the service that
+/// `make sandbox-probes` builds, never by the one in hexwerk.app.
+@objc public protocol HelperProbeXPC: HelperXPC {
+    func probe(_ probe: String, reply: @escaping @Sendable (String) -> Void)
+}
+
 /// Exported by the app on the same connection.
 @objc public protocol HelperHostXPC {
     /// Text of a .ksy file: (text, nil); missing: (nil, nil); unreadable: (nil, reason).

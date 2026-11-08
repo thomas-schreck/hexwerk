@@ -10,8 +10,18 @@ import HexwerkYARA
 /// `NSXPCListener.service()`; a build without the service bundle (`swift run`)
 /// and the tests use it in-process with an anonymous listener.
 public final class HelperListener: NSObject, NSXPCListenerDelegate, @unchecked Sendable {
+    private let probes: Bool
+
+    /// `probes` exports `HelperProbeXPC` instead of `HelperXPC` (#134). Only
+    /// the test-only service `make sandbox-probes` builds passes true; the
+    /// service in hexwerk.app does not, and NSXPC rejects every message whose
+    /// selector is not in the exported interface.
+    public init(probes: Bool = false) {
+        self.probes = probes
+    }
+
     public func listener(_ listener: NSXPCListener, shouldAcceptNewConnection c: NSXPCConnection) -> Bool {
-        c.exportedInterface = NSXPCInterface(with: HelperXPC.self)
+        c.exportedInterface = NSXPCInterface(with: probes ? HelperProbeXPC.self : HelperXPC.self)
         c.remoteObjectInterface = NSXPCInterface(with: HelperHostXPC.self)
         c.exportedObject = HelperServer(connection: c)
         c.resume()
@@ -48,7 +58,7 @@ public enum ParseOutcome: Sendable {
     }
 }
 
-final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
+final class HelperServer: NSObject, HelperProbeXPC, @unchecked Sendable {
     private weak var connection: NSXPCConnection?
     private let cancelled = Mutex<[String: CancelToken]>([:])
 
@@ -135,6 +145,17 @@ final class HelperServer: NSObject, HelperXPC, @unchecked Sendable {
             }
             try? box.value?.close()
             reply(HelperWork.detectType(req, database: db), nil)
+        }
+        thread.stackSize = 16 << 20
+        thread.start()
+    }
+
+    /// Test hook (#134), reachable only through `HelperListener(probes: true)`:
+    /// the CLI child's probes, run in the XPC service. `%TMP%` is the
+    /// service's temporary folder (where YARA writes its rule files).
+    func probe(_ probe: String, reply: @escaping @Sendable (String) -> Void) {
+        let thread = Thread {
+            reply(Probe.run(probe.replacingOccurrences(of: "%TMP%", with: FileManager.default.temporaryDirectory.path)))
         }
         thread.stackSize = 16 << 20
         thread.start()

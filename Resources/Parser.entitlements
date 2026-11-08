@@ -6,7 +6,17 @@
      JIT: YARA-X (wasmtime) maps its compiled rules executable without
      MAP_JIT and is killed without allow-unsigned-executable-memory;
      allow-jit lets JavaScriptCore use its JIT (it falls back to the
-     interpreter without it). -->
+     interpreter without it).
+     temporary-exception.sbpl (#134): rules appended to the App Sandbox
+     profile, which allows these by default (XPCSandboxTests showed each):
+     starting programs, process info and argv/environment of other
+     processes, process lists, IOKit properties such as the serial number,
+     mach services (pasteboard, window server, preferences, ...), the
+     syslog socket, and reading /Applications, /Volumes, the network
+     configuration and /etc/hosts (/Users holds the container: not denied).
+     The helper needs none of them. A deny without a filter does not
+     override the profile's filtered allows, hence the explicit operations
+     and the catch-all name prefix. -->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
@@ -15,5 +25,16 @@
 	<true/>
 	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
 	<true/>
+	<key>com.apple.security.temporary-exception.sbpl</key>
+	<array>
+		<string>(deny process-fork)</string>
+		<string>(deny process-exec*)</string>
+		<string>(deny process-info-pidinfo process-info-pidfdinfo process-info-codesignature (target others))</string>
+		<string>(deny sysctl-read (sysctl-name-prefix "kern.proc"))</string>
+		<string>(deny iokit-get-properties)</string>
+		<string>(deny mach-lookup (global-name-prefix ""))</string>
+		<string>(deny network-outbound (literal "/private/var/run/syslog"))</string>
+		<string>(deny file-read* (subpath "/Applications") (subpath "/Volumes") (subpath "/Library/Preferences/SystemConfiguration") (literal "/private/etc/hosts"))</string>
+	</array>
 </dict>
 </plist>

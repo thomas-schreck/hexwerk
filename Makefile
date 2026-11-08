@@ -6,6 +6,8 @@ export HOMEBREW_PREFIX
 APP    := dist/hexwerk.app
 # Sandboxed helper for the parsers (#102); the name is its bundle identifier.
 XPC    := $(APP)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.xpc
+# How the parser service is signed: by `app` and, identically, `sandbox-probes`.
+SIGN_PARSER := codesign --force --sign - --options runtime --entitlements Resources/Parser.entitlements
 # Release version and build number; the release workflow passes them from the tag.
 # Local builds take the version from the nearest git tag, e.g. 0.2.0+5.gabc1234
 # five commits after v0.2.0 (scripts/version.sh); computed once per run.
@@ -16,7 +18,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 # section so `hexwerk --version` can read it (BuildInfo.swift).
 CLI_PLIST := .build/cli-Info.plist
 
-.PHONY: test build sign-cli cli cli-docs appinstall-app dist sbom clean formats icon coverage bench format lint
+.PHONY: test build sign-cli cli cli-docs appinstall-app sandbox-probes dist sbom clean formats icon coverage bench format lint
 
 test:
 	swift test
@@ -108,11 +110,33 @@ app: build
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
 		-c "Set :CFBundleVersion $(BUILD)" $(XPC)/Contents/Info.plist
 	cp .build/release/HexwerkParser $(XPC)/Contents/MacOS/HexwerkParser
-	codesign --force --sign - --options runtime --entitlements Resources/Parser.entitlements $(XPC)
+	$(SIGN_PARSER) $(XPC)
 	# The app itself runs no JIT any more (parsers, YARA and scripts live in
 	# the XPC service), so it gets the Hardened Runtime without exceptions.
 	codesign --force --sign - --options runtime $(APP)
 	@echo "→ $(APP)"
+
+# Test-only bundle for XPCSandboxTests (#134): the parser service built
+# from HexwerkParserProbes (the same service code with the sandbox probes
+# exported), signed exactly like the one in hexwerk.app, inside a small host
+# executable (only a bundle's own executable can reach its XPC services).
+# Lives below .build, never in dist/ or the app.
+PROBES     := .build/sandbox-probes/hexwerk-probes.app
+PROBES_XPC := $(PROBES)/Contents/XPCServices/de.schreck-thomas.hexwerk.Parser.probes.xpc
+sandbox-probes: build
+	rm -rf $(PROBES)
+	mkdir -p $(PROBES)/Contents/MacOS $(PROBES_XPC)/Contents/MacOS
+	/usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string de.schreck-thomas.hexwerk.probes" \
+		-c "Add :CFBundleExecutable string HexwerkProbeHost" -c "Add :CFBundlePackageType string APPL" \
+		$(PROBES)/Contents/Info.plist >/dev/null
+	cp .build/release/HexwerkProbeHost $(PROBES)/Contents/MacOS/HexwerkProbeHost
+	cp Resources/Parser-Info.plist $(PROBES_XPC)/Contents/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier de.schreck-thomas.hexwerk.Parser.probes" \
+		-c "Set :CFBundleExecutable HexwerkParserProbes" $(PROBES_XPC)/Contents/Info.plist
+	cp .build/release/HexwerkParserProbes $(PROBES_XPC)/Contents/MacOS/HexwerkParserProbes
+	$(SIGN_PARSER) $(PROBES_XPC)
+	codesign --force --sign - --options runtime $(PROBES)
+	@echo "→ $(PROBES)"
 
 # Ersetzt /Applications/hexwerk.app (alte Version in den Papierkorb).
 install-app: app
