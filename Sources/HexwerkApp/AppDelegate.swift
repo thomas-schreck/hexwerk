@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let c = DocumentWindowController(file: doc)
             c.model.offsetBase = image.base
             c.model.importInfo = .init(
-                source: url, format: format, gaps: image.gaps, start: image.startAddress,
+                source: url, format: format, base: image.base, gaps: image.gaps, start: image.startAddress,
                 startSegment: image.startSegment, header: image.header)
             c.importStamp = stamp
             c.onClose = { [weak self] closed in
@@ -298,6 +298,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         find.addItem(withTitle: L("Next Difference"), action: #selector(DocumentWindowController.nextDifference(_:)), keyEquivalent: "]")
         find.addItem(
             withTitle: L("Previous Difference"), action: #selector(DocumentWindowController.previousDifference(_:)), keyEquivalent: "[")
+        find.addItem(
+            withTitle: L("Take Difference from Other File"), action: #selector(DocumentWindowController.takeDifference(_:)),
+            keyEquivalent: "")
+        find.addItem(
+            withTitle: L("Take All Differences from Other File"), action: #selector(DocumentWindowController.takeAllDifferences(_:)),
+            keyEquivalent: "")
         main.addItem(submenu(find, L("Find")))
 
         let tools = NSMenu()
@@ -318,6 +324,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         view.addItem(submenu(bpr, L("Bytes per Row")))
         view.addItem(
             withTitle: L("Decimal Offsets"), action: #selector(DocumentWindowController.toggleDecimalOffsets(_:)), keyEquivalent: "")
+        view.addItem(withTitle: L("Base Address…"), action: #selector(DocumentWindowController.setBaseAddress(_:)), keyEquivalent: "")
         view.addItem(withTitle: L("Vim Key Bindings"), action: #selector(DocumentWindowController.toggleVim(_:)), keyEquivalent: "")
         let cs = NSMenu()
         for (i, enc) in TextEncodingView.allCases.enumerated() {

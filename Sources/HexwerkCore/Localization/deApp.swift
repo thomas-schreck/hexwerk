@@ -355,5 +355,23 @@ extension L10n {
         // Image tab: fit and shown range
         "Fit": "Einpassen",
         "%1$@ – %2$@, %3$ld bytes": "%1$@ – %2$@, %3$ld Bytes",
+        // Base address, merge in diff, checksum exclusions (#143)
+        "Too much data to take over (%@).": "Zu viele Daten zum Übernehmen (%@).",
+        "%ld bytes excluded": "%ld Byte ausgenommen",
+        "Base Address": "Basisadresse",
+        "Address of the first byte, decimal or hex (0x…). Only the display changes, not the file.":
+            "Adresse des ersten Bytes, dezimal oder hex (0x…). Nur die Anzeige ändert sich, nicht die Datei.",
+        "Take Difference from Other File": "Unterschied aus anderer Datei übernehmen",
+        "Take All Differences from Other File": "Alle Unterschiede aus anderer Datei übernehmen",
+        "Base Address…": "Basisadresse …",
+        "Take from Other File": "Aus anderer Datei übernehmen",
+        "Take All": "Alle übernehmen",
+        "Copy all differences from the other file into this one (undoable)":
+            "Alle Unterschiede aus der anderen Datei in diese übernehmen (widerrufbar)",
+        "Excluded Ranges": "Ausgenommene Bereiche",
+        "Exclude Byte at Cursor": "Byte am Cursor ausnehmen",
+        "Exclude Selection": "Auswahl ausnehmen",
+        "Skip these bytes when computing, e.g. the checksum field itself":
+            "Diese Bytes beim Berechnen auslassen, z. B. das Prüfsummenfeld selbst",
     ]
 }

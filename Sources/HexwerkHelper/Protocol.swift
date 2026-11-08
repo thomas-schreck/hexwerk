@@ -74,6 +74,7 @@ struct ScriptRequest: Codable, Sendable {
     var cursor: UInt64
     var selection: Range<UInt64>?
     var fileName: String
+    var baseAddress: UInt64
     var readOnly: Bool
     var timeout: Double
 }

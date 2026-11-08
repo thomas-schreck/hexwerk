@@ -27,9 +27,13 @@ final class DocumentModel: ObservableObject {
     // View options.
     @Published var bytesPerRowSetting = 16  // 0 = fit window
     @Published var decimalOffsets = false
-    /// Load address of offset 0 (Intel HEX / S-Record import); shown in
-    /// the offset column and accepted by "go to".
+    /// Base address: the address of offset 0 (Intel HEX / S-Record import,
+    /// View > Base Address). Shown in the offset column, hit lists and the
+    /// status bar and accepted by "go to"; the content never changes.
     @Published var offsetBase: UInt64 = 0
+    var addresses: AddressMap { AddressMap(base: offsetBase) }
+    /// "0x..." address of a file offset, as the offset column shows it.
+    func addressText(_ offset: UInt64) -> String { hex(addresses.address(of: offset)) }
 
     /// Vim key bindings (View → Vim Key Bindings), app-wide.
     @Published var vimEnabled = Settings.shared.bool(forKey: "vimMode")
@@ -42,6 +46,9 @@ final class DocumentModel: ObservableObject {
     struct ImportInfo {
         let source: URL
         let format: HexRecords.Format
+        /// Address of the image's first byte; Save writes the records there
+        /// even if the displayed base address was changed.
+        let base: UInt64
         let gaps: [Range<UInt64>]
         let start: UInt64?
         var startSegment: UInt32? = nil
@@ -69,12 +76,25 @@ final class DocumentModel: ObservableObject {
     @Published private(set) var diffFile: URL?
     /// The comparison stopped at `Search.maxHits`; there are more differences.
     @Published private(set) var diffsTruncated = false
+    /// Edited since `diffs` were computed; a new comparison is due or running.
+    /// Taking over differences waits for it, their offsets may be off.
+    @Published private(set) var diffStale = false
+    @Published private(set) var diffRunning = false
+    /// The other file's content: the diff follows edits of this one (#143).
+    private var diffOther: Snapshot?
+    private var diffTask: Task<Void, Never>?
+    private var diffGate = RunGate()
+    private var rediffPending = false
+    private var rediffTimer: DispatchWorkItem?
 
     // Bookmarks.
     @Published var bookmarks: [Bookmark] = []
 
     // Checksums.
     @Published private(set) var checksums: [Checksum: String] = [:]
+    /// Ranges left out of the checksums (e.g. the checksum field itself);
+    /// they move with edits like bookmarks.
+    @Published var checksumExclusions: [Range<UInt64>] = []
     @Published private(set) var checksumScope = ""
     @Published private(set) var checksumRunning = false
     private var checksumTask: Task<Void, Never>?
@@ -230,9 +250,11 @@ final class DocumentModel: ObservableObject {
             currentHit = nil
             findMessage = L("Content changed – search again")
         }
-        diffs = []
-        diffFile = nil
-        diffsTruncated = false
+        diffGate.contentChanged()
+        if diffOther != nil {
+            diffStale = true
+            scheduleRediff()
+        }
         checksums = [:]
         checksumGate.contentChanged()
         if checksumRunning { cancelChecksums() }
@@ -337,6 +359,7 @@ final class DocumentModel: ObservableObject {
     /// Stops everything still running for this window (it is closing).
     func cancelBackgroundWork() {
         cancelSearch()
+        clearDiff()
         structure.cancel()
         yara.cancel()
         analysis.cancel()
@@ -401,30 +424,103 @@ final class DocumentModel: ObservableObject {
     func compare(with url: URL) {
         let other: Snapshot
         do { other = try Document(url: url, readOnly: true).snapshot() } catch { findMessage = String(describing: error); return }
-        cancelSearch()
-        searching = true
+        clearDiff()
+        diffOther = other
+        diffFile = url  // the hits tab shows the comparison running
+        sidebarTab = .hits
+        runDiff(file: url, showFirst: true)
+    }
+
+    /// Compares the current content with `diffOther`. One run at a time:
+    /// a comparison cannot be interrupted and holds both files in memory,
+    /// so edits meanwhile only mark a rerun as pending.
+    private func runDiff(file url: URL, showFirst: Bool) {
+        guard let other = diffOther else { return }
+        diffRunning = true
+        rediffPending = false
         let mine = doc.snapshot()
-        let ticket = searchGate.begin()
-        task = Task.detached(priority: .userInitiated) { [weak self] in
+        let ticket = diffGate.begin()
+        diffTask = Task.detached(priority: .userInitiated) { [weak self] in
             // Realigns after inserted/deleted bytes (positional beyond 256 MiB).
             let d = AlignedDiff.diff(mine, other)
             let truncated = AlignedDiff.isTruncated(d, mine, other)
             await MainActor.run {
-                guard let self, !Task.isCancelled, self.searchGate.finish(ticket) == .current else { return }
-                self.searching = false
-                self.diffs = d
-                self.diffsTruncated = truncated
-                self.diffFile = url
-                self.sidebarTab = .hits
-                if let first = d.first { self.show(diff: first) }
+                guard let self, self.diffOther != nil else { return }
+                let verdict = self.diffGate.finish(ticket)
+                guard verdict != .superseded else { return }
+                self.diffRunning = false
+                if verdict == .current {
+                    self.diffs = d
+                    self.diffsTruncated = truncated
+                    self.diffFile = url
+                    self.diffStale = false
+                    if showFirst {
+                        self.sidebarTab = .hits
+                        if let first = d.first { self.show(diff: first) }
+                    }
+                }
+                if self.rediffPending { self.runDiff(file: url, showFirst: false) }
             }
         }
     }
 
+    /// After an edit (also undo/redo), once typing pauses.
+    private func scheduleRediff() {
+        rediffTimer?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, self.diffOther != nil else { return }
+            if self.diffRunning {
+                self.rediffPending = true
+            } else if let url = self.diffFile {
+                self.runDiff(file: url, showFirst: false)
+            }
+        }
+        rediffTimer = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: item)
+    }
+
     func clearDiff() {
+        diffTask?.cancel()
+        diffTask = nil
+        diffGate.cancel()
+        rediffTimer?.cancel()
+        rediffPending = false
+        diffOther = nil
+        diffRunning = false
+        diffStale = false
         diffs = []
         diffFile = nil
         diffsTruncated = false
+    }
+
+    /// The difference at the cursor (where "next difference" puts it).
+    var diffAtCursor: DiffOp? {
+        diffs.first { $0.a.isEmpty ? $0.a.lowerBound == cursor : $0.a.contains(cursor) }
+    }
+
+    /// Taking over is possible: an up-to-date diff of an editable document.
+    var canTakeOver: Bool { diffOther != nil && !diffStale && !diffRunning && !doc.isReadOnly && !diffs.isEmpty }
+
+    /// Merge: copies the difference at the cursor, or all differences, from
+    /// the other file into this one. One undo step; the diff then updates.
+    func takeOver(all: Bool) { takeOver(all ? diffs : diffAtCursor.map { [$0] } ?? [], all: all) }
+
+    func takeOver(_ ops: [DiffOp], all: Bool = false) {
+        guard canTakeOver, let other = diffOther else { NSSound.beep(); return }
+        guard let first = ops.first else { NSSound.beep(); return }
+        let size = Document.takeOverSize(ops)
+        guard size <= FillPattern.maximum else {
+            findMessage = L(
+                "Too much data to take over (%@).", ByteCountFormatter.string(fromByteCount: Int64(clamping: size), countStyle: .binary))
+            return
+        }
+        do { try doc.takeOver(ops, from: other) } catch {
+            findMessage = String(describing: error)
+            return
+        }
+        contentChanged()
+        reloadView?()
+        if !all { jump?(min(first.a.lowerBound, doc.count), nil) }
     }
 
     func jumpToDiff(forward: Bool) {
@@ -453,7 +549,10 @@ final class DocumentModel: ObservableObject {
 
     func computeChecksums() {
         let range = selection ?? 0 ..< doc.count
+        let excluded = checksumExclusions
         checksumScope = selection == nil ? L("Whole file") : L("Selection, %ld bytes", range.count)
+        let skipped = range.count - Checksum.included(range, excluding: excluded).reduce(0) { $0 + $1.count }
+        if skipped > 0 { checksumScope += ", " + L("%ld bytes excluded", skipped) }
         checksumTask?.cancel()
         checksumRunning = true
         checksums = [:]
@@ -462,7 +561,7 @@ final class DocumentModel: ObservableObject {
         let ticket = checksumGate.begin()
         checksumTask = Task.detached(priority: .userInitiated) { [weak self] in
             let result = Checksum.compute(
-                Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range,
+                Checksum.allCases.filter { algos.contains($0) }, snapshot, range: range, excluding: excluded,
                 progress: { _ in !Task.isCancelled })
             await MainActor.run {
                 guard let self, let result, self.checksumGate.finish(ticket) == .current else { return }
@@ -470,6 +569,14 @@ final class DocumentModel: ObservableObject {
                 self.checksumRunning = false
             }
         }
+    }
+
+    /// Adds the selection (or the byte at the cursor) to the exclusions.
+    func excludeSelectionFromChecksums() {
+        let r = selection ?? cursor ..< min(doc.count, cursor + 1)
+        guard !r.isEmpty, !checksumExclusions.contains(r) else { return }
+        checksumExclusions.append(r)
+        checksumExclusions.sort { $0.lowerBound < $1.lowerBound }
     }
 
     func cancelChecksums() {
@@ -501,10 +608,15 @@ final class DocumentModel: ObservableObject {
             return b
         }
         if moved != bookmarks { bookmarks = moved }
+        let excl = checksumExclusions.compactMap { $0.adjustedForEdit(replacing: range, newLength: newLength) }
+        if excl != checksumExclusions { checksumExclusions = excl }
     }
 
     private func clampBookmarks() {
         let n = doc.count
+        if checksumExclusions.contains(where: { $0.upperBound > n }) {
+            checksumExclusions = checksumExclusions.compactMap { $0.clampedToDocument(count: n) }
+        }
         guard bookmarks.contains(where: { $0.range.upperBound > n }) else { return }
         bookmarks = bookmarks.compactMap { b in
             guard let r = b.range.clampedToDocument(count: n) else { return nil }

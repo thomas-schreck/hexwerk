@@ -232,3 +232,30 @@ public enum AlignedDiff {
         }
     }
 }
+
+extension Document {
+    /// Merge in a diff (#143): makes the parts of this document that `ops`
+    /// describe equal to `other`, as one undo step. `ops` come from comparing
+    /// this document (A) with `other` (B) on the current content and are
+    /// sorted by their A offset; they are applied back to front so earlier
+    /// offsets stay valid. Throws, changing nothing, if they do not fit.
+    public func takeOver(_ ops: [DiffOp], from other: Snapshot) throws {
+        guard !ops.isEmpty else { return }
+        var prev: UInt64 = 0
+        for o in ops {
+            guard o.a.lowerBound >= prev, o.a.upperBound <= count, o.b.upperBound <= other.count else {
+                throw DocumentError.outOfRange
+            }
+            prev = o.a.upperBound
+        }
+        try grouped {
+            for o in ops.reversed() { try replace(o.a, with: other.read(o.b)) }
+        }
+    }
+
+    /// Bytes `takeOver` would copy from the other file (held in memory
+    /// until saving, like a fill).
+    public static func takeOverSize(_ ops: [DiffOp]) -> UInt64 {
+        ops.reduce(0) { $0 + UInt64($1.b.count) }
+    }
+}

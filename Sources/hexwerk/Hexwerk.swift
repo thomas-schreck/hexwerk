@@ -85,6 +85,7 @@ struct Dump: ParsableCommand {
     @Option(help: .init(L("Start offset (decimal or 0x...)"))) var offset: Number = Number(argument: "0")!
     @Option(help: .init(L("Number of bytes (default: to end of file)"))) var length: Number?
     @Option(help: .init(L("Bytes per line"))) var width: Int = 16
+    @Option(help: .init(L("Base address: label lines with base + offset (--offset stays a file offset)"))) var base: Number?
 
     func validate() throws {
         guard (1 ... 256).contains(width) else { throw ValidationError(L("--width must be between 1 and 256")) }
@@ -98,6 +99,13 @@ struct Dump: ParsableCommand {
                 Data(("hexwerk: " + L("Offset %llu is past the end of the file (%llu)", start, src.count) + "\n").utf8))
             throw ExitCode(1)
         }
+        let addresses = AddressMap(base: base?.value ?? 0)
+        guard AddressMap.isValid(base: addresses.base, count: src.count) else {
+            let base = "0x" + String(addresses.base, radix: 16)
+            FileHandle.standardError.write(
+                Data(("hexwerk: " + L("Base address %@ is too large for a file of %llu bytes", base, src.count) + "\n").utf8))
+            throw ExitCode(1)
+        }
         // Clamp the length before adding: start + length can exceed UInt64.max.
         let end = length.map { start + min($0.value, src.count - start) } ?? src.count
         // Stream in blocks so large ranges never sit in memory at once.
@@ -105,7 +113,7 @@ struct Dump: ParsableCommand {
         var pos = start
         repeat {
             let chunk = src.read(pos ..< min(pos + block, end))
-            var lines = HexDump.lines(chunk, startOffset: pos, width: width)
+            var lines = HexDump.lines(chunk, startOffset: addresses.address(of: pos), width: width)
             let isLast = pos + UInt64(chunk.count) >= end
             if !isLast { lines.removeLast() }  // trailing offset only once, at the end
             print(lines.joined(separator: "\n"))

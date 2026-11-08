@@ -121,7 +121,20 @@ struct Hash: ParsableCommand {
     var algo: String = "sha-256"
     @Option(help: .init(L("Start offset"))) var offset: Number?
     @Option(help: .init(L("Length"))) var length: Number?
+    @Option(
+        help: .init(
+            L("Skip a range START:LENGTH (file offsets, decimal or 0x...), e.g. the checksum field itself; repeatable"),
+            valueName: "start:length"))
+    var exclude: [ExcludedRange] = []
     @Flag(help: .init(L("Output as JSON"))) var json = false
+
+    struct ExcludedRange: ExpressibleByArgument {
+        let range: Range<UInt64>
+        init?(argument: String) {
+            guard let r = Checksum.parseRange(argument) else { return nil }
+            range = r
+        }
+    }
 
     func run() throws {
         var algos: [Checksum] = []
@@ -145,7 +158,7 @@ struct Hash: ParsableCommand {
         }
         let s = try openSnapshot(file)
         let range = try resolveRange(s, offset, length)
-        let result = Checksum.compute(algos, s, range: range) ?? [:]
+        let result = Checksum.compute(algos, s, range: range, excluding: exclude.map(\.range)) ?? [:]
         if json {
             try printJSON(Dictionary(uniqueKeysWithValues: algos.map { ($0.cliName, result[$0] ?? "") }))
             return

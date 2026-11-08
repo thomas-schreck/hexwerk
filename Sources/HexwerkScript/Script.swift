@@ -8,11 +8,15 @@ public struct ScriptContext: Sendable {
     public var cursor: UInt64
     public var selection: Range<UInt64>?
     public var fileName: String
+    /// Address of offset 0 (#143). All other offsets of the API stay file
+    /// offsets; scripts convert with `hw.address` / `hw.offset`.
+    public var baseAddress: UInt64
 
-    public init(cursor: UInt64 = 0, selection: Range<UInt64>? = nil, fileName: String = "") {
+    public init(cursor: UInt64 = 0, selection: Range<UInt64>? = nil, fileName: String = "", baseAddress: UInt64 = 0) {
         self.cursor = cursor
         self.selection = selection
         self.fileName = fileName
+        self.baseAddress = baseAddress
     }
 }
 
@@ -63,6 +67,9 @@ public enum ScriptRunner {
             ("hw.goto(off)", L("set the cursor after the run")),
             ("hw.cursor, hw.selection", L("state at start ({start, end} or null)")),
             ("hw.fileName", L("file name")),
+            ("hw.baseAddress", L("address of offset 0 (BigInt); offsets stay file offsets")),
+            ("hw.address(off)", L("address of an offset (BigInt)")),
+            ("hw.offset(addr)", L("offset of an address (Number or BigInt)")),
             ("print(...), console.log(...)", L("output")),
         ].map { $0.0.padding(toLength: 31, withPad: " ", startingAt: 0) + $0.1 }.joined(separator: "\n")
     }
@@ -232,11 +239,31 @@ private final class Session {
                 if let o = self.offset(off) { self.result.goTo = o }
             } as @convention(block) (JSValue) -> Void)
 
+        let addresses = AddressMap(base: context.baseAddress)
+        fn(
+            "address",
+            { [unowned self] (off: JSValue) -> JSValue? in
+                guard let o = self.offset(off) else { return nil }
+                return self.bigInt(String(addresses.address(of: o)))
+            } as @convention(block) (JSValue) -> JSValue?)
+        fn(
+            "offset",
+            { [unowned self] (addr: JSValue) -> JSValue? in
+                // BigInt via its decimal text: Double would round addresses above 2^53.
+                let a = addr.isBigInt ? UInt64(addr.toString() ?? "") : addr.isNumber ? self.exactInteger(addr.toDouble()) : nil
+                guard let a, let o = addresses.offset(of: a, count: self.document.count) else {
+                    self.fail(L("invalid address: %@", addr.toString() ?? "?"))
+                    return nil
+                }
+                return JSValue(double: Double(o), in: self.js)
+            } as @convention(block) (JSValue) -> JSValue?)
+
         hw.setObject(Double(context.cursor), forKeyedSubscript: "cursor" as NSString)
         hw.setObject(
             context.selection.map { ["start": Double($0.lowerBound), "end": Double($0.upperBound)] } ?? NSNull(),
             forKeyedSubscript: "selection" as NSString)
         hw.setObject(context.fileName, forKeyedSubscript: "fileName" as NSString)
+        hw.setObject(bigInt(String(context.baseAddress)), forKeyedSubscript: "baseAddress" as NSString)
         js.setObject(hw, forKeyedSubscript: "hw" as NSString)
     }
 
@@ -252,6 +279,12 @@ private final class Session {
             fail(L("invalid offset: %@ (size %@)", v.toString() ?? "?", "\(document.count)"))
             return nil
         }
+        return UInt64(d)
+    }
+
+    private func exactInteger(_ d: Double) -> UInt64? {
+        // 2^64 itself is representable as a Double but not as UInt64.
+        guard d >= 0, d < 18_446_744_073_709_551_616, d == d.rounded() else { return nil }
         return UInt64(d)
     }
 
