@@ -95,7 +95,7 @@ final class YaraModel: ObservableObject {
                 {
                 case .hits(let h, let w): hits = h; warn = w
                 case .compileErrors(let d): compileErrors = d
-                case .failed(let m, let w): failure = m; warn = w
+                case .failed(let m, let w), .timedOut(let m, let w): failure = m; warn = w
                 }
             } catch let e as YaraCompileError {
                 compileErrors = e.diagnostics

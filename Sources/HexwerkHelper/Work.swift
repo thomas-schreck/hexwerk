@@ -28,13 +28,16 @@ enum HelperWork {
 
     /// The rule files are written below `scratch` for compiling (includes).
     /// `snapshot` nil: only compile (no hits, the warnings or errors).
-    static func scan(_ req: ScanRequest, _ snapshot: Snapshot?, scratch: URL) throws -> Data {
+    /// `compiled` is called once the rules are compiled (the CLI's child
+    /// starts the scan's time limit there).
+    static func scan(_ req: ScanRequest, _ snapshot: Snapshot?, scratch: URL, compiled: () -> Void = {}) throws -> Data {
         let rules: YaraRules
         do {
             rules = try req.rules.compile(materializingIn: scratch.appendingPathComponent("yara-\(UUID().uuidString)"))
         } catch let e as YaraCompileError {
             return YaraScanOutcome.compileErrors(e.diagnostics).encoded()
         }
+        compiled()
         guard let snapshot else { return YaraScanOutcome.hits([], warnings: rules.warnings).encoded() }
         do {
             let hits = try rules.scan(
@@ -42,6 +45,9 @@ enum HelperWork {
                 maxMatchesPerPattern: req.maxMatchesPerPattern)
             return YaraScanOutcome.hits(hits, warnings: rules.warnings).encoded()
         } catch {
+            if case YaraScanError.timeout = error {
+                return YaraScanOutcome.timedOut(String(describing: error), warnings: rules.warnings).encoded()
+            }
             return YaraScanOutcome.failed(String(describing: error), warnings: rules.warnings).encoded()
         }
     }

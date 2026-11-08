@@ -39,24 +39,54 @@ plus a grace period apply.
 - **CLI:** `parse`, `yara`, `type` and `script` start the `hexwerk`
   executable again as a child process. Before it reads anything, the child
   enters a sandbox profile of its own (`sandbox_init`, see
-  `Sources/HexwerkHelper/Sandbox.swift`): everything denied except reading
-  sysctl values (wasmtime needs the page size) and ICU's Unicode data
-  (JavaScriptCore). It inherits only the document and `magic.mgc` as open
+  `Sources/HexwerkHelper/Sandbox.swift`) with `(deny default)`. Allowed are
+  reading sysctl values (wasmtime needs the page size), except the
+  `kern.proc*` names (process lists, other processes' arguments and
+  environment), and reading ICU's Unicode data (JavaScriptCore). Because
+  `deny default` leaves some process and hardware information readable,
+  `process-info*` (e.g. `proc_pidpath`/`proc_pidinfo` of other processes)
+  and `iokit-get-properties` (e.g. the serial number) are denied
+  explicitly. The child inherits only the document and `magic.mgc` as open
   descriptors and two pipes; it has no environment, no network, no mach
-  services and cannot open, create or list files. For `yara` only, it may
-  read and write one fresh folder that the parent creates in the temp folder
-  and deletes afterwards (the rule files are written there so `include`
-  works). Rule files and scripts are read by the parent, `.ksy` files are
-  answered over the pipe as in the app, and the results come back in the
-  same binary formats the app's helper uses, so the output is unchanged.
-  Edits made by a script are applied and saved (`--write`) by the parent.
-  `SandboxTests` check that the child cannot open or create files or
-  connect anywhere, and that a crashing or hanging child is an error.
+  services, cannot fork, start programs or signal other processes, and
+  cannot open, create or list files. For `yara` only, it may read and write
+  one fresh folder that the parent creates in the temp folder and deletes
+  afterwards (the rule files are written there so `include` works, absolute
+  includes included); it may read the metadata of the folders above it.
+  Rule files and scripts are read by the parent, `.ksy` files are answered
+  over the pipe as in the app, and the results come back in the same binary
+  formats the app's helper uses, so the output is unchanged. Edits made by a
+  script are applied and saved (`--write`) by the parent. The parent bounds
+  every read and write on the pipes by the time limit (a child that floods
+  requests or stops reading is killed), accepts at most 1 GiB per answer
+  (64 KiB for a file request) and allocates as data arrives; the child exits
+  when the parent goes away, so a killed CLI leaves no script or scan
+  running. YARA rules get a compile budget of 10 minutes before the scan's
+  own limit starts (compiling had no limit in-process). `SandboxTests` probe
+  all of this from inside the child, with stand-in hostile children for the
+  parent's side.
 - What stays in the app and CLI processes is plain, bounds-checked Swift:
   hex view, search, signatures and embedded-file search, strings, hashes,
   diff, inspector, Intel HEX/S-Record import, image view.
 - JIT: YARA-X (wasmtime) and JavaScriptCore need the JIT entitlements of the
   Hardened Runtime (see below); the sandbox profiles do not widen them.
+
+### Known gaps
+
+- The CLI's sandbox profile is applied with `sandbox_init`, a deprecated
+  (but still used, e.g. by Chromium) API; Apple documents no supported
+  replacement for command line tools without a bundle.
+- Reading sysctl values in general stays allowed (wasmtime needs some; the
+  exact set is not documented), so the child can read system information
+  such as the OS version, CPU model and boot time, but not process lists or
+  other processes' arguments.
+- The app's helper relies on the App Sandbox of its entitlements; the
+  probes in `SandboxTests` run against the CLI's child only (the helper
+  needs the assembled app bundle).
+- Signed builds (Hardened Runtime): JavaScriptCore's execution time limit
+  does not fire for scripts that loop without calling into hexwerk, so the
+  CLI kills such a script only at its time limit plus 15 s grace (exit 3,
+  "did not answer in time"); before the CLI sandbox it ran forever.
 
 ## How hexwerk is tested
 

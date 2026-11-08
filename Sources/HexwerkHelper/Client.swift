@@ -271,6 +271,11 @@ final class FormatFileHost: NSObject, HelperHostXPC {
         }
         var st = stat()
         guard stat(url.path, &st) == 0 else { return (nil, nil) }
+        // A folder named *.ksy: Foundation's own message, as the in-process
+        // loader gave it (reading a folder fails at once, unlike a FIFO).
+        if (st.st_mode & S_IFMT) == S_IFDIR {
+            do { _ = try String(contentsOf: url, encoding: .utf8) } catch { return (nil, error.localizedDescription) }
+        }
         guard (st.st_mode & S_IFMT) == S_IFREG, st.st_size <= maxSize else {
             return (nil, L("Only .ksy files can be read"))
         }

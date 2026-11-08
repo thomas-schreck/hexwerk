@@ -79,13 +79,17 @@ public struct SandboxedChild: Sendable {
 
     /// `snapshot` nil: only compile (hits empty, the warnings or errors).
     public func scan(
-        _ snapshot: Snapshot?, rules: YaraRuleBundle, range: Range<UInt64>?, timeout: Int
+        _ snapshot: Snapshot?, rules: YaraRuleBundle, range: Range<UInt64>?, timeout: Int,
+        grace: TimeInterval = SandboxedChild.grace
     ) throws -> YaraScanOutcome {
         let req = ScanRequest(
             header: header(snapshot), rules: rules, range: range, timeout: timeout, maxMatchesPerPattern: nil)
-        // Compiling counts too: allow it as long as the scan (as in the app).
+        // Compiling had no time limit in-process: it gets a generous one of
+        // its own, and the scan's limit starts when the child reports the
+        // rules compiled.
         let data = try run(
-            .scan, try RequestCoder.encode(req), file: snapshot?.fileHandle(), timeout: 2 * Double(max(1, timeout)))
+            .scan, try RequestCoder.encode(req), file: snapshot?.fileHandle(), timeout: Double(max(1, timeout)),
+            firstPhase: Self.compileBudget, grace: grace)
         return try YaraScanOutcome(encoded: data)
     }
 
@@ -110,9 +114,12 @@ public struct SandboxedChild: Sendable {
         return try TypeOutcome(encoded: data)
     }
 
-    /// Test hook: runs a probe in the sandboxed child (see `Probe`).
-    func probe(_ probe: String, timeout: TimeInterval = 30, grace: TimeInterval = SandboxedChild.grace) throws -> String {
-        let data = try run(.probe, Data(probe.utf8), timeout: timeout, grace: grace)
+    /// Test hook: runs a probe in the sandboxed child (see `Probe`), with
+    /// the scan's profile (a scratch folder) if `scratch`.
+    func probe(
+        _ probe: String, scratch: Bool = false, timeout: TimeInterval = 30, grace: TimeInterval = SandboxedChild.grace
+    ) throws -> String {
+        let data = try run(.probe, Data(probe.utf8), scratch: scratch, timeout: timeout, grace: grace)
         return String(decoding: data, as: UTF8.self)
     }
 
@@ -141,19 +148,34 @@ public struct SandboxedChild: Sendable {
         static let failure: UInt8 = 2
         static let readFormatFile: UInt8 = 3
         static let formatFile: UInt8 = 4
+        /// The rules are compiled; the scan's own time limit starts.
+        static let compiled: UInt8 = 5
+    }
+
+    /// Time allowed for compiling YARA rules before the scan's limit applies.
+    static let compileBudget: TimeInterval = 600
+
+    /// Largest frame per tag the parent accepts from the child; payloads are
+    /// read as they arrive, so a header alone allocates nothing.
+    static func maxFrame(_ tag: UInt8) -> Int {
+        switch tag {
+        case Tag.readFormatFile: 64 << 10  // a path
+        case Tag.compiled: 0
+        default: Channel.maxFrame
+        }
     }
 
     static let fileFD: Int32 = 3
     static let databaseFD: Int32 = 4
 
     private func run(
-        _ op: Op, _ request: Data, file: FileHandle? = nil, database: FileHandle? = nil,
-        timeout: TimeInterval, grace: TimeInterval = SandboxedChild.grace,
+        _ op: Op, _ request: Data, file: FileHandle? = nil, database: FileHandle? = nil, scratch wantsScratch: Bool = false,
+        timeout: TimeInterval, firstPhase: TimeInterval? = nil, grace: TimeInterval = SandboxedChild.grace,
         readFormatFile: (String) -> (String?, String?) = { _ in (nil, L("Only .ksy files can be read")) }
     ) throws -> Data {
         // The YARA compiler writes the rule files below a folder of its own
         // (includes resolve there); nothing else in the child can write.
-        let scratch = op == .scan ? try Self.makeScratch() : nil
+        let scratch = op == .scan || wantsScratch ? try Self.makeScratch() : nil
         defer { if let scratch { try? FileManager.default.removeItem(atPath: scratch) } }
 
         let child = try Self.spawn(executable, scratch: scratch, file: file, database: database)
@@ -163,15 +185,21 @@ public struct SandboxedChild: Sendable {
 
         let envelope = try RequestCoder.encode(
             Envelope(op: op, request: request, hasFile: file != nil, hasDatabase: database != nil))
-        // The request can exceed the pipe buffer: write it on a thread of its
-        // own, so a child that hangs before reading cannot block the timeout.
+        // Every write and read is bounded by the deadline (the parent's end
+        // of the request pipe does not block): a child that stops reading
+        // or never answers is killed at its time limit.
+        var deadline = Date().addingTimeInterval((firstPhase ?? timeout) + grace)
         let channel = child.channel
-        Thread.detachNewThread { try? channel.send(Tag.request, envelope) }
-
-        let deadline = Date().addingTimeInterval(timeout + grace)
+        do { try channel.send(Tag.request, envelope, deadline: deadline) } catch FrameError.timedOut {
+            throw SandboxedChildError.timedOut
+        } catch {
+            // The child is gone before it read everything; its failure (if
+            // it sent one) is read below.
+        }
+        var started = firstPhase == nil
         while true {
             let tag: UInt8, payload: Data
-            do { (tag, payload) = try channel.receive(deadline: deadline) } catch FrameError.timedOut {
+            do { (tag, payload) = try channel.receive(deadline: deadline, maxSize: Self.maxFrame) } catch FrameError.timedOut {
                 throw SandboxedChildError.timedOut
             } catch {
                 throw SandboxedChildError.stopped
@@ -179,12 +207,20 @@ public struct SandboxedChild: Sendable {
             switch tag {
             case Tag.result: return payload
             case Tag.failure: throw SandboxedChildError.failed(String(decoding: payload, as: UTF8.self))
+            case Tag.compiled where !started:
+                started = true
+                deadline = Date().addingTimeInterval(timeout + grace)
             case Tag.readFormatFile:
                 let (text, error) = readFormatFile(String(decoding: payload, as: UTF8.self))
                 var w = WireWriter()
                 w.optional(text) { $0.string($1) }
                 w.optional(error) { $0.string($1) }
-                do { try channel.send(Tag.formatFile, w.data) } catch { throw SandboxedChildError.stopped }
+                // The child asks one file at a time and waits for the answer.
+                do { try channel.send(Tag.formatFile, w.data, deadline: deadline) } catch FrameError.timedOut {
+                    throw SandboxedChildError.timedOut
+                } catch {
+                    throw SandboxedChildError.stopped
+                }
             default: throw SandboxedChildError.stopped
             }
         }
@@ -221,6 +257,7 @@ public struct SandboxedChild: Sendable {
         func failure(_ code: Int32 = errno) -> SandboxedChildError {
             .notStarted(String(cString: strerror(code)))
         }
+        func check(_ rc: Int32) throws { guard rc == 0 else { throw failure(rc) } }
         // Descriptors for the child, closed here once it has its copies.
         var forChild: [Int32] = []
         defer { for fd in forChild { Darwin.close(fd) } }
@@ -240,13 +277,28 @@ public struct SandboxedChild: Sendable {
             throw failure()
         }
         forChild.append(fromChild[1])
+        // The parent's ends: never inherited by another process (the child
+        // notices the parent's end going away, #129), and writing does not
+        // block (Channel.send waits with the deadline instead).
+        for fd in [toChild[1], fromChild[0]] { _ = fcntl(fd, F_SETFD, FD_CLOEXEC) }
+        _ = fcntl(toChild[1], F_SETFL, fcntl(toChild[1], F_GETFL) | O_NONBLOCK)
         let channel = Channel(read: fromChild[0], write: toChild[1])
 
         var actions: posix_spawn_file_actions_t?
-        posix_spawn_file_actions_init(&actions)
-        defer { posix_spawn_file_actions_destroy(&actions) }
         var attr: posix_spawnattr_t?
-        posix_spawnattr_init(&attr)
+        do {
+            try check(posix_spawn_file_actions_init(&actions))
+        } catch {
+            channel.close()
+            throw error
+        }
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        do {
+            try check(posix_spawnattr_init(&attr))
+        } catch {
+            channel.close()
+            throw error
+        }
         defer { posix_spawnattr_destroy(&attr) }
         let args = [exe, argument, scratch ?? ""]
         var argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
@@ -255,15 +307,16 @@ public struct SandboxedChild: Sendable {
         var envp: [UnsafeMutablePointer<CChar>?] = [nil]
         var pid: pid_t = 0
         do {
-            posix_spawn_file_actions_adddup2(&actions, try high(toChild[0]), 0)
-            posix_spawn_file_actions_adddup2(&actions, try high(fromChild[1]), 1)
-            posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0)
-            if let file { posix_spawn_file_actions_adddup2(&actions, try high(file.fileDescriptor), fileFD) }
-            if let database { posix_spawn_file_actions_adddup2(&actions, try high(database.fileDescriptor), databaseFD) }
+            try check(posix_spawn_file_actions_adddup2(&actions, try high(toChild[0]), 0))
+            try check(posix_spawn_file_actions_adddup2(&actions, try high(fromChild[1]), 1))
+            try check(posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0))
+            if let file { try check(posix_spawn_file_actions_adddup2(&actions, try high(file.fileDescriptor), fileFD)) }
+            if let database {
+                try check(posix_spawn_file_actions_adddup2(&actions, try high(database.fileDescriptor), databaseFD))
+            }
             // Only the descriptors above reach the child.
-            posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
-            let rc = posix_spawn(&pid, exe, &actions, &attr, &argv, &envp)
-            guard rc == 0 else { throw failure(rc) }
+            try check(posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT)))
+            try check(posix_spawn(&pid, exe, &actions, &attr, &argv, &envp))
         } catch {
             channel.close()
             throw error
@@ -283,6 +336,7 @@ public struct SandboxedChild: Sendable {
             try? channel.send(Tag.failure, Data(String(describing: error).utf8))
             exit(70)
         }
+        watchParent()
         let box = UncheckedSendable(channel)
         let done = DispatchSemaphore(value: 0)
         let thread = Thread {
@@ -304,6 +358,28 @@ public struct SandboxedChild: Sendable {
         exit(0)
     }
 
+    /// The parent holds the other end of the request pipe until it is done
+    /// with the child; the end going away means the parent died (a killed
+    /// CLI must not leave a script or scan running). A kqueue on the pipe
+    /// sees that while the work thread may be busy or reading the same pipe.
+    private static func watchParent() {
+        let kq = kqueue()
+        guard kq >= 0 else { exit(71) }
+        Probe.watcher = kq
+        var ev = kevent(
+            ident: 0, filter: Int16(EVFILT_READ), flags: UInt16(EV_ADD | EV_CLEAR), fflags: 0, data: 0, udata: nil)
+        guard kevent(kq, &ev, 1, nil, 0, nil) == 0 else { exit(71) }
+        let thread = Thread {
+            var out = kevent()
+            while true {
+                let n = kevent(kq, nil, 0, &out, 1, nil)
+                if n < 0 && errno == EINTR { continue }
+                if n < 0 || out.flags & UInt16(EV_EOF) != 0 { _exit(0) }
+            }
+        }
+        thread.start()
+    }
+
     private static func handle(_ e: Envelope, channel: Channel, scratch: String?) throws -> Data {
         func snapshot(_ h: RequestHeader) throws -> Snapshot? {
             if let lang = L10n.Language(rawValue: h.language), lang != L10n.language { L10n.override = lang }
@@ -321,7 +397,9 @@ public struct SandboxedChild: Sendable {
         case .scan:
             let req = try RequestCoder.decode(ScanRequest.self, e.request)
             guard let scratch else { throw WireError("no scratch folder") }
-            return try HelperWork.scan(req, try snapshot(req.header), scratch: URL(fileURLWithPath: scratch))
+            return try HelperWork.scan(
+                req, try snapshot(req.header), scratch: URL(fileURLWithPath: scratch),
+                compiled: { try? channel.send(Tag.compiled, Data()) })
         case .script:
             let req = try RequestCoder.decode(ScriptRequest.self, e.request)
             guard let snap = try snapshot(req.header) else { throw SnapshotWireError.invalid("no file") }
@@ -332,7 +410,8 @@ public struct SandboxedChild: Sendable {
             let db = e.hasDatabase ? MagicDatabase(handle: FileHandle(fileDescriptor: databaseFD, closeOnDealloc: true)) : nil
             return HelperWork.detectType(req, database: db)
         case .probe:
-            return Data(Probe.run(String(decoding: e.request, as: UTF8.self)).utf8)
+            let probe = String(decoding: e.request, as: UTF8.self)
+            return Data(Probe.run(probe.replacingOccurrences(of: "%SCRATCH%", with: scratch ?? "")).utf8)
         }
     }
 
@@ -349,23 +428,88 @@ public struct SandboxedChild: Sendable {
 }
 
 /// Test probes run inside the sandboxed child: what a compromised parser
-/// would try (`open:<path>`, `socket`), and a crash and a hang.
+/// would try (open, write or list files, connect, start processes, look up
+/// mach services, signal or inspect other processes, read hardware
+/// identifiers), which descriptors it has, and a crash and a hang.
 enum Probe {
+    /// The child's kqueue that watches for the parent (not inherited).
+    nonisolated(unsafe) static var watcher: Int32 = -1
+
     static func run(_ probe: String) -> String {
-        switch probe {
-        case let p where p.hasPrefix("open:"):
-            let fd = open(String(p.dropFirst(5)), O_RDONLY)
+        let colon = probe.firstIndex(of: ":")
+        let name = String(probe[..<(colon ?? probe.endIndex)])
+        let arg = colon.map { String(probe[probe.index(after: $0)...]) } ?? ""
+        switch name {
+        case "open":
+            let fd = open(arg, O_RDONLY)
             defer { if fd >= 0 { close(fd) } }
             return fd >= 0 ? "opened" : "errno \(errno)"
-        case let p where p.hasPrefix("write:"):
-            let fd = open(String(p.dropFirst(6)), O_WRONLY | O_CREAT, 0o600)
+        case "write":
+            let fd = open(arg, O_WRONLY | O_CREAT, 0o600)
             defer { if fd >= 0 { close(fd) } }
             return fd >= 0 ? "opened" : "errno \(errno)"
-        case let p where p.hasPrefix("connect:"):
+        case "list":
+            guard let d = opendir(arg) else { return "errno \(errno)" }
+            closedir(d)
+            return "listed"
+        case "stat":
+            var st = stat()
+            return stat(arg, &st) == 0 ? "ok" : "errno \(errno)"
+        case "connect":
             // `connect:<port>` on 127.0.0.1, `connect:/path` to a Unix socket.
             // macOS's sandbox does not mediate creating an Internet socket,
             // only what can be done with it, so the probe connects.
-            return connect(String(p.dropFirst(8)))
+            return connect(arg)
+        case "fork":
+            // fork() is unavailable in Swift; the child only exits.
+            typealias Fork = @convention(c) () -> pid_t
+            guard let f = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "fork") else { return "no fork" }
+            let pid = unsafeBitCast(f, to: Fork.self)()
+            if pid == 0 { _exit(0) }
+            guard pid > 0 else { return "errno \(errno)" }
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            return "forked"
+        case "exec":
+            var pid: pid_t = 0
+            var argv: [UnsafeMutablePointer<CChar>?] = [strdup(arg), nil]
+            defer { free(argv[0]) }
+            let rc = posix_spawn(&pid, arg, nil, nil, &argv, nil)
+            guard rc == 0 else { return "errno \(rc)" }
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            return "started"
+        case "mach": return machLookup(arg)
+        case "signal-parent":
+            // Signal 0 checks permission only.
+            return kill(getppid(), 0) == 0 ? "sent" : "errno \(errno)"
+        case "procargs":
+            // argv and environment of another process.
+            var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, Int32(arg) ?? getppid()]
+            return sysctlProbe(&mib)
+        case "procall":
+            // Other processes in the list (the child sees itself in any case).
+            var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
+            var size = 0
+            guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0 else { return "errno \(errno)" }
+            var procs = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride + 16)
+            size = procs.count * MemoryLayout<kinfo_proc>.stride
+            guard sysctl(&mib, u_int(mib.count), &procs, &size, nil, 0) == 0 else { return "errno \(errno)" }
+            let others = procs.prefix(size / MemoryLayout<kinfo_proc>.stride).filter { $0.kp_proc.p_pid != getpid() }
+            return others.isEmpty ? "only self" : "others"
+        case "pidpath":
+            var buf = [CChar](repeating: 0, count: 4096)
+            let n = proc_pidpath(Int32(arg) ?? getppid(), &buf, UInt32(buf.count))
+            return n > 0 ? "read" : "errno \(errno)"
+        case "pidinfo":
+            var info = proc_bsdinfo()
+            let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+            let n = proc_pidinfo(Int32(arg) ?? getppid(), PROC_PIDTBSDINFO, 0, &info, size)
+            return n == size ? "read" : "errno \(errno)"
+        case "iokit": return ioKitProperty(arg.isEmpty ? "IOPlatformSerialNumber" : arg)
+        case "fds":
+            // Open descriptors, apart from the watcher's kqueue.
+            return (0 ..< 1024).filter { $0 != watcher && fcntl($0, F_GETFD) >= 0 }.map(String.init).joined(separator: ",")
         case "crash":
             // A wild write, as a parser bug would do.
             UnsafeMutablePointer<Int>(bitPattern: 16)!.pointee = 1
@@ -375,6 +519,40 @@ enum Probe {
         default:
             return "unknown probe"
         }
+    }
+
+    private static func sysctlProbe(_ mib: inout [Int32]) -> String {
+        var size = 0
+        guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0 else { return "errno \(errno)" }
+        var buf = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, u_int(mib.count), &buf, &size, nil, 0) == 0 else { return "errno \(errno)" }
+        return size > 0 ? "read" : "empty"
+    }
+
+    /// Looked up at run time, so the CLI does not link IOKit for a probe.
+    private static func ioKitProperty(_ key: String) -> String {
+        // IOServiceGetMatchingService consumes the matching dictionary.
+        typealias Matching = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
+        typealias GetService = @convention(c) (mach_port_t, UnsafeMutableRawPointer?) -> io_object_t
+        typealias CreateProperty = @convention(c) (io_object_t, CFString, CFAllocator?, UInt32) -> Unmanaged<CFTypeRef>?
+        guard let lib = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW),
+            let m = dlsym(lib, "IOServiceMatching"), let g = dlsym(lib, "IOServiceGetMatchingService"),
+            let c = dlsym(lib, "IORegistryEntryCreateCFProperty")
+        else { return "no IOKit" }
+        let matching = unsafeBitCast(m, to: Matching.self)("IOPlatformExpertDevice")
+        let service = unsafeBitCast(g, to: GetService.self)(0, matching)  // 0: kIOMainPortDefault
+        guard service != 0 else { return "no service" }
+        let value = unsafeBitCast(c, to: CreateProperty.self)(service, key as CFString, nil, 0)?.takeRetainedValue()
+        return value == nil ? "denied" : "read"
+    }
+
+    private static func machLookup(_ name: String) -> String {
+        typealias LookUp = @convention(c) (mach_port_t, UnsafePointer<CChar>, UnsafeMutablePointer<mach_port_t>) -> kern_return_t
+        let all = UnsafeMutableRawPointer(bitPattern: -2)  // RTLD_DEFAULT
+        guard let f = dlsym(all, "bootstrap_look_up"), let bp = dlsym(all, "bootstrap_port") else { return "no bootstrap" }
+        var port: mach_port_t = 0
+        let kr = unsafeBitCast(f, to: LookUp.self)(bp.load(as: mach_port_t.self), name, &port)
+        return kr == KERN_SUCCESS ? "found" : "kr \(kr)"
     }
 
     private static func connect(_ target: String) -> String {
@@ -414,14 +592,14 @@ enum Probe {
 
 // MARK: - Framing
 
-enum FrameError: Error { case timedOut, closed }
+enum FrameError: Error { case timedOut, closed, tooLarge }
 
 /// Frames over a pipe pair: tag byte, 4-byte big-endian length, payload.
 struct Channel: Sendable {
     let read: Int32
     let write: Int32
 
-    /// What a (possibly compromised) child may send in one frame.
+    /// What one frame may hold at most (a request with rules, a result).
     static let maxFrame = 1 << 30
 
     init(read: Int32, write: Int32) {
@@ -431,7 +609,9 @@ struct Channel: Sendable {
         _ = fcntl(write, F_SETNOSIGPIPE, 1)
     }
 
-    func send(_ tag: UInt8, _ payload: Data) throws {
+    /// With a deadline the write end must be non-blocking: the time limit
+    /// holds even if the other side stops reading.
+    func send(_ tag: UInt8, _ payload: Data, deadline: Date? = nil) throws {
         guard payload.count <= Self.maxFrame else { throw FrameError.closed }
         let n = UInt32(payload.count)
         var frame = Data([tag, UInt8(n >> 24), UInt8(n >> 16 & 0xFF), UInt8(n >> 8 & 0xFF), UInt8(n & 0xFF)])
@@ -439,40 +619,48 @@ struct Channel: Sendable {
         try frame.withUnsafeBytes { buf in
             var off = 0
             while off < buf.count {
+                if let deadline { try wait(for: write, events: POLLOUT, until: deadline) }
                 let w = Darwin.write(write, buf.baseAddress! + off, buf.count - off)
-                if w < 0 && errno == EINTR { continue }
+                if w < 0 && (errno == EINTR || errno == EAGAIN) { continue }
                 guard w > 0 else { throw FrameError.closed }
                 off += w
             }
         }
     }
 
-    func receive(deadline: Date?) throws -> (UInt8, Data) {
+    /// `maxSize` limits the payload per tag; the payload grows as it arrives.
+    func receive(deadline: Date?, maxSize: (UInt8) -> Int = { _ in Channel.maxFrame }) throws -> (UInt8, Data) {
         let head = try readExactly(5, deadline: deadline)
         let n = head.dropFirst().reduce(0) { $0 << 8 | Int($1) }
-        guard n <= Self.maxFrame else { throw FrameError.closed }
-        return (head[head.startIndex], try readExactly(n, deadline: deadline))
+        let tag = head[head.startIndex]
+        guard n <= min(maxSize(tag), Self.maxFrame) else { throw FrameError.tooLarge }
+        return (tag, try readExactly(n, deadline: deadline))
     }
 
     private func readExactly(_ n: Int, deadline: Date?) throws -> Data {
-        var out = Data(count: n)
-        var off = 0
-        while off < n {
-            if let deadline {
-                let ms = deadline.timeIntervalSinceNow * 1000
-                guard ms > 0 else { throw FrameError.timedOut }
-                var p = pollfd(fd: read, events: Int16(POLLIN), revents: 0)
-                let r = poll(&p, 1, Int32(min(ms, Double(Int32.max))))
-                if r < 0 && errno == EINTR { continue }
-                guard r >= 0 else { throw FrameError.closed }
-                if r == 0 { continue }
-            }
-            let got = out.withUnsafeMutableBytes { Darwin.read(read, $0.baseAddress! + off, n - off) }
-            if got < 0 && errno == EINTR { continue }
+        var out = Data()
+        var chunk = [UInt8](repeating: 0, count: min(n, 1 << 20))
+        while out.count < n {
+            if let deadline { try wait(for: read, events: POLLIN, until: deadline) }
+            let got = chunk.withUnsafeMutableBytes { Darwin.read(read, $0.baseAddress!, min($0.count, n - out.count)) }
+            if got < 0 && (errno == EINTR || errno == EAGAIN) { continue }
             guard got > 0 else { throw FrameError.closed }
-            off += got
+            out.append(contentsOf: chunk[..<got])
         }
         return out
+    }
+
+    private func wait(for fd: Int32, events: Int32, until deadline: Date) throws {
+        while true {
+            let ms = deadline.timeIntervalSinceNow * 1000
+            guard ms > 0 else { throw FrameError.timedOut }
+            var p = pollfd(fd: fd, events: Int16(events), revents: 0)
+            let r = poll(&p, 1, Int32(min(ms.rounded(.up), Double(Int32.max))))
+            if r < 0 && errno == EINTR { continue }
+            guard r >= 0 else { throw FrameError.closed }
+            // Ready, or the other end closed (the read or write then says so).
+            if r > 0 { return }
+        }
     }
 
     func close() {

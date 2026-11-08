@@ -33,13 +33,14 @@ struct Yara: ParsableCommand {
         let target = opened.flatMap { start <= $0.count ? $0 : nil }
         let range = target.map { snap in start ..< (length.map { start + min($0.value, snap.count - start) } ?? snap.count) }
         let outcome = try sandboxed(timeoutStatus: 3) { try $0.scan(target, rules: bundle, range: range, timeout: timeout) }
-        let hits: [YaraRuleMatch], warnings: [YaraDiagnostic], failure: String?
+        let hits: [YaraRuleMatch], warnings: [YaraDiagnostic], failure: (message: String, status: Int32)?
         switch outcome {
         case .compileErrors(let d):
             reportCompileErrors(d)
             throw ExitCode(2)
         case .hits(let h, let w): (hits, warnings, failure) = (h, w, nil)
-        case .failed(let m, let w): (hits, warnings, failure) = ([], w, m)
+        case .failed(let m, let w): (hits, warnings, failure) = ([], w, (m, 1))
+        case .timedOut(let m, let w): (hits, warnings, failure) = ([], w, (m, 3))
         }
         for w in warnings { FileHandle.standardError.write(Data((L("Warning: %@", "\(w)") + "\n").utf8)) }
 
@@ -49,10 +50,8 @@ struct Yara: ParsableCommand {
             throw ExitCode(1)
         }
         if let failure {
-            FileHandle.standardError.write(Data("hexwerk: \(failure)\n".utf8))
-            // The child sends the message only; a timeout reads like YaraScanError.timeout.
-            if failure == YaraScanError.timeout(timeout).description { throw ExitCode(3) }
-            throw ExitCode(1)
+            FileHandle.standardError.write(Data("hexwerk: \(failure.message)\n".utf8))
+            throw ExitCode(failure.status)
         }
 
         if json {

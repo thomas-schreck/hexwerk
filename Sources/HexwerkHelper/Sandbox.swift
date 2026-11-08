@@ -5,22 +5,35 @@ import Foundation
 /// entitlements instead; a command line tool has no bundle for that, so the
 /// child applies a profile of its own with `sandbox_init`.
 ///
-/// Everything is denied that is not listed: no network, no mach services,
-/// no other processes, no file system. The child works on descriptors the
-/// parent opened for it and, for YARA only, on a fresh scratch folder the
-/// parent created and deletes afterwards (the rule files are written there
-/// so includes resolve). The libraries are loaded before the profile applies.
+/// `(deny default)` denies file, network, mach, process (fork, exec,
+/// signals to other processes) and IOKit operations not listed. It does not
+/// cover everything: some information about other processes and hardware
+/// stays readable by default, so those are denied explicitly below.
+/// The child works on descriptors the parent opened for it and, for YARA
+/// only, on a fresh scratch folder the parent created and deletes afterwards
+/// (the rule files are written there so includes resolve). The libraries are
+/// loaded before the profile applies.
 /// What is allowed, and why:
-/// - sysctl-read: wasmtime (YARA-X) asks for the page size and aborts without it.
+/// - sysctl-read: wasmtime (YARA-X) asks for the page size and aborts
+///   without it. The kern.proc* names are excluded (process lists, argv and
+///   environment of other processes).
 /// - /usr/share/icu: JavaScriptCore loads its Unicode data lazily.
+/// What is denied on top of the default, because the default allows it:
+/// - process-info*: path, task and BSD info of other processes (proc_pidpath,
+///   proc_pidinfo).
+/// - iokit-get-properties: hardware identifiers such as IOPlatformSerialNumber.
 /// JIT code (wasmtime, JavaScriptCore) needs no rule here; it is governed by
 /// the Hardened Runtime entitlements of the signed binary (cli.entitlements).
+/// `SandboxTests` probe each of these from inside the child.
 public enum Sandbox {
     static func profile(scratch: String?) -> String {
         var p = """
             (version 1)
             (deny default)
             (allow sysctl-read)
+            (deny sysctl-read (sysctl-name-prefix "kern.proc"))
+            (deny process-info*)
+            (deny iokit-get-properties)
             (allow file-read* (subpath "/usr/share/icu"))
 
             """
