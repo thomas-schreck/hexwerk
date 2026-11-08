@@ -73,6 +73,23 @@ struct UpdateCheckTests {
         #expect(newest([C(tag: "v0.3.0-rc.1"), C(tag: "v0.3.0", prerelease: true)], "0.2.0") == nil)
     }
 
+    /// Local builds after a tag carry the commits as build metadata
+    /// (scripts/version.sh, #133): not offered their own tag again, but the
+    /// next release, and they stay on the channel of the tag.
+    @Test func localBuildAfterTag() {
+        let list = [C(tag: "v0.3.0-beta.1", prerelease: true), C(tag: "v0.2.0"), C(tag: "v0.1.0")]
+        for running in ["0.2.0+5.gabc1234", "0.2.0+5.gabc1234.dirty", "0.2.0+dirty"] {
+            #expect(UpdateCheck.comparableVersion(running) != nil, "\(running)")
+            #expect(newest(list, running) == nil, "\(running)")
+            #expect(newest(list + [C(tag: "v0.2.1")], running) == "0.2.1", "\(running)")
+            #expect(newest(list + [C(tag: "v0.3.0")], running) == "0.3.0", "\(running)")
+            #expect(UpdateCheck.pendingRelease(tag: "v0.2.0", page: nil, running: running) == nil)
+        }
+        let betas = [C(tag: "v0.3.0-beta.2", prerelease: true), C(tag: "v0.3.0-beta.1", prerelease: true)]
+        #expect(newest(betas, "0.3.0-beta.2+3.gabc1234") == nil)
+        #expect(newest(betas, "0.3.0-beta.1+3.gabc1234") == "0.3.0-beta.2")
+    }
+
     @Test func skipsDraftsAndGarbageAndPicksHighest() {
         let list = [C(tag: "v9.0.0", draft: true), C(tag: "nightly"), C(tag: "v0.10.0"), C(tag: "v0.9.0")]
         #expect(newest(list, "0.2.0") == "0.10.0")

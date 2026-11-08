@@ -36,6 +36,10 @@ jobs:
       - name: Test
         run: swift test
 
+      # Version of local builds from git tags (scripts/version.sh, #133).
+      - name: Version script
+        run: scripts/version-test.sh
+
       # The release SBOM generator, checked on every change; the SBOM itself
       # is validated structurally before it is written.
       - name: SBOM
