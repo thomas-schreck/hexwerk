@@ -68,27 +68,31 @@ struct XPCSandboxTests {
         let secret = try tempFile(Data("secret".utf8))
         defer { try? FileManager.default.removeItem(at: secret) }
         let target = secret.deletingLastPathComponent().appendingPathComponent("hexwerk-\(UUID().uuidString)")
-        let r = try probe(
+        var r = try probe(
             "open:" + secret.path, "open:" + NSHomeDirectory() + "/.zshrc", "list:" + NSHomeDirectory(),
             "write:" + target.path, "write:/tmp/hexwerk-\(UUID().uuidString)", "write:%TMP%/probe",
-            "connect:9", "connect:/var/run/mDNSResponder")
-        #expect(
-            r == ["errno \(EPERM)", "errno \(EPERM)", "errno \(EPERM)", "errno \(EPERM)", "errno \(EPERM)", "opened"]
-                + ["errno \(EPERM)", "errno \(EPERM)"])
+            "connect:9", "connect:/var/run/mDNSResponder",
+            // Allowed by the App Sandbox, denied by the entitlements.
+            "connect:/var/run/syslog", "open:/etc/hosts", "list:/Applications", "list:/Volumes",
+            "open:/Library/Preferences/SystemConfiguration/preferences.plist")
+        #expect(r[5] == "opened")
+        r.remove(at: 5)
+        #expect(r == Array(repeating: "errno \(EPERM)", count: 12), "\(r)")
         #expect(!FileManager.default.fileExists(atPath: target.path))
     }
 
-    /// The App Sandbox alone allows all of these; the helper's entitlements
-    /// deny them on top (`temporary-exception.sbpl`).
+    /// The App Sandbox alone allows most of these (not signals, the pid
+    /// list or rusage of others); the helper's entitlements deny the rest on
+    /// top (`temporary-exception.sbpl`).
     @Test func helperCannotReachProcessesOrHardware() throws {
         let r = try probe(
             "fork", "exec:/usr/bin/true", "signal-parent:%HOST%", "procargs:%HOST%", "procall",
-            "pidpath:%HOST%", "pidinfo:%HOST%", "iokit", "mach:com.apple.cfprefsd.daemon",
+            "pidpath:%HOST%", "pidinfo:%HOST%", "listpids", "rusage:%HOST%", "iokit", "mach:com.apple.cfprefsd.daemon",
             "mach:com.apple.system.notification_center", "mach:com.apple.pasteboard.1",
             "mach:com.apple.windowserver.active", "mach:com.apple.tccd")
-        #expect(Array(r[0 ..< 7]) == Array(repeating: "errno \(EPERM)", count: 7))
-        #expect(r[7] == "denied")
-        #expect(r[8...].allSatisfy { $0 != "found" }, "\(r[8...])")
+        #expect(Array(r[0 ..< 9]) == Array(repeating: "errno \(EPERM)", count: 9), "\(r)")
+        #expect(r[9] == "denied")
+        #expect(r[10...].allSatisfy { $0 != "found" }, "\(r[10...])")
     }
 
     /// Parse (with an import answered by the host), libmagic, YARA-X and a
@@ -106,14 +110,18 @@ struct XPCSandboxTests {
         try (SandboxTests.png + Data("HW".utf8)).write(to: URL(fileURLWithPath: doc))
         let ksy = try file("main.ksy", "meta: {id: main, imports: [part]}\nseq:\n  - {id: head, type: part}\n")
         _ = try file("part.ksy", "meta: {id: part, endian: le}\nseq:\n  - {id: n, type: u2}\n")
-        let yar = try file("r.yar", "rule a { strings: $s = \"HW\" condition: $s }\nrule b { condition: false }\n")
-        let js = try file("s.js", "print(hw.hex(0, 4), hw.fileName)")
+        let yar = try file(
+            "r.yar",
+            "import \"math\"\nrule a { strings: $s = /H[A-Z]/ condition: $s and math.entropy(0, filesize) > 0 }\n"
+                + "rule b { condition: false }\n")
+        let js = try file(
+            "s.js", "print(hw.hex(0, 4), hw.fileName, new Date(0).toISOString(), new Intl.NumberFormat('de-DE').format(1234.5))")
         let magic = try #require(Magic.databasePath)
         let r = try probe("@type:\(doc):\(magic)", "@parse:\(doc):\(ksy)", "@scan:\(doc):\(yar)", "@script:\(doc):\(js)", "fds")
         #expect(r[0].hasPrefix("PNG image data, 53 x 37"))
         #expect(r[1] == "fields head")
         #expect(r[2] == "rules a")
-        #expect(r[3] == "89 50 4E 47 doc.bin")
+        #expect(r[3] == "89 50 4E 47 doc.bin 1970-01-01T00:00:00.000Z 1.234,5")
         #expect(r[4] == "0,1,2")
     }
 }

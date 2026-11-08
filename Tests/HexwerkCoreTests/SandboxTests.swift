@@ -47,6 +47,8 @@ import HexwerkYARA
         #expect(try Self.child.probe("procall") == "errno \(EPERM)")
         #expect(try Self.child.probe("pidpath:\(me)") == "errno \(EPERM)")
         #expect(try Self.child.probe("pidinfo:\(me)") == "errno \(EPERM)")
+        #expect(try Self.child.probe("listpids") == "errno \(EPERM)")
+        #expect(try Self.child.probe("rusage:\(me)") == "errno \(EPERM)")
         #expect(try Self.child.probe("iokit") == "denied")
     }
 

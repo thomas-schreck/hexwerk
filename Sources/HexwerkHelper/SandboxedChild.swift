@@ -520,6 +520,21 @@ enum Probe {
             let size = Int32(MemoryLayout<proc_bsdinfo>.size)
             let n = proc_pidinfo(Int32(arg) ?? getppid(), PROC_PIDTBSDINFO, 0, &info, size)
             return n == size ? "read" : "errno \(errno)"
+        case "listpids":
+            // Pids of all processes (process-info-listpids).
+            var pids = [pid_t](repeating: 0, count: 8192)
+            let n = proc_listallpids(&pids, Int32(pids.count * MemoryLayout<pid_t>.size))
+            guard n > 0 else { return "errno \(errno)" }
+            return pids.prefix(Int(n)).contains { $0 != getpid() && $0 != 0 } ? "others" : "only self"
+        case "rusage":
+            // Resource usage of another process (process-info-rusage).
+            var info = rusage_info_v0()
+            let rc = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+                    proc_pid_rusage(Int32(arg) ?? getppid(), RUSAGE_INFO_V0, $0)
+                }
+            }
+            return rc == 0 ? "read" : "errno \(errno)"
         case "iokit": return ioKitProperty(arg.isEmpty ? "IOPlatformSerialNumber" : arg)
         case "fds":
             // Open descriptors, apart from the watcher's kqueue.

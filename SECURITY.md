@@ -37,14 +37,20 @@ plus a grace period apply.
   `magic.mgc` as another one, rule files and scripts as text, and answers the
   helper's requests for `.ksy` files itself (regular `.ksy` files only).
   The App Sandbox alone still lets a process fork and start system
-  programs, read other processes' paths, info and arguments, list all
-  processes, read IOKit properties such as the serial number and look up
-  mach services (pasteboard, window server, preferences, ...); the
-  entitlements deny all of that on top (`temporary-exception.sbpl`).
-  `XPCSandboxTests` probe the signed service from inside: no files outside
-  its container, no sockets, no fork or exec, no signals to the app, no
-  process info, no IOKit properties, no mach services, and parsing, YARA-X,
-  scripts and libmagic still work. They need `make sandbox-probes`, which
+  programs, read other processes' paths, BSD info and arguments
+  (`proc_pidpath`, `proc_pidinfo`, `KERN_PROCARGS2`), list all processes
+  through `kern.proc` sysctls, read IOKit properties such as the serial
+  number, look up mach services (pasteboard, window server, preferences,
+  ...), connect to the syslog socket and read `/Applications`, `/Volumes`,
+  the network configuration and `/etc/hosts`; the entitlements deny all of
+  that on top (`temporary-exception.sbpl`). The pid list
+  (`proc_listallpids`) and other processes' resource usage are denied by
+  the App Sandbox itself. Since `com.apple.logd` cannot be looked up
+  either, `os_log` output of the helper is probably lost (it logs nothing
+  of its own). `XPCSandboxTests` probe the signed service from inside: no
+  files outside its container, no sockets, no fork or exec, no signals to
+  the app, none of the process information above, no IOKit properties, no
+  mach services, and parsing, YARA-X, scripts and libmagic still work. They need `make sandbox-probes`, which
   builds a test-only twin of the service (the same code and entitlements
   with the probes exported, `Sources/HexwerkParserProbes`) below `.build`;
   the service in the app does not export the probes
@@ -94,11 +100,12 @@ plus a grace period apply.
   such as the OS version, CPU model and boot time, but not process lists or
   other processes' arguments.
 - The app's helper runs in the App Sandbox, which is wider than the CLI's
-  profile in what remains: it can read system locations such as `/etc`,
-  `/Library/Preferences` and `/Applications` (not the user's files), read
-  sysctl values, connect to the syslog socket and look up
-  `com.apple.coreservices.launchservicesd` and `com.apple.lsd.mapdb`, which
-  a `temporary-exception.sbpl` deny does not reach. A second `sandbox_init`
+  profile in what remains: it can read other system locations such as
+  `/etc` and `/Library` (not the user's files; `/Users` cannot be denied
+  as a whole because the container lives there), read sysctl values and
+  look up `com.apple.coreservices.launchservicesd` and
+  `com.apple.lsd.mapdb`, which a `temporary-exception.sbpl` deny does not
+  reach, not even by name. A second `sandbox_init`
   inside the helper on top of the App Sandbox is refused (EPERM), so the
   CLI's profile cannot be applied there. `XPCSandboxTests` run only after
   `make sandbox-probes`, not in CI.
