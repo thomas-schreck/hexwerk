@@ -83,6 +83,10 @@ plus a grace period apply.
 - The app's helper relies on the App Sandbox of its entitlements; the
   probes in `SandboxTests` run against the CLI's child only (the helper
   needs the assembled app bundle).
+- `yara --timeout N` limits the scan only. Compiling the rules has a
+  budget of its own of 10 minutes (it had no limit in-process), so hostile
+  or very large rule files can keep `yara` busy for up to about 10 minutes
+  before it gives up.
 - Signed builds (Hardened Runtime): JavaScriptCore's execution time limit
   does not fire for scripts that loop without calling into hexwerk, so the
   CLI kills such a script only at its time limit plus 15 s grace (exit 3,

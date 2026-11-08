@@ -10,6 +10,8 @@ public enum SandboxedChildError: Error, LocalizedError, CustomStringConvertible,
     /// The child crashed or exited without an answer.
     case stopped
     case timedOut
+    /// A request or result over `Channel.maxFrame` (1 GiB).
+    case tooLarge
     /// The child reported a failure of the request itself.
     case failed(String)
 
@@ -18,6 +20,7 @@ public enum SandboxedChildError: Error, LocalizedError, CustomStringConvertible,
         case .notStarted(let m): L("The sandboxed parser process could not be started: %@", m)
         case .stopped: L("The sandboxed parser process stopped unexpectedly.")
         case .timedOut: L("The sandboxed parser process did not answer in time and was stopped.")
+        case .tooLarge: L("The request or result is larger than the 1 GiB the sandboxed parser process can exchange.")
         case .failed(let m): m
         }
     }
@@ -192,6 +195,8 @@ public struct SandboxedChild: Sendable {
         let channel = child.channel
         do { try channel.send(Tag.request, envelope, deadline: deadline) } catch FrameError.timedOut {
             throw SandboxedChildError.timedOut
+        } catch FrameError.tooLarge {
+            throw SandboxedChildError.tooLarge
         } catch {
             // The child is gone before it read everything; its failure (if
             // it sent one) is read below.
@@ -201,6 +206,9 @@ public struct SandboxedChild: Sendable {
             let tag: UInt8, payload: Data
             do { (tag, payload) = try channel.receive(deadline: deadline, maxSize: Self.maxFrame) } catch FrameError.timedOut {
                 throw SandboxedChildError.timedOut
+            } catch FrameError.tooLarge(let tag) where tag != Tag.readFormatFile {
+                // Not a crash: a result over the limit (or a child lying about one).
+                throw SandboxedChildError.tooLarge
             } catch {
                 throw SandboxedChildError.stopped
             }
@@ -280,6 +288,10 @@ public struct SandboxedChild: Sendable {
         // The parent's ends: never inherited by another process (the child
         // notices the parent's end going away, #129), and writing does not
         // block (Channel.send waits with the deadline instead).
+        // (pipe() cannot set close-on-exec atomically on macOS. In the short
+        // window before this, only a fork/exec without
+        // POSIX_SPAWN_CLOEXEC_DEFAULT on another thread could inherit them;
+        // that would only delay the child's exit after a parent crash.)
         for fd in [toChild[1], fromChild[0]] { _ = fcntl(fd, F_SETFD, FD_CLOEXEC) }
         _ = fcntl(toChild[1], F_SETFL, fcntl(toChild[1], F_GETFL) | O_NONBLOCK)
         let channel = Channel(read: fromChild[0], write: toChild[1])
@@ -592,7 +604,20 @@ enum Probe {
 
 // MARK: - Framing
 
-enum FrameError: Error { case timedOut, closed, tooLarge }
+enum FrameError: Error, CustomStringConvertible {
+    case timedOut, closed
+    /// The frame with this tag exceeds its limit.
+    case tooLarge(UInt8)
+
+    /// The child sends this text back when its result is too large.
+    var description: String {
+        switch self {
+        case .timedOut: "timed out"
+        case .closed: "closed"
+        case .tooLarge: SandboxedChildError.tooLarge.description
+        }
+    }
+}
 
 /// Frames over a pipe pair: tag byte, 4-byte big-endian length, payload.
 struct Channel: Sendable {
@@ -612,7 +637,7 @@ struct Channel: Sendable {
     /// With a deadline the write end must be non-blocking: the time limit
     /// holds even if the other side stops reading.
     func send(_ tag: UInt8, _ payload: Data, deadline: Date? = nil) throws {
-        guard payload.count <= Self.maxFrame else { throw FrameError.closed }
+        guard payload.count <= Self.maxFrame else { throw FrameError.tooLarge(tag) }
         let n = UInt32(payload.count)
         var frame = Data([tag, UInt8(n >> 24), UInt8(n >> 16 & 0xFF), UInt8(n >> 8 & 0xFF), UInt8(n & 0xFF)])
         frame.append(payload)
@@ -633,7 +658,7 @@ struct Channel: Sendable {
         let head = try readExactly(5, deadline: deadline)
         let n = head.dropFirst().reduce(0) { $0 << 8 | Int($1) }
         let tag = head[head.startIndex]
-        guard n <= min(maxSize(tag), Self.maxFrame) else { throw FrameError.tooLarge }
+        guard n <= min(maxSize(tag), Self.maxFrame) else { throw FrameError.tooLarge(tag) }
         return (tag, try readExactly(n, deadline: deadline))
     }
 

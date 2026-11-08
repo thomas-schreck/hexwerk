@@ -94,6 +94,10 @@ import HexwerkYARA
         if case .timedOut? = e as? SandboxedChildError { true } else { false }
     }
 
+    private func isTooLarge(_ e: any Error) -> Bool {
+        if case .tooLarge? = e as? SandboxedChildError { true } else { false }
+    }
+
     private func isStopped(_ e: any Error) -> Bool {
         if case .stopped? = e as? SandboxedChildError { true } else { false }
     }
@@ -120,6 +124,11 @@ import HexwerkYARA
         let start = Date()
         #expect(performing: { try big.probe("x", timeout: 20, grace: 0) }, throws: isStopped)
         #expect(Date().timeIntervalSince(start) < 10)
+        // A result over 1 GiB is reported as such, not as a crash.
+        let (huge, c) = try hostileChild(#"printf '\001\100\000\000\001'; sleep 30"#)
+        defer { try? FileManager.default.removeItem(at: c) }
+        #expect(performing: { try huge.probe("x", timeout: 20, grace: 0) }, throws: isTooLarge)
+        #expect(SandboxedChildError.tooLarge.description.contains("1 GiB"))
     }
 
     /// A child that never reads its request (larger than the pipe buffer).

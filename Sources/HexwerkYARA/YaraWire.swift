@@ -14,6 +14,9 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
     /// Files possibly reached by `include`.
     public var includes: [Entry]
     public var includeDirs: [String]
+    /// Existing folders an include name passes through before a `..`
+    /// ("x/../y.yar"): the copy needs them too, or the name does not resolve.
+    public var folders: [String] = []
 
     public struct Entry: Codable, Sendable, Equatable {
         public var path: String
@@ -49,12 +52,14 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
         let dirs = Array(Set(files.map { $0.deletingLastPathComponent().path })).sorted()
         var seen = Set(sources.map(\.path))
         var includes: [Entry] = []
+        var folders = Set<String>()
         var queue = sources
         var bytes = sources.reduce(0) { $0 + $1.text.utf8.count }
         while let file = queue.popLast(), includes.count < maxIncludes, bytes < maxBytes {
             let here = URL(fileURLWithPath: file.path).deletingLastPathComponent().path
             for name in includeNames(in: file.text) {
                 let candidates = name.hasPrefix("/") ? [name] : ([here] + dirs).map { $0 + "/" + name }
+                if name.contains("..") { folders.formUnion(candidates.flatMap(Self.foldersBeforeParent)) }
                 // `standardized`, not `standardizedFileURL`: the latter turns
                 // /private/tmp/x into /tmp/x for existing files only, and the
                 // include would then be written where YARA-X does not look.
@@ -69,7 +74,24 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
                 }
             }
         }
-        return YaraRuleBundle(sources: sources, includes: includes, includeDirs: dirs)
+        return YaraRuleBundle(sources: sources, includes: includes, includeDirs: dirs, folders: folders.sorted())
+    }
+
+    /// The folders of `path` that a `..` steps out of, if they exist (the
+    /// file system resolves `..` only through existing folders).
+    static func foldersBeforeParent(_ path: String) -> [String] {
+        var found: [String] = []
+        var current = ""
+        for part in path.split(separator: "/", omittingEmptySubsequences: true) {
+            if part == "..", !current.isEmpty {
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: current, isDirectory: &isDir), isDir.boolValue {
+                    found.append(URL(fileURLWithPath: current).standardized.path)
+                }
+            }
+            current += "/" + part
+        }
+        return found
     }
 
     static func includeNames(in text: String) -> [String] {
@@ -92,13 +114,23 @@ public struct YaraRuleBundle: Codable, Sendable, Equatable {
         // length, so columns and the report's markers stay right, and the
         // spelling is given back in the diagnostics. Only names of files that
         // were collected are rewritten.
+        // YARA-X tries a name in the including file's folder and the rule
+        // folders before `prefix`: if the relative spelling would reach a
+        // collected file there, the name becomes `prefix` + name instead
+        // (unambiguous; only the report's markers are off then).
         let collected = Set(all.map(\.path))
+        let bases = Set(all.map { URL(fileURLWithPath: $0.path).deletingLastPathComponent().path } + includeDirs)
         var renamed: [String: String] = [:]
         for e in all {
             for name in Self.includeNames(in: e.text) where name.hasPrefix("/") && renamed[name] == nil {
                 guard collected.contains(URL(fileURLWithPath: name).standardized.path) else { continue }
-                renamed[name] = Self.relativeSpelling(name)
+                let spelled = Self.relativeSpelling(name)
+                let ambiguous = bases.contains { collected.contains(URL(fileURLWithPath: $0 + "/" + spelled).standardized.path) }
+                renamed[name] = ambiguous ? prefix + name : spelled
             }
+        }
+        for folder in folders {
+            try? FileManager.default.createDirectory(atPath: prefix + folder, withIntermediateDirectories: true)
         }
         func rewrite(_ text: String) -> String {
             guard !renamed.isEmpty else { return text }

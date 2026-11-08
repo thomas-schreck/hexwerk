@@ -331,6 +331,8 @@ extension L10n {
             "Der abgeschottete Parser-Prozess wurde unerwartet beendet.",
         "The sandboxed parser process did not answer in time and was stopped.":
             "Der abgeschottete Parser-Prozess hat nicht rechtzeitig geantwortet und wurde beendet.",
+        "The request or result is larger than the 1 GiB the sandboxed parser process can exchange.":
+            "Anfrage oder Ergebnis ist größer als die 1 GiB, die der abgeschottete Parser-Prozess austauschen kann.",
         // About panel (#115)
         "Hex editor for macOS with Kaitai Struct formats, YARA-X and scripting.":
             "Hex-Editor für macOS mit Kaitai-Struct-Formaten, YARA-X und Skripten.",
