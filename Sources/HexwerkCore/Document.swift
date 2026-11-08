@@ -35,7 +35,7 @@ public final class Document {
     private var modifiedCache: (state: Int, ranges: [Range<UInt64>])?
 
     /// `pieces[index ..< index + removed.count]` was replaced by `inserted`.
-    struct Change {
+    struct Change: Sendable {
         var index: Int
         var removed: [Piece]
         var inserted: [Piece]
@@ -43,7 +43,7 @@ public final class Document {
 
     /// One undo step: changes in the order they were applied, and the states
     /// before and after.
-    struct Step {
+    struct Step: Sendable {
         var changes: [Change]
         var before: Int
         var after: Int
@@ -710,12 +710,17 @@ public struct DiskStamp: Equatable, Sendable {
     let mtime: timespec
     let device: UInt64
     let inode: UInt64
+    /// Status change time: unlike mtime it cannot be set back by a program.
+    /// Only used by recovery (#139), not by `==`: metadata changes alone
+    /// (xattrs, permissions) must not count as changes of the content.
+    let ctime: timespec
 
     init(_ st: stat) {
         size = UInt64(st.st_size)
         mtime = st.st_mtimespec
         device = UInt64(bitPattern: Int64(st.st_dev))
         inode = UInt64(st.st_ino)
+        ctime = st.st_ctimespec
     }
 
     init(size: UInt64, mtime: timespec, device: UInt64, inode: UInt64) {
@@ -723,6 +728,7 @@ public struct DiskStamp: Equatable, Sendable {
         self.mtime = mtime
         self.device = device
         self.inode = inode
+        ctime = timespec()
     }
 
     public init(_ url: URL) throws {
@@ -770,5 +776,136 @@ public enum DocumentError: Error, CustomStringConvertible {
                 "%1$@ may be damaged: writing the hard-linked file in place failed (%2$@). The complete new content was kept in %3$@.",
                 target, reason, tmp)
         }
+    }
+}
+
+// MARK: Recovery (#139)
+
+extension Document {
+    /// Changes with every change of the content (edit, undo, redo, save,
+    /// reload, restore), so the app knows when to update recovery data.
+    public var editState: Int { state }
+
+    /// Content and undo history for a recovery record (see `RecoveryAutosave`).
+    public func recoveryContent() -> RecoveryContent {
+        RecoveryContent(
+            url: url, original: original,
+            payload: RecoveryPayload(
+                added: added, pieces: pieces, count: count, undo: undoStack, redo: redoStack,
+                state: state, lastState: lastState, savedState: savedState))
+    }
+
+    /// Why `recovered` must not be applied to this document's file, nil if
+    /// it belongs to it unchanged.
+    public func recoveryMismatch(_ recovered: RecoveryRecord) -> RecoveryMismatch? {
+        guard recovered.path == RecoveryStore.path(for: url) else { return .otherFile }
+        let then = recovered.fingerprint
+        // Hash the whole file only if the record did (and so only when small).
+        let now = RecoveryFingerprint(of: original, fullHashLimit: then.full.isEmpty ? 0 : .max)
+        return RecoveryFingerprint.mismatch(then: then, now: now)
+    }
+
+    /// Applies recovered unsaved changes to this freshly opened document.
+    /// Refuses, changing nothing, unless the file is the one the record was
+    /// made against and every piece lies inside it. Returns true if the undo
+    /// history came back too; otherwise the content is restored as one undo
+    /// step on top of the file.
+    @discardableResult
+    public func restore(_ recovered: RecoveryRecord) throws -> Bool {
+        guard !isReadOnly else { throw DocumentError.readOnly }
+        guard !isSaving else { throw DocumentError.saving }
+        guard !isModified, undoStack.isEmpty, redoStack.isEmpty else { throw DocumentError.changedMeanwhile }
+        if let m = recoveryMismatch(recovered) { throw RecoveryError.fileChanged(m) }
+        let p = recovered.payload
+        let addedCount = UInt64(p.added.count)
+        guard Self.piecesFit(p.pieces, fileCount: original.count, addedCount: addedCount),
+            Self.total(p.pieces) == p.count
+        else { throw RecoveryError.damaged("pieces out of range") }
+        let base = original.count > 0 ? [Piece(source: .original, start: 0, length: original.count)] : []
+        added = p.added
+        modifiedCache = nil
+        if recovered.hasHistory, Self.historyFits(p, base: base, fileCount: original.count) {
+            pieces = p.pieces
+            count = p.count
+            undoStack = p.undo
+            redoStack = p.redo
+            lastState = p.lastState
+            savedState = p.savedState
+            state = p.state
+            return true
+        }
+        record([replacePieces(0, pieces.count, with: p.pieces)])
+        return false
+    }
+
+    private static func piecesFit(_ ps: [Piece], fileCount: UInt64, addedCount: UInt64) -> Bool {
+        ps.allSatisfy { p in
+            let (end, o) = p.start.addingReportingOverflow(p.length)
+            return !o && end <= (p.source == .added ? addedCount : fileCount)
+        }
+    }
+
+    /// Sum of the lengths, nil on overflow.
+    private static func total(_ ps: [Piece]) -> UInt64? {
+        var sum: UInt64 = 0
+        for p in ps {
+            let (s, o) = sum.addingReportingOverflow(p.length)
+            if o { return nil }
+            sum = s
+        }
+        return sum
+    }
+
+    /// Replaying the history on a copy (undo all, then redo all) must hit
+    /// the recorded pieces at every step and lead back to the file as
+    /// opened, and the states must chain without repeating: a repeated
+    /// state (above all `savedState`) would let undo or redo mark changed
+    /// content as saved. Otherwise undo could produce garbage.
+    static func historyFits(_ p: RecoveryPayload, base: [Piece], fileCount: UInt64) -> Bool {
+        guard p.state != p.savedState else { return false }
+        let steps = p.undo + p.redo
+        // savedState → undo steps → state → redo steps (next redo last).
+        var chain = [p.savedState]
+        for s in p.undo {
+            guard s.before == chain.last else { return false }
+            chain.append(s.after)
+        }
+        guard chain.last == p.state else { return false }
+        for s in p.redo.reversed() {
+            guard s.before == chain.last else { return false }
+            chain.append(s.after)
+        }
+        guard Set(chain).count == chain.count, chain.allSatisfy({ $0 >= 0 && $0 <= p.lastState }) else { return false }
+        // Replaying costs about changes × pieces; beyond that the content
+        // alone is restored rather than stalling the open.
+        let changes = steps.reduce(0) { $0 + $1.changes.count }
+        let cost = changes.multipliedReportingOverflow(by: max(1, p.pieces.count))
+        guard !cost.overflow, cost.partialValue <= 50_000_000 else { return false }
+        let addedCount = UInt64(p.added.count)
+        for s in steps {
+            for c in s.changes {
+                guard piecesFit(c.removed, fileCount: fileCount, addedCount: addedCount),
+                    piecesFit(c.inserted, fileCount: fileCount, addedCount: addedCount)
+                else { return false }
+            }
+        }
+        func swap(_ list: inout [Piece], _ index: Int, _ old: [Piece], _ new: [Piece]) -> Bool {
+            guard index >= 0, index <= list.count, old.count <= list.count - index,
+                list[index ..< index + old.count].elementsEqual(old)
+            else { return false }
+            list.replaceSubrange(index ..< index + old.count, with: new)
+            return true
+        }
+        var list = p.pieces
+        for s in p.undo.reversed() {
+            for c in s.changes.reversed() where !swap(&list, c.index, c.inserted, c.removed) { return false }
+        }
+        guard list == base else { return false }
+        list = p.pieces
+        for s in p.redo.reversed() {
+            for c in s.changes where !swap(&list, c.index, c.removed, c.inserted) { return false }
+            guard total(list) != nil else { return false }
+        }
+        return true
     }
 }

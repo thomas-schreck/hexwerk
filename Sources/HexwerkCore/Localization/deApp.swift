@@ -154,6 +154,34 @@ extension L10n {
         "Save changes to %@?": "Änderungen an %@ sichern?",
         "Your changes will be lost if you don't save them.": "Ohne Sichern gehen die Änderungen verloren.",
         "Don't Save": "Nicht sichern",
+        // Auto-recovery (#139)
+        "Your changes will be lost if you don't save them. Keep for Later stores them on this Mac, without changing the file, and offers them again the next time you open it.":
+            "Ohne Sichern gehen die Änderungen verloren. „Für später behalten“ legt sie auf diesem Mac ab, ohne die Datei zu ändern, und bietet sie beim nächsten Öffnen wieder an.",
+        "Keep for Later": "Für später behalten",
+        "too large for auto-recovery": "zu groß für automatische Wiederherstellung",
+        "auto-recovery failed": "automatische Wiederherstellung fehlgeschlagen",
+        "They are too large for auto-recovery. Save them to a file instead.":
+            "Sie sind zu groß für die automatische Wiederherstellung. Sichern Sie sie stattdessen in eine Datei.",
+        "The changes could not be kept for later.": "Die Änderungen konnten nicht für später behalten werden.",
+        "hexwerk found unsaved changes from an earlier session.":
+            "hexwerk hat nicht gesicherte Änderungen aus einer früheren Sitzung gefunden.",
+        "%@ (missing)": "%@ (fehlt)",
+        "Open the files to review and restore the changes. Not Now keeps them; they are offered again when you open the file.":
+            "Öffnen Sie die Dateien, um die Änderungen zu prüfen und wiederherzustellen. „Nicht jetzt“ behält sie; sie werden beim Öffnen der Datei wieder angeboten.",
+        "Open Files": "Dateien öffnen",
+        "Not Now": "Nicht jetzt",
+        "Discard All…": "Alle verwerfen …",
+        "Discard the unsaved changes to %ld files?": "Die nicht gesicherten Änderungen an %ld Dateien verwerfen?",
+        "This cannot be undone.": "Das lässt sich nicht widerrufen.",
+        "Discard All": "Alle verwerfen",
+        "Restore unsaved changes to %@?": "Nicht gesicherte Änderungen an %@ wiederherstellen?",
+        "hexwerk recorded changes to this file on %@ that were never saved. Restore shows them as unsaved edits; the file itself stays unchanged until you save. Discard deletes them for good. Cancel leaves the file closed and keeps them.":
+            "hexwerk hat am %@ Änderungen an dieser Datei aufgezeichnet, die nie gesichert wurden. „Wiederherstellen“ zeigt sie als nicht gesicherte Änderungen; die Datei selbst bleibt unverändert, bis Sie sichern. „Verwerfen“ löscht sie endgültig. „Abbrechen“ lässt die Datei geschlossen und behält sie.",
+        "Restore": "Wiederherstellen",
+        "Discard": "Verwerfen",
+        "The unsaved changes to %@ cannot be restored.": "Die nicht gesicherten Änderungen an %@ lassen sich nicht wiederherstellen.",
+        "They were recorded for the file as it was then; applied to the file as it is now, they would damage it. Discard deletes them and opens the file. Cancel leaves the file closed and keeps them.":
+            "Sie wurden für die Datei in ihrem damaligen Zustand aufgezeichnet; auf die heutige Datei angewendet, würden sie sie beschädigen. „Verwerfen“ löscht sie und öffnet die Datei. „Abbrechen“ lässt die Datei geschlossen und behält sie.",
         "Save bookmarks, format, YARA rules and position as a project file":
             "Lesezeichen, Format, YARA-Regeln und Position als Projektdatei sichern",
         "Integers": "Ganzzahlen",

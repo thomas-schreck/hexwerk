@@ -28,6 +28,8 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Intel HEX and Motorola S-Record import with write-back
 - Base address per file (e.g. a firmware's load address): addresses in the offset column,
   go to, hit lists and the script API; display only, the file is never changed
+- Auto-recovery: unsaved edits are recorded in the background and offered again after a
+  crash or with *Keep for Later* on close; never applied if the file changed since
 
 **Analysis**
 - **Kaitai Struct**: parses files with `.ksy` schemas, structure tree linked to colored byte ranges, lazy arrays for millions of elements; format auto-detection
@@ -165,8 +167,9 @@ included in the CLI archive under `completions/` and `man/`. For a source build,
 | YARA rules and scripts (suggested folders) | `~/.config/hexwerk/yara`, `~/.config/hexwerk/scripts` |
 | Settings | `~/.config/hexwerk/settings.json` |
 | Per-file state (bookmarks, format, position) | `<file>.hexwerk` next to the file once it has bookmarks, otherwise `~/.config/hexwerk/projects` |
+| Unsaved edits for auto-recovery (app only, readable by you only, removed after saving or *Don't Save*; up to 512 MiB of new bytes per file) | `~/Library/Application Support/hexwerk/Recovery` |
 
-`$XDG_CONFIG_HOME` is respected.
+`$XDG_CONFIG_HOME` is respected (not for the recovery folder).
 
 The app makes one kind of network request: at most once a day it asks the
 GitHub releases API (`api.github.com/repos/thomas-schreck/hexwerk/releases`)
