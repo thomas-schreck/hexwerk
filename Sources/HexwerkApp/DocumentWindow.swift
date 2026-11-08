@@ -419,8 +419,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func addBookmark(_ sender: Any?) {
         prompt(
             title: L("Add Bookmark"),
-            message: hexView.selection.map { L("Selection: %1$ld bytes at %2$@", $0.count, hex($0.lowerBound)) }
-                ?? L("Position %@", hex(hexView.cursor)),
+            message: hexView.selection.map { L("Selection: %1$ld bytes at %2$@", $0.count, model.addressText($0.lowerBound)) }
+                ?? L("Position %@", model.addressText(hexView.cursor)),
             placeholder: L("Name"), text: "", validate: { _ in true }
         ) { [self] name in
             guard let name else { return }
@@ -539,10 +539,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let window else { return }
         let r = exportRange
         let panel = NSSavePanel()
+        let lo = model.addresses.address(of: r.lowerBound), hi = model.addresses.address(of: r.upperBound)
         panel.nameFieldStringValue =
             file.url.deletingPathExtension().lastPathComponent
-            + "_\(String(r.lowerBound, radix: 16, uppercase: true))-\(String(r.upperBound, radix: 16, uppercase: true)).bin"
-        panel.message = L("Save %1$ld bytes at %2$@ as raw data", r.count, hex(r.lowerBound))
+            + "_\(String(lo, radix: 16, uppercase: true))-\(String(hi, radix: 16, uppercase: true)).bin"
+        panel.message = L("Save %1$ld bytes at %2$@ as raw data", r.count, model.addressText(r.lowerBound))
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
             do { try file.read(r).write(to: url, options: .atomic) } catch { showError(error) }
@@ -973,6 +974,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         s.selectionEnd = hexView.selection?.upperBound
         s.offsetBase = model.offsetBase
         s.highlightRules = model.rules.fileRules
+        s.checksumExclusions = model.checksumExclusions.map(ProjectState.Span.init)
         return s
     }
 
@@ -1002,6 +1004,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         if !rules.isEmpty { model.yara.ruleFiles = rules }
         if model.importInfo == nil, s.offsetBase != 0 { model.offsetBase = s.offsetBase }
         model.rules.fileRules = s.highlightRules
+        model.checksumExclusions = s.checksumExclusions.compactMap { $0.range(in: n) }.sorted { $0.lowerBound < $1.lowerBound }
         if let a = s.selectionStart, let b = s.selectionEnd, a < b, b <= n {
             hexView.jump(to: a, select: a ..< b, record: false)
         } else {

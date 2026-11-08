@@ -203,6 +203,6 @@ private struct NodeRow: View {
         .frame(height: 22)
         .background(isSelected ? Color.accentColor.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 4))
         .padding(.horizontal, 4)
-        .help(n.range.map { L("%1$@, %2$ld bytes", hex($0.lowerBound), $0.count) } ?? L("computed"))
+        .help(n.range.map { L("%1$@, %2$ld bytes", model.addressText($0.lowerBound), $0.count) } ?? L("computed"))
     }
 }

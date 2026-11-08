@@ -84,8 +84,9 @@ final class ImageHover: ObservableObject {
 
 private struct HoverOffsetLabel: View {
     @ObservedObject var hover: ImageHover
+    @ObservedObject var model: DocumentModel
     var body: some View {
-        if let h = hover.offset { Text(hex(h)).monospaced().foregroundStyle(.secondary) }
+        if let h = hover.offset { Text(model.addressText(h)).monospaced().foregroundStyle(.secondary) }
     }
 }
 
@@ -121,7 +122,7 @@ struct ImageTab: View {
                 HStack {
                     Toggle(L("Follows the Cursor"), isOn: $image.follow).toggleStyle(.checkbox)
                     Spacer()
-                    HoverOffsetLabel(hover: image.hover)
+                    HoverOffsetLabel(hover: image.hover, model: model)
                 }
                 .font(.caption)
             }
@@ -152,8 +153,8 @@ struct ImageTab: View {
                                 }
                             Text(
                                 L(
-                                    "%1$@ – %2$@, %3$ld bytes", hex(image.start),
-                                    hex(image.start + UInt64(max(image.shownBytes, 1)) - 1), image.shownBytes)
+                                    "%1$@ – %2$@, %3$ld bytes", model.addressText(image.start),
+                                    model.addressText(image.start + UInt64(max(image.shownBytes, 1)) - 1), image.shownBytes)
                             )
                             .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                         }

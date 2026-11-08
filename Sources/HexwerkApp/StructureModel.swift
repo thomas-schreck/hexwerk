@@ -286,7 +286,7 @@ final class StructureModel: ObservableObject {
     }
 
     /// Tooltip: field path, type and value, and the bytes it covers.
-    static func hoverText(_ path: [ParseNode]) -> String? {
+    static func hoverText(_ path: [ParseNode], address: (Range<UInt64>) -> String) -> String? {
         guard let leaf = path.last, path.count > 1 else { return nil }
         let name = path.dropFirst().reduce("") { s, n in
             s.isEmpty ? n.name : n.name.hasPrefix("[") ? s + n.name : s + "." + n.name
@@ -300,7 +300,7 @@ final class StructureModel: ObservableObject {
         case (nil, nil): break
         }
         if let r = leaf.range, !r.isEmpty {
-            lines.append(L("%1$@–%2$@ (%3$ld bytes)", hex(r.lowerBound), hex(r.upperBound - 1), r.count))
+            lines.append(L("%@ (%ld bytes)", address(r), r.count))
         }
         if let e = leaf.error { lines.append(e) }
         return lines.joined(separator: "\n")

@@ -86,8 +86,9 @@ struct DataTab: View {
                     Text("Little Endian").tag(Endian.little)
                     Text("Big Endian").tag(Endian.big)
                 }
-                LabeledContent("Offset") {
-                    Text("\(hex(model.cursor))  ·  \(model.cursor)")
+                // With a base address the row shows the address (#149).
+                LabeledContent(model.offsetBase != 0 ? L("Address") : "Offset") {
+                    Text("\(hex(model.addresses.address(of: model.cursor)))  ·  \(model.addresses.address(of: model.cursor))")
                         .font(.system(size: 11.5, design: .monospaced))
                         .textSelection(.enabled)
                 }
@@ -496,7 +497,7 @@ struct StatusBar: View {
             }
             if let s = model.selection, !s.isEmpty {
                 sep
-                field(L("Selection"), L("%1$@–%2$@ (%3$ld bytes)", hex(s.lowerBound), hex(s.upperBound - 1), s.count))
+                field(L("Selection"), L("%@ (%ld bytes)", model.addressText(s), s.count))
             }
             if let b = byteAtCursor {
                 sep
@@ -546,7 +547,7 @@ struct StatusBar: View {
                         Text(r.isEmpty ? L("YARA: nothing") : r.count == 1 ? L("YARA: %ld rule", r.count) : L("YARA: %ld rules", r.count))
                     }
                 }
-                .help(yara.summary)
+                .help(yara.summary { model.addressText($0) })
                 sep
             }
             Menu {
