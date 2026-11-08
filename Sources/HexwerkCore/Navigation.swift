@@ -96,18 +96,10 @@ public enum SelectionHelpers {
     }
 }
 
-/// "Follow pointer": an integer read from the file as a target offset.
+/// "Follow pointer": an integer read from the file as a target address. The
+/// app turns it into a file offset with `AddressMap.offset(of:count:)`, so
+/// it is relative to the base address (#143) like "go to".
 public enum PointerTarget {
-    /// File offset for an address `value`. `base` is the address of file
-    /// offset 0 (load address of a HEX import, later the user base address
-    /// of #143), subtracted here and only here. Nil outside the file;
-    /// offset `count` (end of file) is allowed like in "Go to Offset".
-    public static func offset(for value: UInt64, base: UInt64 = 0, count: UInt64) -> UInt64? {
-        guard value >= base else { return nil }
-        let off = value - base
-        return off <= count ? off : nil
-    }
-
     /// Integer inspector rows that can be followed, by size in bytes.
     public static let inspectorSizes: [String: Int] = ["uint16": 2, "uint32": 4, "uint64": 8]
 

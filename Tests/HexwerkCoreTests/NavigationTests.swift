@@ -88,11 +88,14 @@ import Testing
     }
 
     @Test func pointerTargets() {
-        #expect(PointerTarget.offset(for: 0x40, count: 0x100) == 0x40)
-        #expect(PointerTarget.offset(for: 0x100, count: 0x100) == 0x100)  // end of file, like Go to Offset
-        #expect(PointerTarget.offset(for: 0x101, count: 0x100) == nil)
-        #expect(PointerTarget.offset(for: 0x0800_0040, base: 0x0800_0000, count: 0x100) == 0x40)
-        #expect(PointerTarget.offset(for: 0x40, base: 0x0800_0000, count: 0x100) == nil)
+        // Pointer values are addresses, mapped like the app's pointerOffset.
+        let plain = AddressMap(), based = AddressMap(base: 0x0800_0000)
+        #expect(plain.offset(of: 0x40, count: 0x100) == 0x40)
+        #expect(plain.offset(of: 0x100, count: 0x100) == 0x100)  // end of file, like Go to Offset
+        #expect(plain.offset(of: 0x101, count: 0x100) == nil)
+        #expect(based.offset(of: 0x0800_0040, count: 0x100) == 0x40)
+        #expect(based.offset(of: 0x40, count: 0x100) == nil)
+        #expect(based.offset(of: 0x0800_0101, count: 0x100) == nil)
 
         let d = Data([0x78, 0x56, 0x34, 0x12, 0, 0, 0, 0])
         #expect(PointerTarget.value(d, size: 4, endian: .little) == 0x1234_5678)

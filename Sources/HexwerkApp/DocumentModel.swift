@@ -118,11 +118,11 @@ final class DocumentModel: ObservableObject {
     /// "Mark Selection Start" position, for "Mark Selection End".
     var selectionMark: UInt64?
 
-    /// File offset an integer value points to, nil outside the file. The one
-    /// place where a base address is applied to followed pointers: today the
-    /// load address of a HEX import; the user base address of #143 goes here.
+    /// File offset an integer value points to, nil outside the file. The
+    /// value is an address: the base address (#143) is subtracted; the end
+    /// of the file is allowed like in "go to".
     func pointerOffset(_ value: UInt64) -> UInt64? {
-        PointerTarget.offset(for: value, base: offsetBase, count: doc.count)
+        addresses.offset(of: value, count: doc.count)
     }
 
     /// Follow pointer: jumps to the offset `value` points to (recorded for Back).
