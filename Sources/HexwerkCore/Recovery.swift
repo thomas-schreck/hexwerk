@@ -185,7 +185,9 @@ public struct RecoveryStore: Sendable {
     static let headerReadSize = 64 << 10
 
     public init(directory: URL, maxAddedBytes: Int = defaultMaxAddedBytes, maxMetaBytes: Int = defaultMaxMetaBytes) {
-        self.init(directory: directory, maxAddedBytes: maxAddedBytes, maxMetaBytes: maxMetaBytes, fullHashLimit: RecoveryFingerprint.defaultFullHashLimit)
+        self.init(
+            directory: directory, maxAddedBytes: maxAddedBytes, maxMetaBytes: maxMetaBytes,
+            fullHashLimit: RecoveryFingerprint.defaultFullHashLimit)
     }
 
     init(directory: URL, maxAddedBytes: Int = defaultMaxAddedBytes, maxMetaBytes: Int = defaultMaxMetaBytes, fullHashLimit: UInt64) {
@@ -303,7 +305,9 @@ public struct RecoveryStore: Sendable {
     public func discardAll() {
         guard isTrusted() else { return }
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        let keys = Set(names.filter { $0.hasSuffix(".recovery") || $0.hasSuffix(".added") }.map { String($0.prefix { $0 != "." && $0 != "-" }) }.filter { !$0.isEmpty })
+        let keys = Set(
+            names.filter { $0.hasSuffix(".recovery") || $0.hasSuffix(".added") }.map { String($0.prefix { $0 != "." && $0 != "-" }) }.filter
+            { !$0.isEmpty })
         for key in keys { _ = try? withLock(key, exclusive: true) { remove(key: key) } }
         for name in names where name.hasPrefix(".") { unlink(directory.appendingPathComponent(name).path) }
     }

@@ -388,9 +388,13 @@ import Testing
             a.waitUntilIdle()
         }
         try d.insert(Data([1]), at: 0)
-        a.schedule { taken += 1; return d.recoveryContent() }
+        a.schedule {
+            taken += 1; return d.recoveryContent()
+        }
         try d.insert(Data([2]), at: 0)
-        a.schedule { taken += 1; return d.recoveryContent() }
+        a.schedule {
+            taken += 1; return d.recoveryContent()
+        }
         // Discarding right away drops both scheduled writes.
         a.discardNow()
         try await settle()
@@ -398,8 +402,12 @@ import Testing
         #expect(taken == 0)
 
         // Only the latest of a burst is taken and written.
-        a.schedule { taken += 1; return d.recoveryContent() }
-        a.schedule { taken += 1; return d.recoveryContent() }
+        a.schedule {
+            taken += 1; return d.recoveryContent()
+        }
+        a.schedule {
+            taken += 1; return d.recoveryContent()
+        }
         try await settle()
         #expect(taken == 1)
         #expect(all(try restored(e)) == all(d))
