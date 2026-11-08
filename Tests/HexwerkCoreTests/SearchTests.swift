@@ -31,6 +31,60 @@ func doc(_ data: Data) throws -> (Document, URL) {
         #expect(SearchPattern.hex("") == nil)
     }
 
+    /// `?` alone stands for one nibble (#142).
+    @Test func parsesNibbleWildcards() {
+        #expect(
+            SearchPattern.hex("4? ?d ?? a?")?.elements == [
+                .nibble(value: 0x40, mask: 0xF0), .nibble(value: 0x0D, mask: 0x0F), .any, .nibble(value: 0xA0, mask: 0xF0),
+            ])
+        #expect(SearchPattern.hex("4?5A")?.elements == [.nibble(value: 0x40, mask: 0xF0), .byte(0x5A)])
+        #expect(SearchPattern.hex("4?5") == nil)
+        #expect(SearchPattern.hex("G?") == nil)
+        #expect(SearchPattern.hex("?") == nil)
+        #expect(SearchPattern.hex("+1") == nil)
+        #expect(SearchPattern.hex("4 ? 5A")?.elements == [.nibble(value: 0x40, mask: 0xF0), .byte(0x5A)])
+    }
+
+    @Test func hexWithNibbleWildcards() throws {
+        let data = Data([0x40, 0x4F, 0x50, 0x3D, 0x4D, 0x5A, 0x4E, 0x5A, 0x4D, 0x00])
+        let (d, url) = try doc(data)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(Search.find(.hex("4?")!, in: d.snapshot()) == [0 ..< 1, 1 ..< 2, 4 ..< 5, 6 ..< 7, 8 ..< 9])
+        #expect(Search.find(.hex("?D")!, in: d.snapshot()) == [3 ..< 4, 4 ..< 5, 8 ..< 9])
+        #expect(Search.find(.hex("4? 5A")!, in: d.snapshot()) == [4 ..< 6, 6 ..< 8])
+        #expect(Search.find(.hex("?D ?A")!, in: d.snapshot()) == [4 ..< 6])
+    }
+
+    /// Patterns mixing bytes, ?? and nibble wildcards against the naive reference.
+    @Test(arguments: 1 ... 5) func nibblesMatchNaive(seed: Int) throws {
+        var rng = SplitMix(seed: UInt64(seed) &+ 1000)
+        let data = Data((0 ..< 100_000).map { _ in UInt8.random(in: 0 ... 3, using: &rng) << 4 | UInt8.random(in: 0 ... 3, using: &rng) })
+        let (d, url) = try doc(data)
+        defer { try? FileManager.default.removeItem(at: url) }
+        for _ in 0 ..< 5 {
+            let p = SearchPattern(
+                (0 ..< Int.random(in: 1 ... 5, using: &rng)).map { _ -> SearchPattern.Element in
+                    let n = UInt8.random(in: 0 ... 3, using: &rng)
+                    switch Int.random(in: 0 ... 4, using: &rng) {
+                    case 0: return .any
+                    case 1: return .nibble(value: n << 4, mask: 0xF0)
+                    case 2: return .nibble(value: n, mask: 0x0F)
+                    default: return .byte(n << 4 | UInt8.random(in: 0 ... 3, using: &rng))
+                    }
+                })
+            #expect(Search.find(p, in: d.snapshot()) == Array(naiveFind(p, data).prefix(Search.maxHits)))
+        }
+    }
+
+    /// The CLI's `find` takes the same syntax.
+    @Test func cliFindTakesNibbleWildcards() throws {
+        let url = try tempFile(Data([0x00, 0x4D, 0x5A, 0x4E, 0x5B]))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let (s, out) = try CLITests().run(["find", url.path, "4? 5?"])
+        #expect(s == 0)
+        #expect(out == "0x00000001  1\n0x00000003  3\n")
+    }
+
     /// wildcards, every hit found, none extra.
     @Test func hexWithWildcards() throws {
         let (d, url) = try doc(Data([0x4D, 0x5A, 0x90, 0x00, 0x4D, 0x5A, 0x01, 0x00, 0x4D, 0x00]))
@@ -64,6 +118,8 @@ func doc(_ data: Data) throws -> (Document, URL) {
         let (d, url) = try doc(data)
         defer { try? FileManager.default.removeItem(at: url) }
         #expect(Search.find(.hex("01020304")!, in: d.snapshot()) == [UInt64(Search.chunk - 2) ..< UInt64(Search.chunk + 2)])
+        // Nibbles only: no fixed byte to anchor on.
+        #expect(Search.find(.hex("?1 0? ?3 0?")!, in: d.snapshot()) == [UInt64(Search.chunk - 2) ..< UInt64(Search.chunk + 2)])
     }
 
     /// text in all encodings, with and without case.

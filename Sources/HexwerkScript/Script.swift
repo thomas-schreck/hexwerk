@@ -34,12 +34,72 @@ public struct ScriptError: Error, CustomStringConvertible, Sendable {
     public var description: String { line.map { L("Line %ld: %@", $0, message) } ?? message }
 }
 
+/// A mark a script left on the document (#142): `hw.bookmark` or
+/// `hw.highlight`. The app shows them; the CLI prints them after the output.
+public struct ScriptAnnotation: Sendable, Equatable {
+    public enum Color: String, Sendable, CaseIterable {
+        case yellow, red, orange, green, blue, purple, pink, gray
+    }
+
+    public enum Kind: Sendable, Equatable {
+        case bookmark(name: String)
+        case highlight(Color)
+    }
+
+    public var range: Range<UInt64>
+    public var kind: Kind
+
+    public init(range: Range<UInt64>, kind: Kind) {
+        self.range = range
+        self.kind = kind
+    }
+
+    /// At most this many per run, so a script (or a compromised helper)
+    /// cannot flood the bookmark list or the drawing code.
+    public static let maxCount = 10_000
+    /// Bookmark names are cut to this many UTF-8 bytes.
+    public static let maxNameBytes = 256
+
+    /// `name` cut to `maxNameBytes` UTF-8 bytes. Cut between Unicode
+    /// scalars, not characters: one character can be longer than the limit.
+    static func truncated(_ name: String) -> String {
+        guard name.utf8.count > maxNameBytes else { return name }
+        var out = String.UnicodeScalarView(), n = 0
+        for u in name.unicodeScalars {
+            n += UTF8.width(u)
+            if n > maxNameBytes { break }
+            out.append(u)
+        }
+        return String(out)
+    }
+
+    /// The annotations of a helper's reply, checked against the document
+    /// they will be shown on (after the script's edits were taken over):
+    /// every range must be non-empty and inside it, otherwise the reply is
+    /// rejected. Names lose bidi controls (they come from scripts that may
+    /// copy file content); a name left empty becomes the start offset.
+    public static func checked(_ annotations: [ScriptAnnotation], documentCount: UInt64) throws -> [ScriptAnnotation] {
+        try annotations.map { a in
+            guard !a.range.isEmpty, a.range.upperBound <= documentCount else {
+                throw WireError("annotation outside the document")
+            }
+            guard case .bookmark(let name) = a.kind else { return a }
+            let clean = TerminalText.strippingBidi(name)
+            return ScriptAnnotation(
+                range: a.range, kind: .bookmark(name: clean.isEmpty ? String(format: "0x%llX", a.range.lowerBound) : clean))
+        }
+    }
+}
+
 public struct ScriptResult: Sendable {
     public var output: [String] = []
     /// Number of edit calls (write/insert/remove) that changed the document.
     public var edits = 0
     public var select: Range<UInt64>?
     public var goTo: UInt64?
+    /// Bookmarks and highlights; empty after an error (the edits are rolled
+    /// back too) and always inside the document as it is after the run.
+    public var annotations: [ScriptAnnotation] = []
     public var error: ScriptError?
 
     public init() {}
@@ -61,9 +121,14 @@ public enum ScriptRunner {
             ("hw.f32/f64(off, le)", L("floating point")),
             ("hw.str(off, len)", L("UTF-8 text")),
             ("hw.hex(off, len)", L("hex text")),
-            (L("hw.find(pattern, start, end)"), L("offsets of a hex pattern (\"DE AD ?? EF\")")),
+            (L("hw.find(pattern, start, end)"), L("offsets of a hex pattern (\"DE AD ?? E?\")")),
             ("hw.findText(text)", L("offsets of a UTF-8 text")),
             (L("hw.select(start, end)"), L("set the selection after the run")),
+            (L("hw.bookmark(off, len, name)"), L("add a bookmark after the run")),
+            (
+                L("hw.highlight(off, len, color)"),
+                L("color bytes: %@", ScriptAnnotation.Color.allCases.map(\.rawValue).joined(separator: ", "))
+            ),
             ("hw.goto(off)", L("set the cursor after the run")),
             ("hw.cursor, hw.selection", L("state at start ({start, end} or null)")),
             ("hw.fileName", L("file name")),
@@ -94,6 +159,15 @@ public enum ScriptRunner {
             } catch {
                 session.result.error = ScriptError(message: String(describing: error), line: nil)
                 session.result.edits = 0
+            }
+            if session.result.error != nil {
+                session.result.annotations = []
+            } else {
+                // Later edits of the script may have shortened the file.
+                let n = document.count
+                session.result.annotations = session.result.annotations.compactMap { a in
+                    a.range.clampedToDocument(count: n).map { ScriptAnnotation(range: $0, kind: a.kind) }
+                }
             }
             return session.result
         }
@@ -234,6 +308,36 @@ private final class Session {
                 self.result.select = s ..< e
             } as @convention(block) (JSValue, JSValue) -> Void)
         fn(
+            "bookmark",
+            { [unowned self] (off: JSValue, len: JSValue, name: JSValue) in
+                guard let r = self.annotationRange(off, len) else { return }
+                let text = name.isUndefined || name.isNull ? "" : name.toString() ?? ""
+                self.annotate(
+                    ScriptAnnotation(
+                        range: r,
+                        kind: .bookmark(name: ScriptAnnotation.truncated(text.isEmpty ? String(format: "0x%llX", r.lowerBound) : text))))
+            } as @convention(block) (JSValue, JSValue, JSValue) -> Void)
+        fn(
+            "highlight",
+            { [unowned self] (off: JSValue, len: JSValue, color: JSValue) in
+                guard let r = self.annotationRange(off, len) else { return }
+                let c: ScriptAnnotation.Color
+                if color.isUndefined || color.isNull {
+                    c = .yellow
+                } else if let name = color.isString ? color.toString() : nil,
+                    let known = ScriptAnnotation.Color(rawValue: name.lowercased())
+                {
+                    c = known
+                } else {
+                    self.fail(
+                        L(
+                            "unknown color %1$@ (one of %2$@)", TerminalText.escape(String((color.toString() ?? "?").prefix(20))),
+                            ScriptAnnotation.Color.allCases.map(\.rawValue).joined(separator: ", ")))
+                    return
+                }
+                self.annotate(ScriptAnnotation(range: r, kind: .highlight(c)))
+            } as @convention(block) (JSValue, JSValue, JSValue) -> Void)
+        fn(
             "goto",
             { [unowned self] (off: JSValue) in
                 if let o = self.offset(off) { self.result.goTo = o }
@@ -321,6 +425,25 @@ private final class Session {
         }
         fail(L("Bytes expected (Array, Uint8Array or String)"))
         return nil
+    }
+
+    /// A non-empty range for an annotation.
+    private func annotationRange(_ off: JSValue, _ len: JSValue) -> Range<UInt64>? {
+        guard let r = range(off, len) else { return nil }
+        guard r.lowerBound < document.count else {
+            fail(L("invalid offset: %@ (size %@)", off.toString() ?? "?", "\(document.count)"))
+            return nil
+        }
+        guard !r.isEmpty else { fail(L("invalid length")); return nil }
+        return r
+    }
+
+    private func annotate(_ a: ScriptAnnotation) {
+        guard result.annotations.count < ScriptAnnotation.maxCount else {
+            fail(L("Too many bookmarks and highlights (at most %ld)", ScriptAnnotation.maxCount))
+            return
+        }
+        result.annotations.append(a)
     }
 
     private func edit(_ body: () throws -> Void) {

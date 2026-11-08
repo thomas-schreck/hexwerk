@@ -5,7 +5,7 @@ import HexwerkCore
 struct Find: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Search for a pattern and print the offsets of hits."),
-        discussion: L("Default is hex with ?? as wildcard, e.g. \"4D 5A ?? 00\".")
+        discussion: L("Default is hex with ?? as wildcard for a byte and ? for a nibble, e.g. \"4D 5A ?? 0?\".")
     )
 
     enum Mode: String, ExpressibleByArgument, CaseIterable { case hex, text, regex, int8, int16, int32, int64, float32, float64 }

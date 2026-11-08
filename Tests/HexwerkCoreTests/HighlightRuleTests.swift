@@ -49,6 +49,23 @@ import Testing
             ])
     }
 
+    /// Hex rules take the nibble wildcards of the hex search (#142).
+    @Test func nibbleRules() throws {
+        #expect(HighlightRule(kind: .hex, pattern: "4? ?D").isValid)
+        let data = Data([0x41, 0x0D, 0x00, 0x4F, 0x3D, 0x5D, 0x7E])
+        let found = try hits(
+            [
+                HighlightRule(kind: .hex, pattern: "4? ?D", color: 1),
+                HighlightRule(kind: .hex, pattern: "?E", color: 2),
+            ], data)
+        #expect(
+            found == [
+                HighlightHit(range: 0 ..< 2, color: 1),
+                HighlightHit(range: 3 ..< 5, color: 1),
+                HighlightHit(range: 6 ..< 7, color: 2),
+            ])
+    }
+
     /// Runs of single-byte hits become one range, so a zero-filled page is
     /// one rectangle per row instead of thousands.
     @Test func zeroRunsMerge() throws {

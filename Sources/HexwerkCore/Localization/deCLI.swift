@@ -77,6 +77,8 @@ extension L10n {
         "Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.":
             "Ohne --write werden Änderungen nur gezählt, nicht gespeichert. Exit 2 bei Skriptfehler, 3 bei Zeitlimit.",
         "API (global object hw):": "API (globales Objekt hw):",
+        "Bookmarks and highlights are printed after the script's output, one per line: kind (bookmark or highlight), offset, length, name or color.":
+            "Lesezeichen und Markierungen werden nach der Ausgabe des Skripts ausgegeben, eine pro Zeile: Art (bookmark oder highlight), Offset, Länge, Name oder Farbe.",
         "Script file (.js); with -e, code instead": "Skriptdatei (.js); mit -e stattdessen Code",
         "First argument is code instead of a file name": "Erstes Argument ist Code statt Dateiname",
         "Write changes to the file": "Änderungen in die Datei schreiben",
@@ -84,7 +86,8 @@ extension L10n {
 
         // find
         "Search for a pattern and print the offsets of hits.": "Muster suchen und Treffer-Offsets ausgeben.",
-        "Default is hex with ?? as wildcard, e.g. \"4D 5A ?? 00\".": "Standard ist Hex mit ?? als Platzhalter, z. B. \"4D 5A ?? 00\".",
+        "Default is hex with ?? as wildcard for a byte and ? for a nibble, e.g. \"4D 5A ?? 0?\".":
+            "Standard ist Hex mit ?? als Platzhalter für ein Byte und ? für ein Nibble, z. B. \"4D 5A ?? 0?\".",
         "Pattern": "Muster",
         "Pattern type: %@": "Art des Musters: %@",
         "Encoding for --mode text: ascii, utf8, utf16le, utf16be": "Kodierung für --mode text: ascii, utf8, utf16le, utf16be",

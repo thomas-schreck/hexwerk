@@ -8,6 +8,10 @@ struct Script: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Apply a JavaScript script to a file."),
         discussion: L("Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.")
+            + "\n\n"
+            + L(
+                "Bookmarks and highlights are printed after the script's output, one per line: kind (bookmark or highlight), offset, length, name or color."
+            )
             + "\n\n" + L("API (global object hw):") + "\n" + ScriptRunner.apiHelp
     )
 
@@ -50,6 +54,20 @@ struct Script: ParsableCommand {
             do { try doc.adopt(edited, map: map, base: base) } catch {
                 FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
                 throw ExitCode(1)
+            }
+        }
+        // Bookmarks and highlights (#142), after the output; none, no lines.
+        // Checked only now, against the content with the edits taken over.
+        let marks: [ScriptAnnotation]
+        do { marks = try ScriptAnnotation.checked(r.annotations, documentCount: doc.count) } catch {
+            FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
+            throw ExitCode(1)
+        }
+        for a in marks {
+            let at = String(format: "0x%08llx  %llu  ", a.range.lowerBound, a.range.upperBound - a.range.lowerBound)
+            switch a.kind {
+            case .bookmark(let name): print("bookmark   " + at + TerminalText.escape(name))
+            case .highlight(let color): print("highlight  " + at + color.rawValue)
             }
         }
         guard doc.isModified else { return }

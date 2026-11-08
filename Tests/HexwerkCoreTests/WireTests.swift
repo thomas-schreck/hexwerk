@@ -194,6 +194,124 @@ import HexwerkScript
         }
     }
 
+    // MARK: Script annotations (#142)
+
+    private func outcome(_ annotations: [ScriptAnnotation], error: Bool = false, edited: EditedContent? = nil) -> Data {
+        var r = ScriptResult()
+        r.output = ["out"]
+        r.annotations = annotations
+        if error { r.error = ScriptError(message: "e", line: 1) }
+        return ScriptOutcome(result: r, edited: edited).encoded()
+    }
+
+    @Test func scriptAnnotationsRoundTrip() throws {
+        let a = [
+            ScriptAnnotation(range: 0 ..< 4, kind: .bookmark(name: "Grüße")),
+            ScriptAnnotation(range: 10 ..< 4096, kind: .highlight(.gray)),
+            ScriptAnnotation(range: 5 ..< 6, kind: .highlight(.yellow)),
+        ]
+        let o = try ScriptOutcome(encoded: outcome(a))
+        #expect(o.result.annotations == a && o.result.output == ["out"])
+        #expect(try ScriptAnnotation.checked(o.result.annotations, documentCount: 4096) == a)
+        // No annotations: one byte more than before, nothing else changes.
+        #expect(try ScriptOutcome(encoded: outcome([])).result.annotations.isEmpty)
+    }
+
+    /// What a compromised helper could send instead.
+    @Test func scriptAnnotationsAreChecked() throws {
+        let one = ScriptAnnotation(range: 0 ..< 1, kind: .highlight(.red))
+        func rejects(_ data: Data, _ comment: Comment) {
+            #expect(throws: WireError.self, comment) { try ScriptOutcome(encoded: data) }
+        }
+        rejects(outcome(Array(repeating: one, count: ScriptAnnotation.maxCount + 1)), "too many")
+        #expect(
+            try ScriptOutcome(encoded: outcome(Array(repeating: one, count: ScriptAnnotation.maxCount))).result.annotations.count
+                == ScriptAnnotation.maxCount)
+        let long = String(repeating: "x", count: ScriptAnnotation.maxNameBytes + 1)
+        rejects(outcome([ScriptAnnotation(range: 0 ..< 1, kind: .bookmark(name: long))]), "name too long")
+        rejects(outcome([ScriptAnnotation(range: 7 ..< 7, kind: .highlight(.red))]), "empty")
+        rejects(outcome([one], error: true), "with an error")
+
+        // Hand-made: unknown kind and color, a range that overflows.
+        func raw(_ annotation: (inout WireWriter) -> Void) -> Data {
+            var w = WireWriter()
+            w.array(["out"]) { $0.string($1) }
+            w.int(0)
+            w.bool(false)
+            w.bool(false)
+            w.bool(false)
+            w.uint(1)
+            annotation(&w)
+            w.bool(false)
+            return w.data
+        }
+        #expect(
+            try ScriptOutcome(
+                encoded: raw {
+                    $0.range(0 ..< 1); $0.u8(1); $0.u8(1)
+                }
+            ).result.annotations == [one])
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(2); $0.u8(0)
+            }, "bad kind")
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(1); $0.u8(UInt8(ScriptAnnotation.Color.allCases.count))
+            }, "bad color")
+        rejects(
+            raw {
+                $0.uint(.max); $0.uint(2); $0.u8(1); $0.u8(0)
+            }, "range overflow")
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(0); $0.uint(1 << 40)
+            }, "name longer than the data")
+    }
+
+    /// Ranges are checked against the document after the edits were taken
+    /// over, never against a size the helper's pieces claim (#146 review).
+    @Test func scriptAnnotationsAreCheckedAgainstTheAdoptedDocument() throws {
+        let (doc, url) = try document()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let base = doc.snapshot()
+        let (_, _, map) = try helperSide(base)
+
+        // Well-formed, but the pieces describe 2^64 - 1 bytes of a 4 KiB file
+        // and the annotation reaches almost that far.
+        let bogus = EditedContent(pieces: [.init(added: false, start: 0, length: .max)], newBytes: Data())
+        let far = ScriptAnnotation(range: 0 ..< .max - 1, kind: .bookmark(name: "x"))
+        let o = try ScriptOutcome(encoded: outcome([far], edited: bogus))
+        #expect(throws: (any Error).self) { try doc.adopt(try #require(o.edited), map: map, base: base) }
+        #expect(doc.count == 4096)
+        #expect(throws: WireError.self) { try ScriptAnnotation.checked(o.result.annotations, documentCount: doc.count) }
+
+        // A range ending exactly at UInt64.max is fine where the document is that large.
+        let top = ScriptAnnotation(range: 1 ..< .max, kind: .highlight(.red))
+        #expect(try ScriptAnnotation.checked([top], documentCount: .max) == [top])
+        #expect(throws: WireError.self) { try ScriptAnnotation.checked([top], documentCount: .max - 1) }
+
+        // Valid edits: the size after them counts.
+        let three = EditedContent(pieces: [.init(added: false, start: 0, length: 3)], newBytes: Data())
+        let o2 = try ScriptOutcome(encoded: outcome([ScriptAnnotation(range: 2 ..< 4, kind: .highlight(.red))], edited: three))
+        try doc.adopt(try #require(o2.edited), map: map, base: base)
+        #expect(doc.count == 3)
+        #expect(throws: WireError.self) { try ScriptAnnotation.checked(o2.result.annotations, documentCount: doc.count) }
+    }
+
+    /// Names lose bidi controls; one left empty becomes the start offset.
+    @Test func checkedAnnotationNamesAreCleaned() throws {
+        let a = [
+            ScriptAnnotation(range: 16 ..< 17, kind: .bookmark(name: "\u{202E}txt.exe\u{200F}")),
+            ScriptAnnotation(range: 32 ..< 33, kind: .bookmark(name: "\u{2066}\u{2069}")),
+        ]
+        #expect(
+            try ScriptAnnotation.checked(a, documentCount: 64) == [
+                ScriptAnnotation(range: 16 ..< 17, kind: .bookmark(name: "txt.exe")),
+                ScriptAnnotation(range: 32 ..< 33, kind: .bookmark(name: "0x20")),
+            ])
+    }
+
     @Test func scanOutcomeRoundTrips() throws {
         let d = YaraDiagnostic(file: "/r.yar", line: 3, column: 4, code: "E1", message: "m", report: "rep")
         let hits = [

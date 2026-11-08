@@ -170,6 +170,20 @@ extension L10n {
         "Search Hits: %ld": "Suchtreffer: %ld",
         "Search with ⌘F": "Suche mit ⌘F",
         "Add bookmarks with ⌘D": "Lesezeichen mit ⌘D setzen",
+        // Bookmark all hits, script annotations (#142)
+        "Bookmark All": "Alle als Lesezeichen",
+        "Add a bookmark for every hit": "Für jeden Treffer ein Lesezeichen setzen",
+        "Add a bookmark for every string shown": "Für jeden angezeigten String ein Lesezeichen setzen",
+        "Search: %@": "Suche: %@",
+        "1 bookmark added": "1 Lesezeichen hinzugefügt",
+        "%ld bookmarks added": "%ld Lesezeichen hinzugefügt",
+        "%ld already bookmarked": "%ld schon mit Lesezeichen",
+        "%1$ld left out (at most %2$ld at once)": "%1$ld ausgelassen (höchstens %2$ld auf einmal)",
+        "%ld bookmarks and highlights": "%ld Lesezeichen und Markierungen",
+        "bookmarks and highlights dropped: the file was edited during the run":
+            "Lesezeichen und Markierungen verworfen: die Datei wurde während des Laufs bearbeitet",
+        "Clear Highlights": "Markierungen entfernen",
+        "Remove the colors set by hw.highlight": "Mit hw.highlight gesetzte Farben entfernen",
         "Compute for Whole File": "Für ganze Datei berechnen",
         "Compute for Selection": "Für Auswahl berechnen",
         "Choose": "Auswahl",
@@ -385,8 +399,8 @@ extension L10n {
         // Highlight rules (#141)
         "Highlight Rules…": "Hervorhebungsregeln …",
         "Highlight Rules": "Hervorhebungsregeln",
-        "Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? wildcards.":
-            "Bytes, auf die eine Regel passt, werden in der Hex-Ansicht eingefärbt. Hex-Muster dürfen ??-Platzhalter enthalten.",
+        "Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? and 4? / ?D wildcards.":
+            "Bytes, auf die eine Regel passt, werden in der Hex-Ansicht eingefärbt. Hex-Muster dürfen ??- und 4?-/?D-Platzhalter enthalten.",
         "Highlight zero bytes": "Null-Bytes hervorheben",
         "This File": "Diese Datei",
         "Saved in the project file.": "In der Projektdatei gesichert.",

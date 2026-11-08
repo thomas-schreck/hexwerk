@@ -100,6 +100,12 @@ public final class Document {
 
     /// For `editedContent` (helper side).
     var pieceList: [Piece] { pieces }
+
+    /// True while the content is still that of `base` (no edit, undo or
+    /// redo since), like the check `adopt` makes.
+    public func isUnchanged(since base: Snapshot) -> Bool {
+        pieces == base.pieces && added.count == base.added.count
+    }
     var addedBuffer: Data { added }
 
     /// Runs several edits as one undo step. If `body` throws, all its edits

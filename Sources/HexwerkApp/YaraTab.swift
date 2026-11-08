@@ -104,7 +104,18 @@ struct YaraTab: View {
                 .font(.caption)
             }
             if !yara.summary.isEmpty {
-                Text(yara.summary).font(.caption).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(yara.summary).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    if yara.matchCount > 0 {
+                        Button(L("Bookmark All")) {
+                            model.bookmarkAll(
+                                (yara.results ?? []).flatMap { r in r.matches.map { ("\(r.rule) \($0.pattern)", $0.range) } })
+                        }
+                        .buttonStyle(.link).font(.caption)
+                        .help(L("Add a bookmark for every hit"))
+                    }
+                }
             }
         }
         .padding(10)

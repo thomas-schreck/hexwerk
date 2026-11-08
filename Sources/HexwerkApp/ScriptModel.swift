@@ -69,9 +69,32 @@ final class ScriptModel: ObservableObject {
                     self.error = ScriptError(message: L("Not applied: %@", String(describing: error)), line: nil)
                 }
             }
+            // Bookmarks and highlights point into the base plus the script's
+            // edits: only valid when those were taken over, or when there were
+            // none and the file was not edited during the run.
+            var dropped = false
+            if self.error == nil, !r.annotations.isEmpty {
+                if changed || (edited == nil && doc.isUnchanged(since: base)) {
+                    do { r.annotations = try ScriptAnnotation.checked(r.annotations, documentCount: doc.count) } catch {
+                        r.annotations = []
+                        self.error = ScriptError(message: L("Not applied: %@", String(describing: error)), line: nil)
+                    }
+                } else {
+                    r.annotations = []
+                    dropped = true
+                }
+            } else {
+                r.annotations = []
+            }
             status = self.error == nil ? L("Done after %.2f s", elapsed) : L("Error after %.2f s", elapsed)
             if changed {
                 status += " · " + (r.edits == 1 ? L("1 change (⌘Z undoes all)") : L("%ld changes (⌘Z undoes all)", r.edits))
+            }
+            if !r.annotations.isEmpty {
+                status += " · " + L("%ld bookmarks and highlights", r.annotations.count)
+            }
+            if dropped {
+                status += " · " + L("bookmarks and highlights dropped: the file was edited during the run")
             }
             done(changed, r)
         }

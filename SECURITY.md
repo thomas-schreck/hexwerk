@@ -75,7 +75,11 @@ plus a grace period apply.
   Rule files and scripts are read by the parent, `.ksy` files are answered
   over the pipe as in the app, and the results come back in the same binary
   formats the app's helper uses, so the output is unchanged. Edits made by a
-  script are applied and saved (`--write`) by the parent. The parent bounds
+  script are applied and saved (`--write`) by the parent. Bookmarks and
+  highlights a script sets (`hw.bookmark`, `hw.highlight`) are checked by the
+  app and the CLI alike: at most 10,000 per run, names of at most 256 bytes,
+  known colors only, non-empty ranges inside the document as it is after the
+  run; anything else rejects the whole reply. The parent bounds
   every read and write on the pipes by the time limit (a child that floods
   requests or stops reading is killed), accepts at most 1 GiB per answer
   (64 KiB for a file request) and allocates as data arrives; the child exits

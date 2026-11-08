@@ -561,13 +561,13 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
         "[NaN]", "[0.5]", "['a']", "[,,1]", "new Uint8Array(4)", "new Uint8Array(70000)", "new Float64Array([1e300])",
         "'x'.repeat(5000)", "true", "123n", "-1n", "2n**64n", "Symbol()", "({valueOf(){throw 1}})",
         "({valueOf(){return 1e20}})", "({length: 1e9})", "({length: -1})", "({length: 2**32})", "hw.size()",
-        "hw.size()-1", "hw.size()+1", "'?? ?? ??'", "'DE AD ?'", "'ZZ'", "' '", "'\\u0000'", "'??'", "'0x'",
+        "hw.size()-1", "hw.size()+1", "'?? ?? ??'", "'DE AD ?'", "'4? ?D'", "'red'", "'ZZ'", "' '", "'\\u0000'", "'??'", "'0x'",
         "new Proxy({}, {get(){throw 1}})", "new Proxy([], {get(t, k){return k === 'length' ? 3 : 1e9}})",
         "Array(70000).fill(255)", "function(){}", "Object.create(null)", "new Date()", "/x/",
     ]
     static let jsFunctions = [
         "size", "read", "write", "insert", "remove", "u8", "u16", "u32", "u64", "i8", "i16",
-        "i32", "i64", "f32", "f64", "str", "hex", "find", "findText", "select", "goto",
+        "i32", "i64", "f32", "f64", "str", "hex", "find", "findText", "select", "goto", "bookmark", "highlight",
     ]
 
     /// Script API calls with hostile arguments (JS errors are fine).
@@ -593,6 +593,11 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
                 timeout: 10)
             #expect(result.error?.isTimeout != true, "script hit the time limit")
             _ = doc.read(0 ..< doc.count)
+            // Annotations stay inside the document and pass the parent's checks.
+            #expect(result.annotations.allSatisfy { !$0.range.isEmpty && $0.range.upperBound <= doc.count })
+            let back = try ScriptOutcome(encoded: ScriptOutcome(result: result, edited: nil).encoded())
+            #expect(back.result.annotations == result.annotations)
+            _ = try ScriptAnnotation.checked(back.result.annotations, documentCount: doc.count)
         }
     }
 
