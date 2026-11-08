@@ -59,6 +59,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         model.yara.objectWillChange
             .sink { [weak self] in DispatchQueue.main.async { self?.hexView.needsDisplay = true } }
             .store(in: &subs)
+        model.rules.objectWillChange
+            .sink { [weak self] in DispatchQueue.main.async { self?.hexView.needsDisplay = true } }
+            .store(in: &subs)
         model.structure.autoDetect(for: file.url, snapshot: file.snapshot())
         model.analysis.detectType(file.snapshot())
         model.$findVisible
@@ -466,6 +469,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         NotificationCenter.default.post(name: .hexwerkVimChanged, object: nil)
     }
     @objc func setCharset(_ sender: NSMenuItem) { model.charset = TextEncodingView.allCases[sender.tag] }
+
+    @objc func showHighlightRules(_ sender: Any?) {
+        guard let window else { return }
+        let sheet = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        sheet.contentViewController = NSHostingController(
+            rootView: HighlightRulesSheet(rules: model.rules) { [weak window, weak sheet] in
+                if let sheet { window?.endSheet(sheet) }
+            })
+        window.beginSheet(sheet)
+    }
 
     private func prompt(
         title: String, message: String, placeholder: String, text: String,
@@ -876,6 +889,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         s.selectionStart = hexView.selection?.lowerBound
         s.selectionEnd = hexView.selection?.upperBound
         s.offsetBase = model.offsetBase
+        s.highlightRules = model.rules.fileRules
         return s
     }
 
@@ -904,6 +918,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let rules = s.yaraRules.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
         if !rules.isEmpty { model.yara.ruleFiles = rules }
         if model.importInfo == nil, s.offsetBase != 0 { model.offsetBase = s.offsetBase }
+        model.rules.fileRules = s.highlightRules
         if let a = s.selectionStart, let b = s.selectionEnd, a < b, b <= n {
             hexView.jump(to: a, select: a ..< b, record: false)
         } else {

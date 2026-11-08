@@ -32,6 +32,8 @@ public struct ProjectState: Codable, Sendable, Equatable {
     /// Base address: the address of offset 0, for display and navigation
     /// only (see `AddressMap`).
     public var offsetBase: UInt64 = 0
+    /// Highlight rules that only apply to this file (#141).
+    public var highlightRules: [HighlightRule] = []
 
     public init(filePath: String, fileSize: UInt64) {
         self.filePath = filePath
@@ -41,6 +43,7 @@ public struct ProjectState: Codable, Sendable, Equatable {
     /// Nothing worth remembering beyond the cursor.
     public var isTrivial: Bool {
         bookmarks.isEmpty && format == nil && yaraRules.isEmpty && cursor == 0 && selectionStart == nil && offsetBase == 0
+            && highlightRules.isEmpty
     }
 }
 
@@ -60,6 +63,7 @@ extension ProjectState {
         selectionStart = try c.decodeIfPresent(UInt64.self, forKey: .selectionStart)
         selectionEnd = try c.decodeIfPresent(UInt64.self, forKey: .selectionEnd)
         offsetBase = try c.decodeIfPresent(UInt64.self, forKey: .offsetBase) ?? 0
+        highlightRules = try c.decodeIfPresent([HighlightRule].self, forKey: .highlightRules) ?? []
     }
 }
 
@@ -77,7 +81,8 @@ public enum ProjectError: Error, CustomStringConvertible, LocalizedError {
 }
 
 /// Per-file state lives in `<file>.hexwerk` next to the file as soon as
-/// there is something worth keeping (bookmarks) or that file already exists.
+/// there is something worth keeping (bookmarks, highlight rules) or that
+/// file already exists.
 /// Cursor and auto-detected format alone go to a central fallback, so merely
 /// looking at a file leaves nothing behind in its folder; read-only folders
 /// fall back the same way.
@@ -141,7 +146,7 @@ public enum ProjectStore {
         _ = try read(side)
         _ = try read(central)
         let fm = FileManager.default
-        if fm.fileExists(atPath: side.path) || !state.bookmarks.isEmpty {
+        if fm.fileExists(atPath: side.path) || !state.bookmarks.isEmpty || !state.highlightRules.isEmpty {
             if (try? write(state, to: side)) != nil {
                 try? fm.removeItem(at: central)
                 return side

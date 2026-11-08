@@ -31,6 +31,25 @@ public struct ParseNode: Sendable, Identifiable {
     public func child(_ i: Int) -> ParseNode { lazy?.child(i) ?? children[i] }
     /// All children, made if lazy (CLI output).
     public var allChildren: [ParseNode] { lazy.map { l in (0 ..< l.count).map(l.child) } ?? children }
+
+    /// This node and the chain of descendants whose ranges contain `offset`,
+    /// deepest last (hover in the hex view). Lazy elements are made only
+    /// for the hit, so big arrays cost no more than one division.
+    public func path(to offset: UInt64) -> [ParseNode] {
+        var out = [self]
+        var n = self
+        while true {
+            let next: ParseNode?
+            if let l = n.lazy {
+                next = l.index(of: offset).map(l.child)
+            } else {
+                next = n.children.first { $0.range?.contains(offset) == true }
+            }
+            guard let c = next else { return out }
+            out.append(c)
+            n = c
+        }
+    }
 }
 
 /// Elements of a big array of integers/floats, kept as values only; a

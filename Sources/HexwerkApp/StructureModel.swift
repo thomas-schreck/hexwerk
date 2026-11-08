@@ -40,6 +40,9 @@ final class StructureModel: ObservableObject {
     private var gate = RunGate()
     /// Cursor at the last follow() call, applied once a parse finishes.
     private var lastCursor: UInt64?
+    /// Bumped whenever `result` is replaced, so the hex view can tell that
+    /// the nodes it hovers belong to an old parse.
+    private(set) var resultGeneration = 0
 
     /// Closing the window must not leave a parse running for up to 30 s.
     isolated deinit { task?.cancel() }
@@ -73,6 +76,7 @@ final class StructureModel: ObservableObject {
         rows = []
         leaves = []
         selected = nil
+        resultGeneration += 1
         guard let url else { return }
         parsing = true
         let roots = [Self.formatsDir, Self.ownDir]
@@ -114,6 +118,7 @@ final class StructureModel: ObservableObject {
 
     private func show(_ r: ParseResult) {
         result = r
+        resultGeneration += 1
         parentOf = [:]
         byID = [:]
         pages = [:]
@@ -269,6 +274,36 @@ final class StructureModel: ObservableObject {
         selected = id
         reveal(id)
         rebuildRows()
+    }
+
+    // MARK: Hover
+
+    /// Root to the deepest field at `offset`; empty outside every field.
+    func hoverPath(at offset: UInt64) -> [ParseNode] {
+        guard let root = result?.root else { return [] }
+        let path = root.path(to: offset)
+        return path.count > 1 ? path : []
+    }
+
+    /// Tooltip: field path, type and value, and the bytes it covers.
+    static func hoverText(_ path: [ParseNode]) -> String? {
+        guard let leaf = path.last, path.count > 1 else { return nil }
+        let name = path.dropFirst().reduce("") { s, n in
+            s.isEmpty ? n.name : n.name.hasPrefix("[") ? s + n.name : s + "." + n.name
+        }
+        var lines = [name]
+        let type = leaf.typeName.isEmpty ? nil : leaf.typeName
+        switch (type, leaf.value) {
+        case (let t?, let v?): lines.append("\(t) = \(v)")
+        case (let t?, nil): lines.append(t)
+        case (nil, let v?): lines.append(v)
+        case (nil, nil): break
+        }
+        if let r = leaf.range, !r.isEmpty {
+            lines.append(L("%1$@–%2$@ (%3$ld bytes)", hex(r.lowerBound), hex(r.upperBound - 1), r.count))
+        }
+        if let e = leaf.error { lines.append(e) }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: Drawing

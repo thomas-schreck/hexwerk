@@ -14,6 +14,7 @@ final class DocumentModel: ObservableObject {
     let script = ScriptModel()
     let strings = StringsModel()
     let image = ImageModel()
+    let rules: HighlightRulesModel
 
     // Cursor and selection mirror the hex view.
     @Published private(set) var cursor: UInt64 = 0
@@ -174,6 +175,7 @@ final class DocumentModel: ObservableObject {
 
     init(doc: Document) {
         self.doc = doc
+        rules = HighlightRulesModel(doc: doc)
         refreshInspector()
         // Edits arrive synchronously from main-thread code (hex view, inspector, replace).
         doc.didReplace = { [weak self] range, n in
@@ -283,6 +285,7 @@ final class DocumentModel: ObservableObject {
         yara.contentChanged()
         analysis.contentChanged()
         strings.contentChanged()
+        rules.contentChanged()
         refreshInspector()
     }
 
@@ -387,6 +390,7 @@ final class DocumentModel: ObservableObject {
         analysis.cancelEmbedded()
         strings.cancel()
         script.cancel()
+        rules.cancel()
     }
 
     func select(hit i: Int) {
@@ -653,6 +657,7 @@ final class DocumentModel: ObservableObject {
     func highlights(in window: Range<UInt64>) -> [(Range<UInt64>, NSColor)] {
         // Structure colors lie underneath everything else.
         var out = structure.highlights(in: window)
+        out += rules.highlights(in: window)
         out += yara.highlights(in: window)
         for r in doc.modifiedRanges where r.overlaps(window) {
             out.append((r, NSColor.systemOrange.withAlphaComponent(0.22)))

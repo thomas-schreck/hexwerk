@@ -1,5 +1,6 @@
 import AppKit
 import HexwerkCore
+import HexwerkKaitai
 
 /// The hex grid: column header, offset column, hex bytes, characters.
 /// Draws only the rows on screen and keeps its own scroll position as a row
@@ -24,6 +25,10 @@ final class HexView: NSView, NSMenuItemValidation {
     private lazy var lineH: CGFloat = ceil(font.ascender - font.descender + font.leading) + 5
     private let scroller = NSScroller()
     private let inset: CGFloat = 12
+    /// Byte under the mouse and the structure fields containing it (#141).
+    private var hoverOffset: UInt64?
+    private var hoverPath: [ParseNode] = []
+    private var hoverGeneration = 0
 
     init(model: DocumentModel) {
         self.model = model
@@ -200,6 +205,7 @@ final class HexView: NSView, NSMenuItemValidation {
             fill(sel, accent.withAlphaComponent(pane == .hex ? 0.32 : 0.14), in: window, only: .hex)
             fill(sel, accent.withAlphaComponent(pane == .text ? 0.32 : 0.14), in: window, only: .text)
         }
+        drawHoverOutline(in: window)
         drawCursor()
 
         // Text. Zero bytes and unprintable characters are dimmed, so the eye
@@ -333,9 +339,15 @@ final class HexView: NSView, NSMenuItemValidation {
 
     /// Fills the cells of `range` with rounded rects, limited to `window`.
     private func fill(_ range: Range<UInt64>, _ color: NSColor, in window: Range<UInt64>, only: Pane? = nil) {
-        let r = range.clamped(to: window)
-        guard !r.isEmpty else { return }
         color.setFill()
+        for path in cellPaths(range, in: window, only: only) { path.fill() }
+    }
+
+    /// One rounded rect per row and pane covering the cells of `range`.
+    private func cellPaths(_ range: Range<UInt64>, in window: Range<UInt64>, only: Pane? = nil) -> [NSBezierPath] {
+        let r = range.clamped(to: window)
+        guard !r.isEmpty else { return [] }
+        var out: [NSBezierPath] = []
         let w = UInt64(bytesPerRow)
         var pos = r.lowerBound
         while pos < r.upperBound {
@@ -346,15 +358,35 @@ final class HexView: NSView, NSMenuItemValidation {
             if only != .text {
                 let x0 = hexColX(c0) - charW * 0.35
                 let x1 = hexColX(c1 - 1) + charW * 2.35
-                NSBezierPath(roundedRect: NSRect(x: x0, y: y, width: x1 - x0, height: lineH - 2), xRadius: 3, yRadius: 3).fill()
+                out.append(NSBezierPath(roundedRect: NSRect(x: x0, y: y, width: x1 - x0, height: lineH - 2), xRadius: 3, yRadius: 3))
             }
             if only != .hex {
-                NSBezierPath(
-                    roundedRect: NSRect(x: textX + CGFloat(c0) * charW, y: y, width: CGFloat(c1 - c0) * charW, height: lineH - 2),
-                    xRadius: 3, yRadius: 3
-                ).fill()
+                out.append(
+                    NSBezierPath(
+                        roundedRect: NSRect(x: textX + CGFloat(c0) * charW, y: y, width: CGFloat(c1 - c0) * charW, height: lineH - 2),
+                        xRadius: 3, yRadius: 3))
             }
             pos = (row + 1) * w
+        }
+        return out
+    }
+
+    /// Outlines the hovered structure field, and dashed its parent struct.
+    private func drawHoverOutline(in window: Range<UInt64>) {
+        guard hoverGeneration == model.structure.resultGeneration, let leaf = hoverPath.last?.range else { return }
+        // The root covers the whole file; outlining it says nothing.
+        if hoverPath.count > 2, let parent = hoverPath[hoverPath.count - 2].range, parent != leaf {
+            NSColor.secondaryLabelColor.setStroke()
+            for p in cellPaths(parent, in: window) {
+                p.lineWidth = 1
+                p.setLineDash([3, 2], count: 2, phase: 0)
+                p.stroke()
+            }
+        }
+        NSColor.labelColor.withAlphaComponent(0.75).setStroke()
+        for p in cellPaths(leaf, in: window) {
+            p.lineWidth = 1.5
+            p.stroke()
         }
     }
 
@@ -428,7 +460,11 @@ final class HexView: NSView, NSMenuItemValidation {
         scrollRemainder += dy
         let rows = Int64(scrollRemainder.rounded(.towardZero))
         scrollRemainder -= CGFloat(rows)
-        if rows != 0 { scroll(by: -rows) }
+        if rows != 0 {
+            scroll(by: -rows)
+            // The bytes moved under a resting mouse.
+            if let w = window { hover(at: convert(w.mouseLocationOutsideOfEventStream, from: nil)) }
+        }
     }
 
     private func ensureCursorVisible() {
@@ -470,6 +506,42 @@ final class HexView: NSView, NSMenuItemValidation {
         cursor = offset
         lowNibble = false
         changed()
+    }
+
+    // MARK: Hover
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas where area.owner === self { removeTrackingArea(area) }
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self,
+                userInfo: nil))
+    }
+
+    override func mouseMoved(with event: NSEvent) { hover(at: convert(event.locationInWindow, from: nil)) }
+
+    private func hover(at p: NSPoint) {
+        var offset: UInt64?
+        // position(at:) clamps to the grid; hovering beside it shows nothing.
+        if p.y >= headerH, p.x < textX + CGFloat(bytesPerRow) * charW, let (o, _) = position(at: p), o < document.count {
+            offset = o
+        }
+        updateHover(offset)
+    }
+
+    override func mouseExited(with event: NSEvent) { updateHover(nil) }
+
+    private func updateHover(_ offset: UInt64?) {
+        let generation = model.structure.resultGeneration
+        guard offset != hoverOffset || generation != hoverGeneration else { return }
+        hoverOffset = offset
+        let path = offset.map { model.structure.hoverPath(at: $0) } ?? []
+        guard path.map(\.id) != hoverPath.map(\.id) || generation != hoverGeneration else { return }
+        hoverPath = path
+        hoverGeneration = generation
+        toolTip = StructureModel.hoverText(path)
+        needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
