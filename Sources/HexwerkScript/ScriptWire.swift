@@ -45,11 +45,11 @@ public struct ScriptOutcome: Sendable {
         return w.data
     }
 
-    /// `baseCount` is the size of the document the script ran on. The
-    /// helper may be compromised: annotations are checked against the
-    /// limits `ScriptRunner` keeps and against the document's size after
-    /// the run, and anything else is rejected as a whole.
-    public init(encoded data: Data, baseCount: UInt64) throws {
+    /// The helper may be compromised: annotations are checked against the
+    /// limits `ScriptRunner` keeps, and anything else is rejected as a
+    /// whole. Whether their ranges fit the document can only be known once
+    /// the edits are taken over: `ScriptAnnotation.checked(_:documentCount:)`.
+    public init(encoded data: Data) throws {
         var r = WireReader(data)
         var result = ScriptResult()
         result.output = try r.array { try $0.string() }
@@ -67,6 +67,7 @@ public struct ScriptOutcome: Sendable {
         annotations.reserveCapacity(count)
         for _ in 0 ..< count {
             let range = try r.range()
+            guard !range.isEmpty else { throw WireError("empty annotation") }
             switch try r.u8() {
             case 0:
                 let name = try r.bytes()
@@ -89,18 +90,5 @@ public struct ScriptOutcome: Sendable {
         }
         self.result = result
         try r.expectEnd()
-        // The size after the run: the edited pieces, or the unchanged base.
-        var size = baseCount
-        if let edited {
-            size = 0
-            for p in edited.pieces {
-                let (sum, overflow) = size.addingReportingOverflow(p.length)
-                guard !overflow else { throw WireError("document size overflow") }
-                size = sum
-            }
-        }
-        for a in annotations where a.range.isEmpty || a.range.upperBound > size {
-            throw WireError("annotation outside the document")
-        }
     }
 }

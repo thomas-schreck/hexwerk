@@ -17,6 +17,22 @@ public enum TerminalText {
         }
     }
 
+    /// `s` without bidi embeddings, overrides, isolates and the left-to-right
+    /// and right-to-left marks, for names taken from file content that are
+    /// shown in the UI (bookmarks, #142).
+    public static func strippingBidi(_ s: String) -> String {
+        let bidi = { (u: Unicode.Scalar) in
+            switch u.value {
+            case 0x200E, 0x200F, 0x202A ... 0x202E, 0x2066 ... 0x2069: true
+            default: false
+            }
+        }
+        guard s.unicodeScalars.contains(where: bidi) else { return s }
+        var out = String.UnicodeScalarView()
+        out.append(contentsOf: s.unicodeScalars.lazy.filter { !bidi($0) })
+        return String(out)
+    }
+
     /// Unsafe scalars become `\xNN` (controls) or `\u{NNNN}` (bidi), so a
     /// value stays one line and the terminal never interprets it. Backslashes
     /// are left alone to keep paths and ordinary text readable.

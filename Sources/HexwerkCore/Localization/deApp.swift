@@ -180,6 +180,8 @@ extension L10n {
         "%ld already bookmarked": "%ld schon mit Lesezeichen",
         "%1$ld left out (at most %2$ld at once)": "%1$ld ausgelassen (höchstens %2$ld auf einmal)",
         "%ld bookmarks and highlights": "%ld Lesezeichen und Markierungen",
+        "bookmarks and highlights dropped: the file was edited during the run":
+            "Lesezeichen und Markierungen verworfen: die Datei wurde während des Laufs bearbeitet",
         "Clear Highlights": "Markierungen entfernen",
         "Remove the colors set by hw.highlight": "Mit hw.highlight gesetzte Farben entfernen",
         "Compute for Whole File": "Für ganze Datei berechnen",

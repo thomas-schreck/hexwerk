@@ -595,8 +595,9 @@ private func touch(_ n: ParseNode, depth: Int = 0) {
             _ = doc.read(0 ..< doc.count)
             // Annotations stay inside the document and pass the parent's checks.
             #expect(result.annotations.allSatisfy { !$0.range.isEmpty && $0.range.upperBound <= doc.count })
-            let back = try ScriptOutcome(encoded: ScriptOutcome(result: result, edited: nil).encoded(), baseCount: doc.count)
+            let back = try ScriptOutcome(encoded: ScriptOutcome(result: result, edited: nil).encoded())
             #expect(back.result.annotations == result.annotations)
+            _ = try ScriptAnnotation.checked(back.result.annotations, documentCount: doc.count)
         }
     }
 

@@ -20,7 +20,8 @@ public enum HitBookmarks {
 
     /// One bookmark per hit whose range is not bookmarked yet, in hit order.
     /// A label shared by several hits gets " #1", " #2", … (counted over
-    /// the hits added); empty hits are skipped.
+    /// the hits added); empty hits are skipped. Labels may come from file
+    /// content (strings): bidi controls are removed.
     public static func make(
         _ hits: [(label: String, range: Range<UInt64>)], existing: [Range<UInt64>], limit: Int = limit
     ) -> Result {
@@ -30,7 +31,7 @@ public enum HitBookmarks {
         for h in hits where !h.range.isEmpty {
             guard seen.insert(h.range).inserted else { duplicates += 1; continue }
             guard picked.count < limit else { overLimit += 1; continue }
-            picked.append(h)
+            picked.append((TerminalText.strippingBidi(h.label), h.range))
         }
         var total: [String: Int] = [:]
         for p in picked { total[p.label, default: 0] += 1 }

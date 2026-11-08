@@ -17,6 +17,12 @@ import Testing
         #expect(r.overLimit == 0)
     }
 
+    /// Strings from the file must not reorder the bookmark list's text.
+    @Test func labelsLoseBidiControls() {
+        let r = HitBookmarks.make([("\u{202E}fdp.exe\u{200E}", 0 ..< 4), ("ok\u{2067}", 4 ..< 6)], existing: [])
+        #expect(r.added.map(\.name) == ["fdp.exe", "ok"])
+    }
+
     @Test func respectsTheLimit() {
         let hits = (0 ..< 25).map { (label: "h", range: UInt64($0) ..< UInt64($0) + 1) }
         let r = HitBookmarks.make(hits, existing: [], limit: 10)

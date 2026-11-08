@@ -68,6 +68,8 @@ final class DocumentModel: ObservableObject {
     @Published var replaceText = ""
     @Published var showReplace = false
     @Published private(set) var hits: [Range<UInt64>] = []
+    /// The search text the hits were found with (names for "Bookmark All").
+    private(set) var hitsText = ""
     @Published private(set) var currentHit: Int?
     @Published private(set) var searching = false
     @Published private(set) var progress: Double = 0
@@ -324,7 +326,7 @@ final class DocumentModel: ObservableObject {
         searching = true
         progress = 0
         findMessage = nil
-        let snapshot = doc.snapshot()
+        let snapshot = doc.snapshot(), text = findText
         let start = cursor
         let ticket = searchGate.begin()
         task = Task.detached(priority: .userInitiated) { [weak self] in
@@ -338,6 +340,7 @@ final class DocumentModel: ObservableObject {
                 guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
+                self.hitsText = text
                 self.findMessage =
                     found.isEmpty
                     ? L("No hits")
@@ -375,6 +378,7 @@ final class DocumentModel: ObservableObject {
                 guard let self, !cancelled, self.searchGate.finish(ticket) == .current else { return }
                 self.searching = false
                 self.hits = found
+                self.hitsText = text
                 self.findMessage =
                     found.isEmpty
                     ? L("No hits")

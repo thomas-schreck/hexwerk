@@ -60,16 +60,34 @@ public struct ScriptAnnotation: Sendable, Equatable {
     /// Bookmark names are cut to this many UTF-8 bytes.
     public static let maxNameBytes = 256
 
-    /// `name` cut to `maxNameBytes` UTF-8 bytes on a character boundary.
+    /// `name` cut to `maxNameBytes` UTF-8 bytes. Cut between Unicode
+    /// scalars, not characters: one character can be longer than the limit.
     static func truncated(_ name: String) -> String {
         guard name.utf8.count > maxNameBytes else { return name }
-        var out = "", n = 0
-        for c in name {
-            n += c.utf8.count
+        var out = String.UnicodeScalarView(), n = 0
+        for u in name.unicodeScalars {
+            n += UTF8.width(u)
             if n > maxNameBytes { break }
-            out.append(c)
+            out.append(u)
         }
-        return out
+        return String(out)
+    }
+
+    /// The annotations of a helper's reply, checked against the document
+    /// they will be shown on (after the script's edits were taken over):
+    /// every range must be non-empty and inside it, otherwise the reply is
+    /// rejected. Names lose bidi controls (they come from scripts that may
+    /// copy file content); a name left empty becomes the start offset.
+    public static func checked(_ annotations: [ScriptAnnotation], documentCount: UInt64) throws -> [ScriptAnnotation] {
+        try annotations.map { a in
+            guard !a.range.isEmpty, a.range.upperBound <= documentCount else {
+                throw WireError("annotation outside the document")
+            }
+            guard case .bookmark(let name) = a.kind else { return a }
+            let clean = TerminalText.strippingBidi(name)
+            return ScriptAnnotation(
+                range: a.range, kind: .bookmark(name: clean.isEmpty ? String(format: "0x%llX", a.range.lowerBound) : clean))
+        }
     }
 }
 
@@ -313,7 +331,7 @@ private final class Session {
                 } else {
                     self.fail(
                         L(
-                            "unknown color %1$@ (one of %2$@)", color.toString() ?? "?",
+                            "unknown color %1$@ (one of %2$@)", TerminalText.escape(String((color.toString() ?? "?").prefix(20))),
                             ScriptAnnotation.Color.allCases.map(\.rawValue).joined(separator: ", ")))
                     return
                 }
@@ -412,6 +430,10 @@ private final class Session {
     /// A non-empty range for an annotation.
     private func annotationRange(_ off: JSValue, _ len: JSValue) -> Range<UInt64>? {
         guard let r = range(off, len) else { return nil }
+        guard r.lowerBound < document.count else {
+            fail(L("invalid offset: %@ (size %@)", off.toString() ?? "?", "\(document.count)"))
+            return nil
+        }
         guard !r.isEmpty else { fail(L("invalid length")); return nil }
         return r
     }

@@ -118,6 +118,8 @@ func doc(_ data: Data) throws -> (Document, URL) {
         let (d, url) = try doc(data)
         defer { try? FileManager.default.removeItem(at: url) }
         #expect(Search.find(.hex("01020304")!, in: d.snapshot()) == [UInt64(Search.chunk - 2) ..< UInt64(Search.chunk + 2)])
+        // Nibbles only: no fixed byte to anchor on.
+        #expect(Search.find(.hex("?1 0? ?3 0?")!, in: d.snapshot()) == [UInt64(Search.chunk - 2) ..< UInt64(Search.chunk + 2)])
     }
 
     /// text in all encodings, with and without case.

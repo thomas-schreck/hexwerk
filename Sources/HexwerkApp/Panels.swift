@@ -215,7 +215,7 @@ struct HitsTab: View {
                     Spacer()
                     if !model.hits.isEmpty {
                         Button(L("Bookmark All")) {
-                            let label = L("Search: %@", String(model.findText.prefix(40)))
+                            let label = L("Search: %@", String(model.hitsText.prefix(40)))
                             model.bookmarkAll(model.hits.map { (label, $0) })
                         }
                         .buttonStyle(.link)

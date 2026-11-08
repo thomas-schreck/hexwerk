@@ -163,6 +163,15 @@ import HexwerkScript
             let long = ScriptRunner.run("hw.bookmark(0, 1, 'ä'.repeat(200))", document: doc, context: ScriptContext())
             guard case .bookmark(let name) = long.annotations.first?.kind else { Issue.record("no bookmark"); return }
             #expect(name.utf8.count == ScriptAnnotation.maxNameBytes && name.allSatisfy { $0 == "ä" })
+            // One character longer than the limit is cut too, not dropped to "".
+            let combining = ScriptRunner.run("hw.bookmark(0, 1, 'a' + '\\u0301'.repeat(300))", document: doc, context: ScriptContext())
+            guard case .bookmark(let cut) = combining.annotations.first?.kind else { Issue.record("no bookmark"); return }
+            #expect(cut.unicodeScalars.first == "a" && cut.utf8.count <= ScriptAnnotation.maxNameBytes && cut.utf8.count > 200)
+            // The end of the file is an offset error; an unknown color is echoed short.
+            let atEnd = ScriptRunner.run("hw.bookmark(hw.size(), 1)", document: doc, context: ScriptContext())
+            #expect(atEnd.error?.message.contains("invalid offset") == true)
+            let color = ScriptRunner.run("hw.highlight(0, 1, 'x'.repeat(5000))", document: doc, context: ScriptContext())
+            #expect(color.error?.message.contains("unknown color") == true && (color.error?.message.count ?? .max) < 200)
             for bad in [
                 "hw.highlight(0, 1, 'mauve')", "hw.highlight(0, 1, 7)", "hw.bookmark(0, 0)", "hw.bookmark(1000, 1)", "hw.bookmark(0)",
             ] {

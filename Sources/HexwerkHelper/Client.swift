@@ -148,7 +148,7 @@ public final class HelperClient: Sendable {
         let data = try await call(id: header.id, timeout: timeout, waitWhenCancelled: true) { p, reply in
             p.runScript(try RequestCoder.encode(req), file: file, reply: reply)
         }
-        return (try ScriptOutcome(encoded: data, baseCount: base.count), map)
+        return (try ScriptOutcome(encoded: data), map)
     }
 
     /// libmagic's description and MIME type of the snapshot's start (#129),

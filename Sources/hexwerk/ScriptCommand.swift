@@ -46,14 +46,6 @@ struct Script: ParsableCommand {
         }
         let r = outcome.result
         for line in r.output { print(TerminalText.escape(line, keepingLayout: true)) }
-        // Bookmarks and highlights (#142), after the output; none, no lines.
-        for a in r.annotations {
-            let at = String(format: "0x%08llx  %llu  ", a.range.lowerBound, UInt64(a.range.count))
-            switch a.kind {
-            case .bookmark(let name): print("bookmark   " + at + TerminalText.escape(name))
-            case .highlight(let color): print("highlight  " + at + color.rawValue)
-            }
-        }
         if let e = r.error {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             throw ExitCode(e.isTimeout ? 3 : 2)
@@ -62,6 +54,20 @@ struct Script: ParsableCommand {
             do { try doc.adopt(edited, map: map, base: base) } catch {
                 FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
                 throw ExitCode(1)
+            }
+        }
+        // Bookmarks and highlights (#142), after the output; none, no lines.
+        // Checked only now, against the content with the edits taken over.
+        let marks: [ScriptAnnotation]
+        do { marks = try ScriptAnnotation.checked(r.annotations, documentCount: doc.count) } catch {
+            FileHandle.standardError.write(Data("hexwerk: \(error)\n".utf8))
+            throw ExitCode(1)
+        }
+        for a in marks {
+            let at = String(format: "0x%08llx  %llu  ", a.range.lowerBound, a.range.upperBound - a.range.lowerBound)
+            switch a.kind {
+            case .bookmark(let name): print("bookmark   " + at + TerminalText.escape(name))
+            case .highlight(let color): print("highlight  " + at + color.rawValue)
             }
         }
         guard doc.isModified else { return }
