@@ -143,20 +143,30 @@ struct HitsTab: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Circle().fill(Color(nsColor: model.diffHighlight(d).1.withAlphaComponent(1))).frame(width: 7, height: 7)
-                                Text(hex(d.a.lowerBound)).monospaced()
+                                Text(model.addressText(d.a.lowerBound)).monospaced()
                                 Text("↔ \(hex(d.b.lowerBound))").monospaced().foregroundStyle(.secondary)
                                 Spacer()
                                 Text(Self.describe(d)).foregroundStyle(.secondary)
                             }
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(L("Take from Other File")) {
+                                model.takeOver([d])
+                            }
+                            .disabled(!model.canTakeOver)
+                        }
                     }
                 } header: {
                     HStack {
                         Text(
                             L("Differences from %1$@: %2$ld", file.lastPathComponent, model.diffs.count)
                                 + (model.diffsTruncated ? " (" + L("stopped after %ld hits", Search.maxHits) + ")" : ""))
+                        if model.diffRunning || model.diffStale { ProgressView().controlSize(.mini) }
                         Spacer()
+                        Button(L("Take All")) { model.takeOver(all: true) }.buttonStyle(.link)
+                            .disabled(!model.canTakeOver)
+                            .help(L("Copy all differences from the other file into this one (undoable)"))
                         Button(L("Close")) { model.clearDiff() }.buttonStyle(.link)
                     }
                 }
@@ -171,7 +181,7 @@ struct HitsTab: View {
                         model.select(hit: i)
                     } label: {
                         HStack {
-                            Text(hex(r.lowerBound)).monospaced()
+                            Text(model.addressText(r.lowerBound)).monospaced()
                             Spacer()
                             Text(preview(r)).monospaced().foregroundStyle(.secondary).lineLimit(1)
                         }
@@ -205,7 +215,7 @@ struct BookmarksTab: View {
                     Circle().fill(Color(nsColor: b.color)).frame(width: 9, height: 9)
                     TextField(L("Name"), text: $b.name).textFieldStyle(.plain)
                     Spacer()
-                    Button(hex(b.range.lowerBound)) { model.jump?(b.range.lowerBound, b.range) }
+                    Button(model.addressText(b.range.lowerBound)) { model.jump?(b.range.lowerBound, b.range) }
                         .buttonStyle(.link).monospaced()
                     Text("\(b.range.count) B").foregroundStyle(.secondary)
                     Button {
@@ -252,6 +262,25 @@ struct ChecksumsTab: View {
                 if !model.checksumScope.isEmpty {
                     Text(model.checksumScope).foregroundStyle(.secondary)
                 }
+            }
+            Section(L("Excluded Ranges")) {
+                ForEach(model.checksumExclusions, id: \.self) { r in
+                    HStack {
+                        Button(L("%1$@, %2$ld bytes", model.addressText(r.lowerBound), r.count)) { model.jump?(r.lowerBound, r) }
+                            .buttonStyle(.link).monospaced()
+                        Spacer()
+                        Button {
+                            model.checksumExclusions.removeAll { $0 == r }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                Button(model.selection == nil ? L("Exclude Byte at Cursor") : L("Exclude Selection")) {
+                    model.excludeSelectionFromChecksums()
+                }
+                .help(L("Skip these bytes when computing, e.g. the checksum field itself"))
             }
             ForEach(Checksum.Group.allCases, id: \.self) { g in
                 Section(g.title) {
@@ -421,7 +450,7 @@ struct StatusBar: View {
             .help(L("Go to Offset (⌘L)"))
             if model.offsetBase != 0 {
                 sep
-                field(L("Address"), hex(model.cursor + model.offsetBase))
+                field(L("Address"), model.addressText(model.cursor))
             }
             if let s = model.selection, !s.isEmpty {
                 sep

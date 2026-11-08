@@ -143,5 +143,11 @@ extension L10n {
         "Offset is past the end of the file": "Offset hinter dem Dateiende",
         "%@: not found": "%@: nicht gefunden",
         "no .yar/.yara files in %@": "keine .yar/.yara-Dateien in %@",
+        // #143
+        "Skip a range START:LENGTH (file offsets, decimal or 0x...), e.g. the checksum field itself; repeatable":
+            "Bereich START:LÄNGE auslassen (Datei-Offsets, dezimal oder 0x...), z. B. das Prüfsummenfeld selbst; mehrfach möglich",
+        "Base address: label lines with base + offset (--offset stays a file offset)":
+            "Basisadresse: Zeilen mit Basis + Offset beschriften (--offset bleibt ein Datei-Offset)",
+        "Base address %@ is too large for a file of %llu bytes": "Basisadresse %@ ist zu groß für eine Datei mit %llu Byte",
     ]
 }

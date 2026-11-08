@@ -29,6 +29,8 @@ public struct ProjectState: Codable, Sendable, Equatable {
     public var cursor: UInt64 = 0
     public var selectionStart: UInt64?
     public var selectionEnd: UInt64?
+    /// Base address: the address of offset 0, for display and navigation
+    /// only (see `AddressMap`).
     public var offsetBase: UInt64 = 0
 
     public init(filePath: String, fileSize: UInt64) {
@@ -38,7 +40,7 @@ public struct ProjectState: Codable, Sendable, Equatable {
 
     /// Nothing worth remembering beyond the cursor.
     public var isTrivial: Bool {
-        bookmarks.isEmpty && format == nil && yaraRules.isEmpty && cursor == 0 && selectionStart == nil
+        bookmarks.isEmpty && format == nil && yaraRules.isEmpty && cursor == 0 && selectionStart == nil && offsetBase == 0
     }
 }
 

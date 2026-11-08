@@ -54,7 +54,8 @@ enum HelperWork {
 
     static func runScript(_ req: ScriptRequest, _ snapshot: Snapshot, isCancelled: @escaping @Sendable () -> Bool) -> Data {
         let copy = Document(editing: snapshot, readOnly: req.readOnly)
-        let ctx = ScriptContext(cursor: req.cursor, selection: req.selection, fileName: req.fileName)
+        let ctx = ScriptContext(
+            cursor: req.cursor, selection: req.selection, fileName: req.fileName, baseAddress: req.baseAddress)
         let r = ScriptRunner.run(
             req.source, name: req.name, document: copy, context: ctx,
             timeout: req.timeout, isCancelled: isCancelled)

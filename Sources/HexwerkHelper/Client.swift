@@ -141,7 +141,7 @@ public final class HelperClient: Sendable {
         let (header, file) = header(base, wire: wire)
         let req = ScriptRequest(
             header: header, source: source, name: name, cursor: context.cursor,
-            selection: context.selection, fileName: context.fileName,
+            selection: context.selection, fileName: context.fileName, baseAddress: context.baseAddress,
             readOnly: readOnly, timeout: timeout)
         // Cancelling waits for the helper: the script stops within 0.2 s and
         // its output so far is shown, as before.

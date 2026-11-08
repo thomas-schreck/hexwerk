@@ -172,36 +172,68 @@ public enum Checksum: String, CaseIterable, Sendable {
 
     /// Streams `range` of the snapshot through the hash in chunks.
     public func compute(
-        _ snapshot: Snapshot, range: Range<UInt64>? = nil,
+        _ snapshot: Snapshot, range: Range<UInt64>? = nil, excluding: [Range<UInt64>] = [],
         progress: (Double) -> Bool = { _ in true }
     ) -> String? {
-        Self.compute([self], snapshot, range: range, progress: progress)?[self]
+        Self.compute([self], snapshot, range: range, excluding: excluding, progress: progress)?[self]
     }
 
     /// Several algorithms in one pass over the data. Nil if cancelled.
+    /// Bytes in `excluding` are skipped, as if cut out of the data (e.g. the
+    /// checksum field itself or a signature block).
     public static func compute(
-        _ algos: [Checksum], _ snapshot: Snapshot, range: Range<UInt64>? = nil,
+        _ algos: [Checksum], _ snapshot: Snapshot, range: Range<UInt64>? = nil, excluding: [Range<UInt64>] = [],
         progress: (Double) -> Bool = { _ in true }
     ) -> [Checksum: String]? {
         let r = (range ?? 0 ..< snapshot.count).clamped(to: 0 ..< snapshot.count)
+        let pieces = included(r, excluding: excluding)
+        let total = pieces.reduce(0) { $0 + UInt64($1.count) }
         var hashers = algos.map { $0.makeHasher() }
         let chunk: UInt64 = 4 << 20
-        var pos = r.lowerBound
-        while pos < r.upperBound {
-            let end = min(r.upperBound, pos + chunk)
-            snapshot.withContiguousBytes(pos ..< end) { buf in
-                // Algorithms are independent: run them on all cores per chunk.
-                hashers.withUnsafeMutableBufferPointer { hs in
-                    nonisolated(unsafe) let hs = hs
-                    DispatchQueue.concurrentPerform(iterations: hs.count) { hs[$0].update(buf) }
+        var done: UInt64 = 0
+        for piece in pieces {
+            var pos = piece.lowerBound
+            while pos < piece.upperBound {
+                let end = min(piece.upperBound, pos + chunk)
+                snapshot.withContiguousBytes(pos ..< end) { buf in
+                    // Algorithms are independent: run them on all cores per chunk.
+                    hashers.withUnsafeMutableBufferPointer { hs in
+                        nonisolated(unsafe) let hs = hs
+                        DispatchQueue.concurrentPerform(iterations: hs.count) { hs[$0].update(buf) }
+                    }
                 }
+                done += end - pos
+                pos = end
+                if !progress(Double(done) / Double(max(total, 1))) { return nil }
             }
-            pos = end
-            if !progress(Double(pos - r.lowerBound) / Double(max(r.count, 1))) { return nil }
         }
         var out: [Checksum: String] = [:]
         for (a, var h) in zip(algos, hashers) { out[a] = h.finalize() }
         return out
+    }
+
+    /// The parts of `range` outside all `excluding` ranges, in order.
+    /// Exclusions may overlap, touch, be empty or reach outside `range`.
+    public static func included(_ range: Range<UInt64>, excluding: [Range<UInt64>]) -> [Range<UInt64>] {
+        var out: [Range<UInt64>] = []
+        var pos = range.lowerBound
+        for x in excluding.map({ $0.clamped(to: range) }).filter({ !$0.isEmpty }).sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            if x.lowerBound > pos { out.append(pos ..< x.lowerBound) }
+            pos = max(pos, x.upperBound)
+        }
+        if pos < range.upperBound { out.append(pos ..< range.upperBound) }
+        return out
+    }
+
+    /// "START:LENGTH" with decimal or 0x numbers ("0x1fc:4"), as taken by
+    /// `hexwerk hash --exclude`. A length past 2^64 ends at UInt64.max.
+    public static func parseRange(_ text: String) -> Range<UInt64>? {
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2, let start = AddressMap.parseNumber(String(parts[0])),
+            let length = AddressMap.parseNumber(String(parts[1]))
+        else { return nil }
+        let (end, overflow) = start.addingReportingOverflow(length)
+        return start ..< (overflow ? .max : end)
     }
 
     /// Hash of a small in-memory buffer (tests, calculator).

@@ -102,7 +102,7 @@ public struct SandboxedChild: Sendable {
         let (wire, map) = base.wire()
         let req = ScriptRequest(
             header: header(base, wire: wire), source: source, name: name, cursor: 0, selection: nil,
-            fileName: fileName, readOnly: false, timeout: timeout)
+            fileName: fileName, baseAddress: 0, readOnly: false, timeout: timeout)
         let data = try run(.script, try RequestCoder.encode(req), file: base.fileHandle(), timeout: timeout)
         return (try ScriptOutcome(encoded: data), map)
     }

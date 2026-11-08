@@ -21,6 +21,8 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Multiple files as tabs, bookmarks, go to offset/value, fill, copy as C/Python/Swift/Base64/hex
 - Data inspector with editable values (integers, floats, times, GUID, LEB128, text)
 - Intel HEX and Motorola S-Record import with write-back
+- Base address per file (e.g. a firmware's load address): addresses in the offset column,
+  go to, hit lists and the script API; display only, the file is never changed
 
 **Analysis**
 - **Kaitai Struct**: parses files with `.ksy` schemas, structure tree linked to colored byte ranges, lazy arrays for millions of elements; format auto-detection
@@ -32,8 +34,10 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - File type detection (libmagic + signatures) and embedded-file search
 - Entropy profile and byte histogram, image view (9 pixel formats)
 - Strings finder (ASCII, UTF-8, UTF-16), regex search
-- 45 checksums and hashes in one pass (CRC family, Adler, Fletcher, FNV, xxHash, Murmur3, MD2/4/5, SHA-1/2/3, BLAKE2/3, RIPEMD-160, SM3, …)
-- Binary diff that detects inserted and deleted bytes
+- 45 checksums and hashes in one pass (CRC family, Adler, Fletcher, FNV, xxHash, Murmur3, MD2/4/5, SHA-1/2/3, BLAKE2/3, RIPEMD-160, SM3, …),
+  optionally skipping ranges such as the checksum field itself
+- Binary diff that detects inserted and deleted bytes; take one or all differences over
+  from the other file (undoable), the diff follows your edits
 - Number calculator
 
 **Automation**
@@ -124,6 +128,7 @@ hexwerk type sample.exe               # file type + embedded files
 hexwerk parse --format png image.png  # Kaitai Struct, also --ksy my.ksy
 hexwerk yara rules.yar sample.bin
 hexwerk hash --algo common file.bin
+hexwerk hash --algo crc32 --exclude 0x1fc:4 fw.bin   # skip the CRC field
 hexwerk diff old.bin new.bin
 hexwerk strings -n 6 sample.bin
 hexwerk convert firmware.hex firmware.bin

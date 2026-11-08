@@ -248,7 +248,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// ⌘R: runs the script of the script tab on this document.
     @objc func runScript(_ sender: Any?) {
         showTab(.script)
-        model.script.run(on: file, cursor: hexView.cursor, selection: hexView.selection) { [weak self] changed, r in
+        model.script.run(on: file, cursor: hexView.cursor, selection: hexView.selection, baseAddress: model.offsetBase) {
+            [weak self] changed, r in
             guard let self else { return }
             if changed { hexView.reload() }
             if let s = r.select { hexView.jump(to: s.lowerBound, select: s) } else if let g = r.goTo { hexView.jump(to: g, select: nil) }
@@ -264,7 +265,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func calculatorVariables() -> [String: UInt64] {
         let c = hexView.cursor
         var vars: [String: UInt64] = [
-            "pos": c + model.offsetBase, "size": file.count,
+            "pos": model.addresses.address(of: c), "size": file.count,
             "sel": UInt64(hexView.selection?.count ?? 0),
         ]
         let bytes = file.read(c ..< c + 8)
@@ -277,8 +278,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Calculator "go to": the value is an address when the file has a load address.
     func goToValue(_ v: UInt64) {
-        guard v >= model.offsetBase, v - model.offsetBase <= file.count else { NSSound.beep(); return }
-        hexView.jump(to: v - model.offsetBase, select: nil)
+        guard let o = model.addresses.offset(of: v, count: file.count) else { NSSound.beep(); return }
+        hexView.jump(to: o, select: nil)
         window?.makeKeyAndOrderFront(nil)
     }
 
@@ -309,7 +310,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let window else { return }
         let modified = file.isModified
         var sub = [ByteCountFormatter.string(fromByteCount: Int64(file.count), countStyle: .binary)]
-        if let i = model.importInfo { sub.append(L("%1$@ at %2$@", i.format.rawValue, hex(model.offsetBase))) }
+        if let i = model.importInfo { sub.append(L("%1$@ at %2$@", i.format.rawValue, hex(i.base))) }
         if file.isReadOnly { sub.append(L("read-only")) }
         if modified { sub.append(L("modified")) }
         let subtitle = sub.joined(separator: " · ")
@@ -359,22 +360,32 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// "0x10", "16", "+0x10", "-8" → absolute offset within the file.
     func parseOffset(_ text: String) -> UInt64? {
-        var s = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: "_", with: "")
-        var sign = 0
-        if s.hasPrefix("+") { sign = 1; s.removeFirst() } else if s.hasPrefix("-") || s.hasPrefix("−") { sign = -1; s.removeFirst() }
-        let v = s.hasPrefix("0x") ? UInt64(s.dropFirst(2), radix: 16) : UInt64(s)
-        guard let v else { return nil }
-        let c = hexView.cursor
-        // Absolute values are addresses when the file has a load address.
-        if sign == 0, v < model.offsetBase { return nil }
-        let target: UInt64 =
-            switch sign {
-            case 1: c.addingReportingOverflow(v).overflow ? .max : c + v
-            case -1: c >= v ? c - v : 0
-            default: v - model.offsetBase
-            }
-        return target <= file.count ? target : nil
+        // Absolute values are addresses when the file has a base address.
+        model.addresses.target(of: text, cursor: hexView.cursor, count: file.count)
     }
+
+    /// View → Base Address…: the address of offset 0, for display and
+    /// navigation only (#143). 0 switches back to plain offsets.
+    @objc func setBaseAddress(_ sender: Any?) {
+        prompt(
+            title: L("Base Address"),
+            message: L("Address of the first byte, decimal or hex (0x…). Only the display changes, not the file."),
+            placeholder: "0x08000000", text: model.offsetBase == 0 ? "" : hex(model.offsetBase),
+            validate: { [unowned self] in
+                $0.trimmingCharacters(in: .whitespaces).isEmpty
+                    || AddressMap.parseNumber($0).map { AddressMap.isValid(base: $0, count: file.count) } == true
+            }
+        ) { [self] text in
+            guard let text else { return }
+            let t = text.trimmingCharacters(in: .whitespaces)
+            guard let base = t.isEmpty ? 0 : AddressMap.parseNumber(t), AddressMap.isValid(base: base, count: file.count) else { return }
+            model.offsetBase = base
+            refresh()
+        }
+    }
+
+    @objc func takeDifference(_ sender: Any?) { model.takeOver(all: false) }
+    @objc func takeAllDifferences(_ sender: Any?) { model.takeOver(all: true) }
 
     @objc func addBookmark(_ sender: Any?) {
         prompt(
@@ -696,7 +707,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Writes the image back as Intel HEX / S-Record, keeping untouched gaps.
     private func writeBack(_ i: DocumentModel.ImportInfo) throws {
         let data = file.read(0 ..< file.count)
-        let segs = HexRecords.segments(data, base: model.offsetBase, gaps: i.gaps)
+        let segs = HexRecords.segments(data, base: i.base, gaps: i.gaps)
         let text =
             i.format == .intelHex
             ? try HexRecords.intelHex(segs, start: i.start, startSegment: i.startSegment)
@@ -712,10 +723,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let r = exportRange
         let panel = NSSavePanel()
         panel.nameFieldStringValue = displayURL.deletingPathExtension().lastPathComponent + "." + format.fileExtension
-        panel.message = L("%1$ld bytes as %2$@, address from %3$@", r.count, format.rawValue, hex(model.offsetBase + r.lowerBound))
+        panel.message = L("%1$ld bytes as %2$@, address from %3$@", r.count, format.rawValue, model.addressText(r.lowerBound))
         panel.beginSheetModal(for: window) { [self] response in
             guard response == .OK, let url = panel.url else { return }
-            let data = file.read(r), base = model.offsetBase + r.lowerBound
+            let data = file.read(r), base = model.addresses.address(of: r.lowerBound)
             do {
                 let text = format == .intelHex ? try HexRecords.intelHex(data, base: base) : try HexRecords.srec(data, base: base)
                 try text.write(to: url, atomically: true, encoding: .ascii)
@@ -754,7 +765,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// binary document at `url` (off the import cache).
     private func saveImport(_ i: DocumentModel.ImportInfo, as url: URL) throws {
         if let format = HexRecords.Format(fileExtension: url.pathExtension) {
-            let target = DocumentModel.ImportInfo(source: url, format: format, gaps: i.gaps, start: i.start, header: i.header)
+            let target = DocumentModel.ImportInfo(source: url, format: format, base: i.base, gaps: i.gaps, start: i.start, header: i.header)
             try writeBack(target)
             model.importInfo = target
             try file.save()
@@ -779,6 +790,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return !file.isReadOnly
         case #selector(findNext(_:)), #selector(findPrevious(_:)): return !model.findText.isEmpty
         case #selector(nextDifference(_:)), #selector(previousDifference(_:)): return !model.diffs.isEmpty
+        case #selector(takeDifference(_:)): return model.canTakeOver && model.diffAtCursor != nil
+        case #selector(takeAllDifferences(_:)): return model.canTakeOver
         case #selector(fillSelection(_:)): return hexView.selection != nil && !file.isReadOnly
         case #selector(copyAs(_:)), #selector(exportSelection(_:)), #selector(exportHexRecords(_:)): return file.count > 0
         case #selector(setBytesPerRow(_:)):

@@ -23,13 +23,13 @@ final class ScriptModel: ObservableObject {
     private var cancelTask: (() -> Void)?
 
     func run(
-        on doc: Document, cursor: UInt64, selection: Range<UInt64>?,
+        on doc: Document, cursor: UInt64, selection: Range<UInt64>?, baseAddress: UInt64,
         done: @escaping (_ changed: Bool, ScriptResult) -> Void
     ) {
         guard !running else { return }
         let base = doc.snapshot()
         let readOnly = doc.isReadOnly
-        let ctx = ScriptContext(cursor: cursor, selection: selection, fileName: doc.url.lastPathComponent)
+        let ctx = ScriptContext(cursor: cursor, selection: selection, fileName: doc.url.lastPathComponent, baseAddress: baseAddress)
         let source = source
         let name = fileURL?.lastPathComponent ?? L("Script")
         running = true

@@ -205,5 +205,10 @@ extension L10n {
         "Invalid document data: %@": "Ungültige Dokumentdaten: %@",
         // Version (#115)
         "build %@": "Build %@",
+        // Script API: base address (#143)
+        "address of offset 0 (BigInt); offsets stay file offsets": "Adresse von Offset 0 (BigInt); Offsets bleiben Datei-Offsets",
+        "address of an offset (BigInt)": "Adresse eines Offsets (BigInt)",
+        "offset of an address (Number or BigInt)": "Offset einer Adresse (Number oder BigInt)",
+        "invalid address: %@": "ungültige Adresse: %@",
     ]
 }

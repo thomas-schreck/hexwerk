@@ -83,7 +83,7 @@ final class HexView: NSView, NSMenuItemValidation {
     private var headerH: CGFloat { lineH + 4 }
     private var visibleRows: Int { max(1, Int((bounds.height - headerH) / lineH)) }
     private var offsetDigits: Int {
-        let top = document.count + model.offsetBase
+        let top = model.addresses.address(of: document.count)
         return model.decimalOffsets ? max(10, String(top).count) : max(8, String(top, radix: 16).count)
     }
     private var offsetColW: CGFloat { inset + CGFloat(offsetDigits) * charW + inset }
@@ -249,9 +249,9 @@ final class HexView: NSView, NSMenuItemValidation {
         dimGlyphs.removeAll(keepingCapacity: true); dimPositions.removeAll(keepingCapacity: true)
     }
 
-    /// Offsets are shown as addresses when the file has a load address (HEX import).
+    /// Offsets are shown as addresses when the file has a base address.
     private func offsetString(_ offset: UInt64) -> String {
-        let v = offset + model.offsetBase
+        let v = model.addresses.address(of: offset)
         return model.decimalOffsets ? String(v).leftPad(offsetDigits, " ") : String(v, radix: 16, uppercase: true).leftPad(offsetDigits)
     }
 
