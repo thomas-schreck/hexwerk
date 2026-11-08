@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.mainMenu = buildMenu()
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         for path in args { open(URL(fileURLWithPath: path), readOnly: false) }
+        offerPendingRecovery()
         if controllers.isEmpty && !openedAtLaunch { openDocument(nil) }
         NSApp.activate()
         UpdateChecker.shared.start()
@@ -63,7 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func prepareQuit() {
-        for c in controllers { c.saveProject() }
+        for c in controllers {
+            c.saveProject()
+            c.finishRecovery()
+        }
         Settings.shared.flush()
     }
 
@@ -211,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         do {
             let doc = try Document(url: url, readOnly: readOnly)
+            guard readOnly || offerRestore(doc) else { return }
             let c = DocumentWindowController(file: doc)
             c.onClose = { [weak self] closed in self?.controllers.removeAll { $0 === closed } }
             controllers.append(c)
@@ -223,6 +228,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             a.informativeText = String(describing: error)
             a.runModal()
         }
+    }
+
+    // MARK: Auto-recovery (#139)
+
+    /// Unsaved changes left by a crash or Keep for Later, for files not
+    /// open yet. Opening a file offers its changes (`offerRestore`).
+    private func offerPendingRecovery() {
+        let store = RecoveryStore.user
+        let pending = store.pending().filter { p in !controllers.contains { RecoveryStore.path(for: $0.file.url) == p.path } }
+        guard !pending.isEmpty else { return }
+        let fm = FileManager.default
+        let a = NSAlert()
+        a.messageText = L("hexwerk found unsaved changes from an earlier session.")
+        a.informativeText =
+            pending.map { fm.fileExists(atPath: $0.path) ? $0.path : L("%@ (missing)", $0.path) }.joined(separator: "\n")
+            + "\n\n"
+            + L("Open the files to review and restore the changes. Not Now keeps them; they are offered again when you open the file.")
+        a.addButton(withTitle: L("Open Files"))
+        a.addButton(withTitle: L("Not Now"))
+        a.addButton(withTitle: L("Discard All…"))
+        switch a.runModal() {
+        case .alertFirstButtonReturn:
+            for p in pending where fm.fileExists(atPath: p.path) { open(URL(fileURLWithPath: p.path), readOnly: false) }
+        case .alertThirdButtonReturn:
+            let c = NSAlert()
+            c.alertStyle = .warning
+            c.messageText = L("Discard the unsaved changes to %ld files?", pending.count)
+            c.informativeText = L("This cannot be undone.")
+            c.addButton(withTitle: L("Discard All"))
+            c.addButton(withTitle: L("Cancel"))
+            if c.runModal() == .alertFirstButtonReturn {
+                for p in pending { store.discard(for: URL(fileURLWithPath: p.path)) }
+            }
+        default: break
+        }
+    }
+
+    /// Offers unsaved changes recorded for `doc`'s file. False: the user
+    /// chose to leave the file closed (the changes are kept).
+    private func offerRestore(_ doc: Document) -> Bool {
+        let found: RecoveryRecord
+        do {
+            guard let r = try RecoveryStore.user.record(for: doc.url) else { return true }
+            found = r
+        } catch {
+            return refuseRecovery(doc.url, reason: String(describing: error))
+        }
+        // Never applied to a file that changed since: the pieces point into it.
+        if let m = doc.recoveryMismatch(found) { return refuseRecovery(doc.url, reason: m.description) }
+        let a = NSAlert()
+        a.messageText = L("Restore unsaved changes to %@?", doc.url.lastPathComponent)
+        a.informativeText = L(
+            "hexwerk recorded changes to this file on %@ that were never saved. Restore shows them as unsaved edits; the file itself stays unchanged until you save. Discard deletes them for good. Cancel leaves the file closed and keeps them.",
+            found.recordedAt.formatted(date: .abbreviated, time: .shortened))
+        a.addButton(withTitle: L("Restore"))
+        a.addButton(withTitle: L("Cancel"))
+        a.addButton(withTitle: L("Discard"))
+        switch a.runModal() {
+        case .alertFirstButtonReturn:
+            do { try doc.restore(found) } catch { return refuseRecovery(doc.url, reason: String(describing: error)) }
+            return true
+        case .alertThirdButtonReturn:
+            RecoveryStore.user.discard(for: doc.url)
+            return true
+        default: return false
+        }
+    }
+
+    /// The changes exist but must not be applied. True: discarded, open the file.
+    private func refuseRecovery(_ url: URL, reason: String) -> Bool {
+        let a = NSAlert()
+        a.alertStyle = .warning
+        a.messageText = L("The unsaved changes to %@ cannot be restored.", url.lastPathComponent)
+        a.informativeText =
+            reason + "\n\n"
+            + L(
+                "They were recorded for the file as it was then; applied to the file as it is now, they would damage it. Discard deletes them and opens the file. Cancel leaves the file closed and keeps them."
+            )
+        a.addButton(withTitle: L("Cancel"))
+        a.addButton(withTitle: L("Discard"))
+        guard a.runModal() == .alertSecondButtonReturn else { return false }
+        RecoveryStore.user.discard(for: url)
+        return true
     }
 
     // MARK: Menu

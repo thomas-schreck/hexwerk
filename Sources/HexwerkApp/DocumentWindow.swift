@@ -68,6 +68,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             .sink { [weak self] visible in self?.findHost.isHidden = !visible }
             .store(in: &subs)
 
+        if !file.isReadOnly {
+            recovery = RecoveryAutosave(store: .user, url: file.url) { [weak self] status in
+                Task { @MainActor in self?.recoveryStatusChanged(status) }
+            }
+        }
+        recoveryEditState = file.editState
         refresh()
         watchFile()
         window.setFrameAutosaveName("hexwerk.document")
@@ -314,11 +320,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     private func refresh() {
         guard let window else { return }
+        updateRecovery()
         let modified = file.isModified
         var sub = [ByteCountFormatter.string(fromByteCount: Int64(file.count), countStyle: .binary)]
         if let i = model.importInfo { sub.append(L("%1$@ at %2$@", i.format.rawValue, hex(i.base))) }
         if file.isReadOnly { sub.append(L("read-only")) }
         if modified { sub.append(L("modified")) }
+        if modified, activeRecovery != nil {
+            switch recoveryStatus {
+            case .tooLarge: sub.append(L("too large for auto-recovery"))
+            case .failed: sub.append(L("auto-recovery failed"))
+            default: break
+            }
+        }
         let subtitle = sub.joined(separator: " · ")
         // Setting these always invalidates the title bar (and the proxy icon).
         if window.title != displayURL.lastPathComponent { window.title = displayURL.lastPathComponent }
@@ -851,13 +865,25 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             afterSave.append(whenSaved)
             return .afterSave
         }
-        guard file.isModified else { return .now }
+        guard file.isModified else {
+            // An undo back to the saved state may not have reached refresh() yet.
+            activeRecovery?.discard()
+            return .now
+        }
+        let canKeep = activeRecovery != nil
         let a = NSAlert()
         a.messageText = L("Save changes to %@?", file.url.lastPathComponent)
-        a.informativeText = L("Your changes will be lost if you don't save them.")
+        a.informativeText =
+            canKeep
+            ? L(
+                "Your changes will be lost if you don't save them. Keep for Later stores them on this Mac, without changing the file, and offers them again the next time you open it."
+            )
+            : L("Your changes will be lost if you don't save them.")
         a.addButton(withTitle: L("Save"))
         a.addButton(withTitle: L("Cancel"))
         a.addButton(withTitle: L("Don't Save"))
+        if canKeep { a.addButton(withTitle: L("Keep for Later")) }
+        let keepForLater = NSApplication.ModalResponse(rawValue: NSApplication.ModalResponse.alertThirdButtonReturn.rawValue + 1)
         switch a.runModal() {
         case .alertFirstButtonReturn:
             var now: Bool?
@@ -868,10 +894,64 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             returned = true
             if let now { return now ? .now : .cancel }
             return .afterSave
-        case .alertThirdButtonReturn: return .now
+        case .alertThirdButtonReturn:
+            activeRecovery?.discardNow()
+            return .now
+        case keepForLater: return keepChangesForLater() ? .now : .cancel
         default: return .cancel
         }
     }
+
+    // MARK: Auto-recovery (#139)
+
+    /// Records unsaved changes in the background; nil for read-only files.
+    private var recovery: RecoveryAutosave?
+    /// `file.editState` last handed to `recovery`.
+    private var recoveryEditState = 0
+    private var recoveryStatus: RecoveryStatus?
+
+    /// Imports edit a temporary image that is gone after a crash, so they get
+    /// no recovery records.
+    private var activeRecovery: RecoveryAutosave? { model.importInfo == nil ? recovery : nil }
+
+    /// Called on every refresh; acts only when the content changed.
+    private func updateRecovery() {
+        guard let r = activeRecovery, file.editState != recoveryEditState else { return }
+        recoveryEditState = file.editState
+        guard file.isModified else { return r.discard() }
+        r.schedule { [weak self] in
+            guard let self, file.isModified else { return nil }
+            return file.recoveryContent()
+        }
+    }
+
+    private func recoveryStatusChanged(_ status: RecoveryStatus) {
+        guard recoveryStatus != status else { return }
+        recoveryStatus = status
+        refresh()
+    }
+
+    /// Writes the record now. False (and the window stays open) if that failed.
+    private func keepChangesForLater() -> Bool {
+        guard let r = activeRecovery else { return false }
+        let status = r.writeNow(file.recoveryContent())
+        recoveryEditState = file.editState
+        let reason: String
+        switch status {
+        case .saved: return true
+        case .tooLarge: reason = L("They are too large for auto-recovery. Save them to a file instead.")
+        case .failed(let why): reason = why
+        case .discarded: reason = ""
+        }
+        let a = NSAlert()
+        a.messageText = L("The changes could not be kept for later.")
+        a.informativeText = reason
+        a.runModal()
+        return false
+    }
+
+    /// Waits for pending recovery work (quitting).
+    func finishRecovery() { recovery?.waitUntilIdle() }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         confirmClose { [weak sender] ok in if ok { sender?.close() } } == .now
@@ -953,6 +1033,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func windowWillClose(_ notification: Notification) {
+        recovery?.stop()
         fileWatch?.cancel()
         saveProject()
         model.cancelBackgroundWork()
