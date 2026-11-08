@@ -382,5 +382,21 @@ extension L10n {
         "Mark Selection Start": "Auswahlbeginn markieren",
         "Mark Selection End": "Auswahlende markieren",
         "Go to Address %@": "Gehe zu Adresse %@",
+        // Highlight rules (#141)
+        "Highlight Rules…": "Hervorhebungsregeln …",
+        "Highlight Rules": "Hervorhebungsregeln",
+        "Bytes matching a rule are colored in the hex view. Hex patterns may contain ?? wildcards.":
+            "Bytes, auf die eine Regel passt, werden in der Hex-Ansicht eingefärbt. Hex-Muster dürfen ??-Platzhalter enthalten.",
+        "Highlight zero bytes": "Null-Bytes hervorheben",
+        "This File": "Diese Datei",
+        "Saved in the project file.": "In der Projektdatei gesichert.",
+        "All Files": "Alle Dateien",
+        "Saved in the settings.": "In den Einstellungen gesichert.",
+        "Done": "Fertig",
+        "Add Rule": "Regel hinzufügen",
+        "No rules": "Keine Regeln",
+        "Color": "Farbe",
+        "Ignore case": "Groß-/Kleinschreibung ignorieren",
+        "Remove Rule": "Regel entfernen",
     ]
 }

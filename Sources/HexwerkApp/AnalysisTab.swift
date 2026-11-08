@@ -139,10 +139,21 @@ struct AnalysisTab: View {
                             analysis.hoverBlock = nil
                         }
                     }
-                    .onTapGesture { pt in
-                        let i = block(at: pt.x, width: geo.size.width, p)
-                        model.jump?(p.range(ofBlock: i, total: analysis.end).lowerBound, nil)
-                    }
+                    // Click jumps to a block, dragging selects the blocks passed over.
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { g in
+                                guard abs(g.translation.width) >= 3 else { return }
+                                let r = p.range(
+                                    fromBlock: block(at: g.startLocation.x, width: geo.size.width, p),
+                                    toBlock: block(at: g.location.x, width: geo.size.width, p), total: analysis.end)
+                                if !r.isEmpty { model.jump?(r.lowerBound, r) }
+                            }
+                            .onEnded { g in
+                                guard abs(g.translation.width) < 3 else { return }
+                                let i = block(at: g.location.x, width: geo.size.width, p)
+                                model.jump?(p.range(ofBlock: i, total: analysis.end).lowerBound, nil)
+                            })
             }
             .frame(height: 110)
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
@@ -156,7 +167,7 @@ struct AnalysisTab: View {
     }
 
     private func block(at x: CGFloat, width: CGFloat, _ p: EntropyProfile) -> Int {
-        min(p.blocks.count - 1, max(0, Int(x / max(1, width) * CGFloat(p.blocks.count))))
+        p.block(atFraction: Double(x / max(1, width)))
     }
 
     private func drawEntropy(_ ctx: GraphicsContext, _ size: CGSize, _ p: EntropyProfile) {
@@ -183,8 +194,15 @@ struct AnalysisTab: View {
             with: .linearGradient(
                 Gradient(colors: [.red.opacity(0.75), .orange.opacity(0.6), .teal.opacity(0.5)]),
                 startPoint: CGPoint(x: 0, y: y(8)), endPoint: CGPoint(x: 0, y: y(0))))
-        // Cursor position.
+        // Selection, so a drag over the chart shows what it selects.
         let total = analysis.end - p.start
+        if total > 0, let sel = model.selection, sel.lowerBound < analysis.end, sel.upperBound > p.start {
+            let lo = max(sel.lowerBound, p.start) - p.start, hi = min(sel.upperBound, analysis.end) - p.start
+            let x0 = CGFloat(Double(lo) / Double(total)) * size.width
+            let x1 = CGFloat(Double(hi) / Double(total)) * size.width
+            ctx.fill(Path(CGRect(x: x0, y: 0, width: max(1, x1 - x0), height: size.height)), with: .color(.accentColor.opacity(0.18)))
+        }
+        // Cursor position.
         if total > 0, model.cursor >= p.start, model.cursor < analysis.end {
             let x = CGFloat(Double(model.cursor - p.start) / Double(total)) * size.width
             var c = Path()

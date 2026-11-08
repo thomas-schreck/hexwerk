@@ -351,6 +351,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             cs.addItem(withTitle: enc.rawValue, action: #selector(DocumentWindowController.setCharset(_:)), keyEquivalent: "").tag = i
         }
         view.addItem(submenu(cs, L("Character Set")))
+        view.addItem(
+            withTitle: L("Highlight Rules…"), action: #selector(DocumentWindowController.showHighlightRules(_:)), keyEquivalent: "")
         view.addItem(.separator())
         let insp = view.addItem(
             withTitle: L("Show/Hide Inspector"), action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")

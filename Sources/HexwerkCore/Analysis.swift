@@ -33,6 +33,19 @@ public struct EntropyProfile: Sendable, Codable, Equatable {
         let s = start + UInt64(i) * blockSize
         return s ..< min(end, s + blockSize)
     }
+
+    /// Block under a point of the chart, `fraction` 0…1 of its width.
+    public func block(atFraction fraction: Double) -> Int {
+        guard !blocks.isEmpty, fraction.isFinite else { return 0 }
+        return min(blocks.count - 1, max(0, Int(fraction * Double(blocks.count))))
+    }
+
+    /// The bytes of blocks `a` through `b` (either order): dragging over
+    /// the chart selects them.
+    public func range(fromBlock a: Int, toBlock b: Int, total end: UInt64) -> Range<UInt64> {
+        let lo = range(ofBlock: min(a, b), total: end), hi = range(ofBlock: max(a, b), total: end)
+        return lo.lowerBound ..< max(lo.lowerBound, hi.upperBound)
+    }
 }
 
 public enum Analysis {
