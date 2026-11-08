@@ -8,6 +8,10 @@ struct Script: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: L("Apply a JavaScript script to a file."),
         discussion: L("Without --write, changes are only counted, not saved. Exit 2 on script error, 3 on timeout.")
+            + "\n\n"
+            + L(
+                "Bookmarks and highlights are printed after the script's output, one per line: kind (bookmark or highlight), offset, length, name or color."
+            )
             + "\n\n" + L("API (global object hw):") + "\n" + ScriptRunner.apiHelp
     )
 
@@ -42,6 +46,14 @@ struct Script: ParsableCommand {
         }
         let r = outcome.result
         for line in r.output { print(TerminalText.escape(line, keepingLayout: true)) }
+        // Bookmarks and highlights (#142), after the output; none, no lines.
+        for a in r.annotations {
+            let at = String(format: "0x%08llx  %llu  ", a.range.lowerBound, UInt64(a.range.count))
+            switch a.kind {
+            case .bookmark(let name): print("bookmark   " + at + TerminalText.escape(name))
+            case .highlight(let color): print("highlight  " + at + color.rawValue)
+            }
+        }
         if let e = r.error {
             FileHandle.standardError.write(Data("hexwerk: \(e)\n".utf8))
             throw ExitCode(e.isTimeout ? 3 : 2)

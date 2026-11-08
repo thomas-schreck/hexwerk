@@ -54,8 +54,16 @@ struct ScriptTab: View {
                 .padding(8)
                 .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
             }
-            if !script.status.isEmpty {
-                Text(script.status).font(.caption).foregroundStyle(.secondary)
+            if !script.status.isEmpty || !model.scriptHighlights.isEmpty {
+                HStack {
+                    Text(script.status).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    if !model.scriptHighlights.isEmpty {
+                        Button(L("Clear Highlights")) { model.scriptHighlights = [] }
+                            .buttonStyle(.link).font(.caption)
+                            .help(L("Remove the colors set by hw.highlight"))
+                    }
+                }
             }
             if !script.output.isEmpty {
                 ScrollView {

@@ -137,4 +137,73 @@ import HexwerkScript
             #expect(r3.error != nil)
         }
     }
+
+    /// `hw.bookmark` and `hw.highlight` collect annotations (#142).
+    @Test func annotations() throws {
+        try withDoc { doc in
+            let r = ScriptRunner.run(
+                """
+                hw.bookmark(0, 4, "PNG magic")
+                hw.bookmark(16, 5)
+                hw.highlight(8, 8, "Red")
+                hw.highlight(20, 100)
+                print(hw.find("?0 4?"))
+                """, document: doc, context: ScriptContext())
+            #expect(r.error == nil)
+            #expect(r.output == ["1"])
+            #expect(
+                r.annotations == [
+                    ScriptAnnotation(range: 0 ..< 4, kind: .bookmark(name: "PNG magic")),
+                    ScriptAnnotation(range: 16 ..< 21, kind: .bookmark(name: "0x10")),
+                    ScriptAnnotation(range: 8 ..< 16, kind: .highlight(.red)),
+                    ScriptAnnotation(range: 20 ..< 27, kind: .highlight(.yellow)),
+                ])
+
+            // Names are cut, bad colors and empty or outside ranges are errors.
+            let long = ScriptRunner.run("hw.bookmark(0, 1, 'ä'.repeat(200))", document: doc, context: ScriptContext())
+            guard case .bookmark(let name) = long.annotations.first?.kind else { Issue.record("no bookmark"); return }
+            #expect(name.utf8.count == ScriptAnnotation.maxNameBytes && name.allSatisfy { $0 == "ä" })
+            for bad in [
+                "hw.highlight(0, 1, 'mauve')", "hw.highlight(0, 1, 7)", "hw.bookmark(0, 0)", "hw.bookmark(1000, 1)", "hw.bookmark(0)",
+            ] {
+                let e = ScriptRunner.run(bad, document: doc, context: ScriptContext())
+                #expect(e.error != nil, "\(bad)")
+                #expect(e.annotations.isEmpty)
+            }
+
+            // An error drops them with the edits; later removals clamp them.
+            let failed = ScriptRunner.run("hw.bookmark(0, 4, 'x'); throw new Error('no')", document: doc, context: ScriptContext())
+            #expect(failed.error != nil && failed.annotations.isEmpty)
+            let shrunk = ScriptRunner.run(
+                "hw.highlight(10, 10, 'blue'); hw.bookmark(20, 5, 'gone'); hw.remove(12, 100)", document: doc, context: ScriptContext())
+            #expect(shrunk.error == nil && doc.count == 12)
+            #expect(shrunk.annotations == [ScriptAnnotation(range: 10 ..< 12, kind: .highlight(.blue))])
+            doc.undo()
+        }
+    }
+
+    @Test func annotationsAreCapped() throws {
+        try withDoc { doc in
+            let n = ScriptAnnotation.maxCount
+            let ok = ScriptRunner.run("for (let i = 0; i < \(n); i++) hw.highlight(0, 1)", document: doc, context: ScriptContext())
+            #expect(ok.error == nil && ok.annotations.count == n)
+            let r = ScriptRunner.run("for (let i = 0; i <= \(n); i++) hw.highlight(0, 1)", document: doc, context: ScriptContext())
+            #expect(r.error?.message.contains("at most \(n)") == true)
+            #expect(r.annotations.isEmpty)
+        }
+    }
+
+    /// The CLI prints annotations after the output; without any, the output
+    /// is exactly the script's.
+    @Test func cliPrintsAnnotations() throws {
+        let url = try tempFile(sample)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let cli = CLITests()
+        let plain = try cli.run(["script", "-e", "print('a'); print(hw.find('?0 4?'))", url.path])
+        #expect(plain.0 == 0 && plain.1 == "a\n1\n")
+        let marked = try cli.run(
+            ["script", "-e", "print('a'); hw.bookmark(1, 3, 'P\\u001b[2Jx'); hw.highlight(16, 5, 'green')", url.path])
+        #expect(marked.0 == 0)
+        #expect(marked.1 == "a\nbookmark   0x00000001  3  P\\x1B[2Jx\nhighlight  0x00000010  5  green\n")
+    }
 }

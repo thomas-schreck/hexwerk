@@ -251,10 +251,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// ⌘R: runs the script of the script tab on this document.
     @objc func runScript(_ sender: Any?) {
         showTab(.script)
+        guard !model.script.running else { return }
+        model.scriptHighlights = []
         model.script.run(on: file, cursor: hexView.cursor, selection: hexView.selection, baseAddress: model.offsetBase) {
             [weak self] changed, r in
             guard let self else { return }
             if changed { hexView.reload() }
+            model.applyScriptAnnotations(r.annotations)
             if let s = r.select { hexView.jump(to: s.lowerBound, select: s) } else if let g = r.goTo { hexView.jump(to: g, select: nil) }
             refresh()
         }

@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import HexwerkCore
+import HexwerkScript
 
 /// Everything a document window shows besides the raw bytes: cursor,
 /// search, bookmarks, diff, checksums, view options. Shared between the
@@ -90,6 +91,11 @@ final class DocumentModel: ObservableObject {
 
     // Bookmarks.
     @Published var bookmarks: [Bookmark] = []
+    /// Result of the last "Bookmark All" (shown in the bookmarks tab).
+    @Published var bookmarkMessage: String?
+    /// Ranges colored by the last script run (`hw.highlight`), kept on their
+    /// data like bookmarks.
+    @Published var scriptHighlights: [ScriptHighlight] = []
 
     // Checksums.
     @Published private(set) var checksums: [Checksum: String] = [:]
@@ -236,6 +242,11 @@ final class DocumentModel: ObservableObject {
         case int8 = "Int8", int16 = "Int16", int32 = "Int32", int64 = "Int64"
         case float32 = "Float32", float64 = "Float64"
         var id: String { rawValue }
+    }
+
+    struct ScriptHighlight: Equatable {
+        var range: Range<UInt64>
+        var color: NSColor
     }
 
     struct Bookmark: Identifiable, Equatable {
@@ -623,6 +634,62 @@ final class DocumentModel: ObservableObject {
         sidebarTab = .bookmarks
     }
 
+    /// One bookmark per hit (search, YARA, strings) not bookmarked yet (#142).
+    func bookmarkAll(_ hits: [(label: String, range: Range<UInt64>)]) {
+        let r = HitBookmarks.make(hits, existing: bookmarks.map(\.range))
+        var marks = bookmarks
+        for (name, range) in r.added {
+            marks.append(Bookmark(name: name, range: range, color: Self.bookmarkColors[marks.count % Self.bookmarkColors.count]))
+        }
+        marks.sort { $0.range.lowerBound < $1.range.lowerBound }
+        bookmarks = marks
+        var message = r.added.count == 1 ? L("1 bookmark added") : L("%ld bookmarks added", r.added.count)
+        if r.duplicates > 0 { message += " · " + L("%ld already bookmarked", r.duplicates) }
+        if r.overLimit > 0 { message += " · " + L("%1$ld left out (at most %2$ld at once)", r.overLimit, HitBookmarks.limit) }
+        bookmarkMessage = message
+        sidebarTab = .bookmarks
+    }
+
+    /// Bookmarks and highlights a script asked for (`hw.bookmark`,
+    /// `hw.highlight`); the helper's ranges were checked against the size.
+    func applyScriptAnnotations(_ annotations: [ScriptAnnotation]) {
+        var highlights: [ScriptHighlight] = []
+        var marks = bookmarks
+        // Running a script twice must not double its bookmarks.
+        var seen = Set(marks.map { "\($0.range)\u{0}\($0.name)" })
+        for a in annotations {
+            guard let range = a.range.clampedToDocument(count: doc.count) else { continue }
+            switch a.kind {
+            case .bookmark(let name):
+                guard seen.insert("\(range)\u{0}\(name)").inserted else { continue }
+                let color = Self.bookmarkColors[marks.count % Self.bookmarkColors.count]
+                marks.append(Bookmark(name: name, range: range, color: color))
+            case .highlight(let c):
+                highlights.append(ScriptHighlight(range: range, color: Self.color(c)))
+            }
+        }
+        if marks.count != bookmarks.count {
+            marks.sort { $0.range.lowerBound < $1.range.lowerBound }
+            bookmarks = marks
+        }
+        scriptHighlights = highlights
+    }
+
+    static func color(_ c: ScriptAnnotation.Color) -> NSColor {
+        let base: NSColor =
+            switch c {
+            case .yellow: .systemYellow
+            case .red: .systemRed
+            case .orange: .systemOrange
+            case .green: .systemGreen
+            case .blue: .systemBlue
+            case .purple: .systemPurple
+            case .pink: .systemPink
+            case .gray: .systemGray
+            }
+        return base.withAlphaComponent(0.35)
+    }
+
     /// Keeps bookmarks on their data when bytes are inserted or deleted.
     private func shiftBookmarks(replacing range: Range<UInt64>, newLength: UInt64) {
         guard UInt64(range.count) != newLength else { return }  // overwrite: nothing moves
@@ -635,12 +702,22 @@ final class DocumentModel: ObservableObject {
         if moved != bookmarks { bookmarks = moved }
         let excl = checksumExclusions.compactMap { $0.adjustedForEdit(replacing: range, newLength: newLength) }
         if excl != checksumExclusions { checksumExclusions = excl }
+        if !scriptHighlights.isEmpty {
+            scriptHighlights = scriptHighlights.compactMap { h in
+                h.range.adjustedForEdit(replacing: range, newLength: newLength).map { ScriptHighlight(range: $0, color: h.color) }
+            }
+        }
     }
 
     private func clampBookmarks() {
         let n = doc.count
         if checksumExclusions.contains(where: { $0.upperBound > n }) {
             checksumExclusions = checksumExclusions.compactMap { $0.clampedToDocument(count: n) }
+        }
+        if scriptHighlights.contains(where: { $0.range.upperBound > n }) {
+            scriptHighlights = scriptHighlights.compactMap { h in
+                h.range.clampedToDocument(count: n).map { ScriptHighlight(range: $0, color: h.color) }
+            }
         }
         guard bookmarks.contains(where: { $0.range.upperBound > n }) else { return }
         bookmarks = bookmarks.compactMap { b in
@@ -676,6 +753,7 @@ final class DocumentModel: ObservableObject {
                 i += 1
             }
         }
+        for h in scriptHighlights where h.range.overlaps(window) { out.append((h.range, h.color)) }
         for b in bookmarks where b.range.overlaps(window) { out.append((b.range, b.color.withAlphaComponent(0.28))) }
         for r in Self.visible(hits, in: window) { out.append((r, NSColor.systemYellow.withAlphaComponent(0.35))) }
         if let i = currentHit, hits.indices.contains(i), hits[i].overlaps(window) {

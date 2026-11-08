@@ -194,6 +194,91 @@ import HexwerkScript
         }
     }
 
+    // MARK: Script annotations (#142)
+
+    private func outcome(_ annotations: [ScriptAnnotation], error: Bool = false, edited: EditedContent? = nil) -> Data {
+        var r = ScriptResult()
+        r.output = ["out"]
+        r.annotations = annotations
+        if error { r.error = ScriptError(message: "e", line: 1) }
+        return ScriptOutcome(result: r, edited: edited).encoded()
+    }
+
+    @Test func scriptAnnotationsRoundTrip() throws {
+        let a = [
+            ScriptAnnotation(range: 0 ..< 4, kind: .bookmark(name: "Grüße")),
+            ScriptAnnotation(range: 10 ..< 4096, kind: .highlight(.gray)),
+            ScriptAnnotation(range: 5 ..< 6, kind: .highlight(.yellow)),
+        ]
+        let o = try ScriptOutcome(encoded: outcome(a), baseCount: 4096)
+        #expect(o.result.annotations == a && o.result.output == ["out"])
+        // No annotations: one byte more than before, nothing else changes.
+        #expect(try ScriptOutcome(encoded: outcome([]), baseCount: 0).result.annotations.isEmpty)
+    }
+
+    /// What a compromised helper could send instead.
+    @Test func scriptAnnotationsAreChecked() throws {
+        let one = ScriptAnnotation(range: 0 ..< 1, kind: .highlight(.red))
+        func rejects(_ data: Data, baseCount: UInt64 = 4096, _ comment: Comment) {
+            #expect(throws: WireError.self, comment) { try ScriptOutcome(encoded: data, baseCount: baseCount) }
+        }
+        rejects(outcome(Array(repeating: one, count: ScriptAnnotation.maxCount + 1)), "too many")
+        #expect(
+            try ScriptOutcome(encoded: outcome(Array(repeating: one, count: ScriptAnnotation.maxCount)), baseCount: 1).result.annotations
+                .count
+                == ScriptAnnotation.maxCount)
+        let long = String(repeating: "x", count: ScriptAnnotation.maxNameBytes + 1)
+        rejects(outcome([ScriptAnnotation(range: 0 ..< 1, kind: .bookmark(name: long))]), "name too long")
+        rejects(outcome([ScriptAnnotation(range: 4000 ..< 4097, kind: .highlight(.red))]), "past the end")
+        rejects(outcome([ScriptAnnotation(range: 7 ..< 7, kind: .highlight(.red))]), "empty")
+        rejects(outcome([one], error: true), "with an error")
+        // The size after the run counts: the edited document has 3 bytes.
+        let edited = EditedContent(pieces: [.init(added: false, start: 0, length: 3)], newBytes: Data())
+        #expect(
+            try ScriptOutcome(encoded: outcome([ScriptAnnotation(range: 2 ..< 3, kind: .highlight(.red))], edited: edited), baseCount: 4096)
+                .result.annotations.count == 1)
+        rejects(outcome([ScriptAnnotation(range: 2 ..< 4, kind: .highlight(.red))], edited: edited), "past the edited end")
+        let huge = EditedContent(
+            pieces: [.init(added: false, start: 0, length: .max), .init(added: false, start: 0, length: 2)], newBytes: Data())
+        rejects(outcome([one], edited: huge), "size overflow")
+
+        // Hand-made: unknown kind and color, a range that overflows.
+        func raw(_ annotation: (inout WireWriter) -> Void) -> Data {
+            var w = WireWriter()
+            w.array(["out"]) { $0.string($1) }
+            w.int(0)
+            w.bool(false)
+            w.bool(false)
+            w.bool(false)
+            w.uint(1)
+            annotation(&w)
+            w.bool(false)
+            return w.data
+        }
+        #expect(
+            try ScriptOutcome(
+                encoded: raw {
+                    $0.range(0 ..< 1); $0.u8(1); $0.u8(1)
+                }, baseCount: 1
+            ).result.annotations == [one])
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(2); $0.u8(0)
+            }, "bad kind")
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(1); $0.u8(UInt8(ScriptAnnotation.Color.allCases.count))
+            }, "bad color")
+        rejects(
+            raw {
+                $0.uint(.max); $0.uint(2); $0.u8(1); $0.u8(0)
+            }, "range overflow")
+        rejects(
+            raw {
+                $0.range(0 ..< 1); $0.u8(0); $0.uint(1 << 40)
+            }, "name longer than the data")
+    }
+
     @Test func scanOutcomeRoundTrips() throws {
         let d = YaraDiagnostic(file: "/r.yar", line: 3, column: 4, code: "E1", message: "m", report: "rep")
         let hits = [

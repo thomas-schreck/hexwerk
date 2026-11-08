@@ -22,6 +22,8 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Navigation history (Back ⌃⌘← / Forward ⌃⌘→ over jumps), follow pointer from the
   inspector or structure tree, select parent structure (⌃⌘↑), step the selection by its
   own length (⌥⌘← / ⌥⌘→), mark selection start/end (⌃⌘B / ⌃⌘E)
+- Search for hex (with `??` for any byte and `4?`/`?D` for one nibble), text, numbers or regex;
+  turn all search, YARA or strings hits into bookmarks in one step
 - Data inspector with editable values (integers, floats, times, GUID, LEB128, text)
 - Intel HEX and Motorola S-Record import with write-back
 - Base address per file (e.g. a firmware's load address): addresses in the offset column,
@@ -44,7 +46,8 @@ with Kaitai Struct, YARA-X, JavaScript scripting and a full command line tool.
 - Number calculator
 
 **Automation**
-- JavaScript scripting (JavaScriptCore) with an `hw` API on the open document, run with a time limit and applied as one undo step
+- JavaScript scripting (JavaScriptCore) with an `hw` API on the open document, run with a time limit and applied as one undo step;
+  scripts can mark findings with `hw.bookmark(off, len, name)` and `hw.highlight(off, len, color)`
 - `hexwerk` command line tool for everything above
 
 ### A short tour
@@ -134,6 +137,7 @@ hexwerk hash --algo common file.bin
 hexwerk hash --algo crc32 --exclude 0x1fc:4 fw.bin   # skip the CRC field
 hexwerk diff old.bin new.bin
 hexwerk strings -n 6 sample.bin
+hexwerk find sample.bin "4D 5A ?? 0?"   # ?? any byte, 0? / ?D one nibble
 hexwerk convert firmware.hex firmware.bin
 hexwerk script patch.js file.bin --write  # without --write: dry run
 ```
@@ -141,6 +145,11 @@ hexwerk script patch.js file.bin --write  # without --write: dry run
 `hexwerk --help` lists all commands: `dump`, `inspect`, `find`, `diff`, `hash`,
 `parse`, `yara`, `entropy`, `export`, `script`, `type`, `strings`,
 `convert`, `open`.
+
+`hexwerk script` prints the script's output first, then one line per
+`hw.bookmark` / `hw.highlight` call: kind, offset, length, name or color
+(`bookmark   0x00000010  4  header`). Scripts that mark nothing print exactly
+their own output.
 
 Shell completions (zsh, bash, fish; `parse --format` completes the IDs of the
 format collection) and a man page are installed by the Homebrew formula and

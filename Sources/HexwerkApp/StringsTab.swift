@@ -88,8 +88,16 @@ struct StringsTab: View {
                 }
                 if let all = strings.found {
                     let shown = strings.filtered
-                    Text(shown.count == all.count ? L("%ld strings", all.count) : L("%1$ld of %2$ld strings", shown.count, all.count))
-                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Text(shown.count == all.count ? L("%ld strings", all.count) : L("%1$ld of %2$ld strings", shown.count, all.count))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        if !shown.isEmpty {
+                            Button(L("Bookmark All")) { model.bookmarkAll(shown.map { (String($0.text.prefix(40)), $0.range) }) }
+                                .buttonStyle(.link).font(.caption)
+                                .help(L("Add a bookmark for every string shown"))
+                        }
+                    }
                 }
             }
             .padding(10)

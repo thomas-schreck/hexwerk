@@ -6,6 +6,9 @@ public struct SearchPattern: Sendable, Equatable {
         case byte(UInt8)
         case any  // ?? in hex
         case either(UInt8, UInt8)  // ASCII letter, either case
+        /// One nibble fixed, the other a wildcard (4? or ?D in hex): a byte
+        /// matches when `byte & mask == value`.
+        case nibble(value: UInt8, mask: UInt8)
     }
     public let elements: [Element]
 
@@ -13,16 +16,26 @@ public struct SearchPattern: Sendable, Equatable {
 
     public var count: Int { elements.count }
 
-    /// Hex like "4D 5A ?? 00" (spaces optional). Nil if malformed.
+    /// Hex like "4D 5A ?? 00" (spaces optional). `?` stands for one
+    /// nibble: "4?" matches 40–4F, "?D" every byte ending in D, "??" any
+    /// byte. Nil if malformed.
     public static func hex(_ text: String) -> SearchPattern? {
-        let s = text.filter { !$0.isWhitespace }
+        let s = Array(text.unicodeScalars.filter { !Character($0).isWhitespace })
         guard !s.isEmpty, s.count % 2 == 0 else { return nil }
+        /// Nibble value, -1 for "?", nil if neither.
+        func nibble(_ c: Unicode.Scalar) -> Int? {
+            c == "?" ? -1 : c.properties.isASCIIHexDigit ? Int(String(c), radix: 16) : nil
+        }
         var out: [Element] = []
-        var i = s.startIndex
-        while i < s.endIndex {
-            let pair = String(s[i ..< s.index(i, offsetBy: 2)])
-            if pair == "??" { out.append(.any) } else if let b = UInt8(pair, radix: 16) { out.append(.byte(b)) } else { return nil }
-            i = s.index(i, offsetBy: 2)
+        out.reserveCapacity(s.count / 2)
+        for i in stride(from: 0, to: s.count, by: 2) {
+            guard let hi = nibble(s[i]), let lo = nibble(s[i + 1]) else { return nil }
+            switch (hi, lo) {
+            case (-1, -1): out.append(.any)
+            case (-1, _): out.append(.nibble(value: UInt8(lo), mask: 0x0F))
+            case (_, -1): out.append(.nibble(value: UInt8(hi << 4), mask: 0xF0))
+            default: out.append(.byte(UInt8(hi << 4 | lo)))
+            }
         }
         return SearchPattern(out)
     }
@@ -89,6 +102,7 @@ public struct SearchPattern: Sendable, Equatable {
             case .byte(let b): if p[i] != b { return false }
             case .any: continue
             case .either(let a, let b): if p[i] != a && p[i] != b { return false }
+            case .nibble(let value, let mask): if p[i] & mask != value { return false }
             }
         }
         return true

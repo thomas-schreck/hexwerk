@@ -73,6 +73,9 @@ final class ScriptModel: ObservableObject {
             if changed {
                 status += " · " + (r.edits == 1 ? L("1 change (⌘Z undoes all)") : L("%ld changes (⌘Z undoes all)", r.edits))
             }
+            if !r.annotations.isEmpty {
+                status += " · " + L("%ld bookmarks and highlights", r.annotations.count)
+            }
             done(changed, r)
         }
     }

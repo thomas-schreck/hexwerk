@@ -188,7 +188,7 @@ struct HitsTab: View {
                     }
                 }
             }
-            Section(model.hits.isEmpty ? L("Search Hits") : L("Search Hits: %ld", model.hits.count)) {
+            Section {
                 if model.hits.isEmpty {
                     Text(L("Search with ⌘F")).foregroundStyle(.secondary)
                 }
@@ -209,6 +209,19 @@ struct HitsTab: View {
                     }
                     .buttonStyle(.plain)
                 }
+            } header: {
+                HStack {
+                    Text(model.hits.isEmpty ? L("Search Hits") : L("Search Hits: %ld", model.hits.count))
+                    Spacer()
+                    if !model.hits.isEmpty {
+                        Button(L("Bookmark All")) {
+                            let label = L("Search: %@", String(model.findText.prefix(40)))
+                            model.bookmarkAll(model.hits.map { (label, $0) })
+                        }
+                        .buttonStyle(.link)
+                        .help(L("Add a bookmark for every hit"))
+                    }
+                }
             }
         }
         .font(.system(size: 11.5))
@@ -224,6 +237,18 @@ struct BookmarksTab: View {
 
     var body: some View {
         List {
+            if let m = model.bookmarkMessage {
+                HStack {
+                    Text(m).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        model.bookmarkMessage = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.tertiary)
+                }
+            }
             if model.bookmarks.isEmpty {
                 Text(L("Add bookmarks with ⌘D")).foregroundStyle(.secondary)
             }
