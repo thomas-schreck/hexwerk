@@ -107,6 +107,7 @@ struct DataTab: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture(count: 2) { model.beginInspectorEdit(name, current: values[name] ?? nil) }
                                     .help(model.doc.isReadOnly ? "" : L("Double-click to edit"))
+                                if let size = PointerTarget.inspectorSizes[name] { followButton(size: size) }
                             }
                         }
                         if model.inspectorEditing == name, let e = model.inspectorError {
@@ -119,6 +120,22 @@ struct DataTab: View {
         .formStyle(.grouped)
         .font(.system(size: 12))
         .controlSize(.small)
+    }
+
+    /// Follow pointer (#140): the integer under the cursor as an address.
+    @ViewBuilder private func followButton(size: Int) -> some View {
+        let bytes = model.doc.read(model.cursor ..< model.cursor + UInt64(size))
+        if let v = PointerTarget.value(bytes, size: size, endian: model.endian) {
+            Button {
+                model.followPointer(v)
+            } label: {
+                Image(systemName: "arrow.right.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.pointerOffset(v) == nil)
+            .help(L("Go to Address %@", hex(v)))
+            .accessibilityLabel(L("Go to Address %@", hex(v)))
+        }
     }
 }
 

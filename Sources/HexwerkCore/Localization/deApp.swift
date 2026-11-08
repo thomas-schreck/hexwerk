@@ -373,5 +373,14 @@ extension L10n {
         "Exclude Selection": "Auswahl ausnehmen",
         "Skip these bytes when computing, e.g. the checksum field itself":
             "Diese Bytes beim Berechnen auslassen, z. B. das Prüfsummenfeld selbst",
+        // Navigation and selection helpers (#140)
+        "Back": "Zurück",
+        "Forward": "Vorwärts",
+        "Select Parent Structure": "Übergeordnete Struktur auswählen",
+        "Select Next Record": "Nächsten Datensatz auswählen",
+        "Select Previous Record": "Vorherigen Datensatz auswählen",
+        "Mark Selection Start": "Auswahlbeginn markieren",
+        "Mark Selection End": "Auswahlende markieren",
+        "Go to Address %@": "Gehe zu Adresse %@",
     ]
 }

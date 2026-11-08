@@ -50,7 +50,14 @@ final class HexView: NSView, NSMenuItemValidation {
     }
 
     /// Moves the cursor (and optionally selects), scrolling it into view.
-    func jump(to offset: UInt64, select: Range<UInt64>?) {
+    /// `record`: remember the old position for Back (#140).
+    func jump(to offset: UInt64, select: Range<UInt64>?, record: Bool = true) {
+        if record {
+            let target =
+                select.flatMap { $0.isEmpty ? nil : NavigationEntry(cursor: $0.upperBound - 1, selection: $0) }
+                ?? NavigationEntry(cursor: min(offset, document.count))
+            model.history.record(from: navigationEntry, to: target)
+        }
         if let r = select, !r.isEmpty {
             anchor = r.lowerBound
             cursor = r.upperBound - 1
@@ -66,6 +73,47 @@ final class HexView: NSView, NSMenuItemValidation {
         }
         clampTop()
         changed()
+    }
+
+    // MARK: Navigation (#140)
+
+    var navigationEntry: NavigationEntry { NavigationEntry(cursor: cursor, selection: selection) }
+
+    /// Back (or Forward) to the previous jump; beeps when there is none.
+    func goBack(forward: Bool = false) {
+        let e = forward ? model.history.goForward(from: navigationEntry) : model.history.goBack(from: navigationEntry)
+        guard let e else { NSSound.beep(); return }
+        // The file may have become shorter since (undo does not report ranges).
+        jump(to: e.cursor, select: e.selection?.clampedToDocument(count: document.count), record: false)
+    }
+
+    /// Moves the selection by its own length (next/previous record).
+    func stepSelection(forward: Bool) {
+        guard let sel = selection, let r = SelectionHelpers.step(sel, forward: forward, count: document.count) else {
+            NSSound.beep(); return
+        }
+        jump(to: r.lowerBound, select: r, record: false)
+    }
+
+    /// Widens the selection (or the cursor byte) to the enclosing structure element.
+    func selectParentStructure() {
+        let sel = selection ?? (cursor < document.count ? cursor ..< cursor + 1 : nil)
+        guard let sel else { NSSound.beep(); return }
+        let path = model.structure.ancestors(containing: sel.lowerBound)
+        guard let r = SelectionHelpers.parent(of: sel, in: path.map(\.range)) else { NSSound.beep(); return }
+        jump(to: r.lowerBound, select: r, record: false)
+        // After the jump: following the cursor selected the deepest field.
+        if let node = path.last(where: { $0.range == r }) { model.structure.select(node.id) }
+    }
+
+    func markSelectionStart() { model.selectionMark = cursor }
+
+    /// Selects from the start mark to the cursor (both bytes included).
+    func markSelectionEnd() {
+        guard let start = model.selectionMark,
+            let r = SelectionHelpers.marked(start: start, end: cursor, count: document.count)
+        else { NSSound.beep(); return }
+        jump(to: r.lowerBound, select: r, record: false)
     }
 
     // MARK: Geometry
@@ -803,6 +851,7 @@ extension HexView {
                 model.bookmarks.sort { $0.range.lowerBound < $1.range.lowerBound }
             case .jumpMark(let c):
                 if let b = model.bookmarks.first(where: { $0.name == String(c) }) {
+                    model.history.record(from: navigationEntry, to: NavigationEntry(cursor: b.range.lowerBound))
                     move(to: b.range.lowerBound, extend: visual)
                 } else {
                     NSSound.beep()

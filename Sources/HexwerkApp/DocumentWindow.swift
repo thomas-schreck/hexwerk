@@ -343,6 +343,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func nextDifference(_ sender: Any?) { model.jumpToDiff(forward: true) }
     @objc func previousDifference(_ sender: Any?) { model.jumpToDiff(forward: false) }
 
+    // Navigation and selection helpers (#140)
+    @objc func goBack(_ sender: Any?) { hexView.goBack() }
+    @objc func goForward(_ sender: Any?) { hexView.goBack(forward: true) }
+    @objc func selectParentStructure(_ sender: Any?) { hexView.selectParentStructure() }
+    @objc func selectNextRecord(_ sender: Any?) { hexView.stepSelection(forward: true) }
+    @objc func selectPreviousRecord(_ sender: Any?) { hexView.stepSelection(forward: false) }
+    @objc func markSelectionStart(_ sender: Any?) { hexView.markSelectionStart() }
+    @objc func markSelectionEnd(_ sender: Any?) { hexView.markSelectionEnd() }
+
     @objc func goToOffset(_ sender: Any?) {
         prompt(
             title: L("Go to Offset"),
@@ -793,6 +802,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         case #selector(takeDifference(_:)): return model.canTakeOver && model.diffAtCursor != nil
         case #selector(takeAllDifferences(_:)): return model.canTakeOver
         case #selector(fillSelection(_:)): return hexView.selection != nil && !file.isReadOnly
+        case #selector(goBack(_:)): return model.history.canGoBack
+        case #selector(goForward(_:)): return model.history.canGoForward
+        case #selector(selectParentStructure(_:)): return model.structure.result != nil
+        case #selector(selectNextRecord(_:)), #selector(selectPreviousRecord(_:)): return hexView.selection != nil
+        case #selector(markSelectionEnd(_:)): return model.selectionMark != nil
         case #selector(copyAs(_:)), #selector(exportSelection(_:)), #selector(exportHexRecords(_:)): return file.count > 0
         case #selector(setBytesPerRow(_:)):
             item.state = model.bytesPerRowSetting == item.tag ? .on : .off
@@ -891,9 +905,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         if !rules.isEmpty { model.yara.ruleFiles = rules }
         if model.importInfo == nil, s.offsetBase != 0 { model.offsetBase = s.offsetBase }
         if let a = s.selectionStart, let b = s.selectionEnd, a < b, b <= n {
-            hexView.jump(to: a, select: a ..< b)
+            hexView.jump(to: a, select: a ..< b, record: false)
         } else {
-            hexView.jump(to: min(s.cursor, n), select: nil)
+            hexView.jump(to: min(s.cursor, n), select: nil, record: false)
         }
         refresh()
     }
