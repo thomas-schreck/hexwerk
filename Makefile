@@ -95,7 +95,8 @@ app: build
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
 	# Leere .lproj-Ordner: daran wählt AppKit die Sprache seiner eigenen Texte.
 	mkdir -p $(APP)/Contents/Resources/en.lproj $(APP)/Contents/Resources/de.lproj
-	printf '"Any File" = "Beliebige Datei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
+	printf '"Any File" = "Beliebige Datei";\n"Binary File" = "Binärdatei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
+	printf '"Open in hexwerk" = "In hexwerk öffnen";\n' > $(APP)/Contents/Resources/de.lproj/ServicesMenu.strings
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
 		-c "Set :CFBundleVersion $(BUILD)" -c "Add :HexwerkCommit string $(COMMIT)" $(APP)/Contents/Info.plist

@@ -31,8 +31,13 @@
 		<string>en</string>
 		<string>de</string>
 	</array>
-	<!-- Every file can be opened ("Öffnen mit" → hexwerk), but hexwerk is
-	     never the default app for anything. -->
+	<!-- hexwerk shows up in Finder's "Open With" for (almost) every file,
+	     but is never the default app for anything (rank Alternate).
+	     LaunchServices ignores claims on public.data and wildcard extensions
+	     for "Open With", so the concrete parent types are claimed instead;
+	     they cover their subtypes. Extensions without a declared type
+	     (dyn.* UTIs) only match by name, hence the second list. Anything
+	     still missing is reachable through the "Open in hexwerk" service. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -45,6 +50,83 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>public.data</string>
+				<string>public.item</string>
+				<string>public.content</string>
+				<string>public.text</string>
+				<string>public.image</string>
+				<string>public.audiovisual-content</string>
+				<string>public.archive</string>
+				<string>public.executable</string>
+				<string>public.disk-image</string>
+				<string>public.composite-content</string>
+				<string>public.database</string>
+				<string>public.font</string>
+				<string>com.apple.property-list</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Binary File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>bin</string>
+				<string>dat</string>
+				<string>raw</string>
+				<string>img</string>
+				<string>dump</string>
+				<string>dmp</string>
+				<string>mem</string>
+				<string>vmem</string>
+				<string>elf</string>
+				<string>axf</string>
+				<string>so</string>
+				<string>o</string>
+				<string>a</string>
+				<string>ko</string>
+				<string>efi</string>
+				<string>rom</string>
+				<string>fw</string>
+				<string>hex</string>
+				<string>ihex</string>
+				<string>srec</string>
+				<string>s19</string>
+				<string>mot</string>
+				<string>pcap</string>
+				<string>pcapng</string>
+				<string>cap</string>
+				<string>sqlite</string>
+				<string>sqlite3</string>
+				<string>db</string>
+				<string>dex</string>
+				<string>class</string>
+				<string>ksy</string>
+				<string>yar</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Catch-all for files no claim above covers: Finder's context menu
+	     → Services/Quick Actions → "Open in hexwerk". -->
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Open in hexwerk</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>openFiles</string>
+			<key>NSPortName</key>
+			<string>hexwerk</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
 			</array>
 		</dict>
 	</array>
