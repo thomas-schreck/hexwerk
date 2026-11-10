@@ -144,6 +144,9 @@ install-app: app
 	@if [ -d /Applications/hexwerk.app ]; then \
 		osascript -e 'tell application "Finder" to delete POSIX file "/Applications/hexwerk.app"' >/dev/null; fi
 	cp -R $(APP) /Applications/hexwerk.app
+	# Refresh "Open With" and the Services menu now instead of at next login.
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/hexwerk.app
+	/System/Library/CoreServices/pbs -update
 	@echo "→ /Applications/hexwerk.app"
 
 # Release artifacts: app as DMG and ZIP, CLI as tarball (with completions and
