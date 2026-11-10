@@ -95,7 +95,8 @@ app: build
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
 	# Leere .lproj-Ordner: daran wählt AppKit die Sprache seiner eigenen Texte.
 	mkdir -p $(APP)/Contents/Resources/en.lproj $(APP)/Contents/Resources/de.lproj
-	printf '"Any File" = "Beliebige Datei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
+	printf '"Any File" = "Beliebige Datei";\n"Binary File" = "Binärdatei";\n' > $(APP)/Contents/Resources/de.lproj/InfoPlist.strings
+	printf '"Open in hexwerk" = "In hexwerk öffnen";\n' > $(APP)/Contents/Resources/de.lproj/ServicesMenu.strings
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
 		-c "Set :CFBundleVersion $(BUILD)" -c "Add :HexwerkCommit string $(COMMIT)" $(APP)/Contents/Info.plist
@@ -143,6 +144,9 @@ install-app: app
 	@if [ -d /Applications/hexwerk.app ]; then \
 		osascript -e 'tell application "Finder" to delete POSIX file "/Applications/hexwerk.app"' >/dev/null; fi
 	cp -R $(APP) /Applications/hexwerk.app
+	# Refresh "Open With" and the Services menu now instead of at next login.
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/hexwerk.app
+	/System/Library/CoreServices/pbs -update
 	@echo "→ /Applications/hexwerk.app"
 
 # Release artifacts: app as DMG and ZIP, CLI as tarball (with completions and

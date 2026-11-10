@@ -18,6 +18,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         UpdateChecker.shared.start()
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Set before launch ends: a service request can be what starts the app.
+        NSApp.servicesProvider = self
+    }
+
+    /// Finder service "Open in hexwerk" (NSServices in Info.plist).
+    @objc func openFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        application(NSApp, open: urls)
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         openedAtLaunch = true
         // May arrive while the app is still launching; dialogs (HEX import)
