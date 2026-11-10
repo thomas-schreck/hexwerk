@@ -126,7 +126,7 @@
 			<dict/>
 			<key>NSSendFileTypes</key>
 			<array>
-				<string>public.item</string>
+				<string>public.data</string>
 			</array>
 		</dict>
 	</array>
