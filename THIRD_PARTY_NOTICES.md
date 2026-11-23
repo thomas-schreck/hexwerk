@@ -20,7 +20,7 @@ field of each `.ksy` file). For the copies used as test fixtures see
 The MD2 and MD4 implementations are hexwerk's own code; only the algorithm
 constants are taken from RFC 1319 and RFC 1320.
 
-## YARA-X 1.23.0
+## YARA-X 1.24.0
 
 BSD-3-Clause. Statically linked (`libyara_x_capi.a`).
 
@@ -364,7 +364,7 @@ Apache License
 
 ## Rust crates in YARA-X
 
-YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` for aarch64-apple-darwin). All are under permissive licenses:
+YARA-X 1.24.0 statically links 242 Rust crates (dependencies of `yara-x-capi` for aarch64-apple-darwin). All are under permissive licenses:
 
 | Crate | Version | License |
 |---|---|---|
@@ -372,7 +372,7 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
 | aho-corasick | 1.1.5 | Unlicense OR MIT |
 | allocator-api2 | 0.2.21 | MIT OR Apache-2.0 |
-| annotate-snippets | 0.12.17 | MIT OR Apache-2.0 |
+| annotate-snippets | 0.12.18 | MIT OR Apache-2.0 |
 | anstyle | 1.0.14 | MIT OR Apache-2.0 |
 | anyhow | 1.0.104 | MIT OR Apache-2.0 |
 | arbitrary | 1.4.2 | MIT OR Apache-2.0 |
@@ -390,35 +390,36 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | bitvec | 1.1.1 | MIT |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
 | block-buffer | 0.12.1 | MIT OR Apache-2.0 |
-| bstr | 1.13.1 | MIT OR Apache-2.0 |
+| bstr | 1.14.0 | MIT OR Apache-2.0 |
 | bumpalo | 3.20.3 | MIT OR Apache-2.0 |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | cmov | 0.5.4 | Apache-2.0 OR MIT |
 | cobs | 0.3.0 | MIT OR Apache-2.0 |
-| const-oid | 0.10.2 | Apache-2.0 OR MIT |
+| const-oid | 0.10.3 | Apache-2.0 OR MIT |
+| constant_time_eq | 0.6.1 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
 | countme | 3.0.1 | MIT OR Apache-2.0 |
 | cpp_demangle | 0.5.1 | MIT OR Apache-2.0 |
 | cpubits | 0.1.1 | MIT OR Apache-2.0 |
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
 | cpufeatures | 0.3.1 | MIT OR Apache-2.0 |
-| cranelift-assembler-x64 | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-bforest | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-bitset | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-codegen | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-codegen-shared | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-control | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-entity | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-frontend | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| cranelift-native | 0.135.8 | Apache-2.0 WITH LLVM-exception |
-| crc32fast | 1.5.2 | MIT OR Apache-2.0 |
+| cranelift-assembler-x64 | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-bforest | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-bitset | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-codegen | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-codegen-shared | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-control | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-entity | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-frontend | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| cranelift-native | 0.135.10 | Apache-2.0 WITH LLVM-exception |
+| crc32fast | 1.5.5 | MIT OR Apache-2.0 |
 | crossbeam-deque | 0.8.8 | MIT OR Apache-2.0 |
 | crossbeam-epoch | 0.9.21 | MIT OR Apache-2.0 |
 | crossbeam-utils | 0.8.23 | MIT OR Apache-2.0 |
-| crypto-bigint | 0.7.5 | Apache-2.0 OR MIT |
+| crypto-bigint | 0.7.11 | Apache-2.0 OR MIT |
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
 | crypto-common | 0.2.2 | MIT OR Apache-2.0 |
 | crypto-primes | 0.7.2 | Apache-2.0 OR MIT |
-| ctutils | 0.4.3 | Apache-2.0 OR MIT |
+| ctutils | 0.4.8 | Apache-2.0 OR MIT |
 | daachorse | 5.1.0 | MIT OR Apache-2.0 |
 | darling | 0.24.1 | MIT |
 | darling_core | 0.24.1 | MIT |
@@ -440,7 +441,7 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | errno | 0.3.14 | MIT OR Apache-2.0 |
 | fallible-iterator | 0.3.0 | MIT/Apache-2.0 |
 | ff | 0.14.0 | MIT/Apache-2.0 |
-| flate2 | 1.1.10 | MIT OR Apache-2.0 |
+| flate2 | 1.1.11 | MIT OR Apache-2.0 |
 | fnv | 1.0.7 | Apache-2.0 / MIT |
 | foldhash | 0.2.0 | Zlib |
 | funty | 2.0.0 | MIT |
@@ -475,7 +476,6 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | itertools | 0.15.0 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | lazy_static | 1.5.1 | MIT OR Apache-2.0 |
-| leb128 | 0.2.7 | MIT OR Apache-2.0 |
 | leb128fmt | 0.1.0 | MIT OR Apache-2.0 |
 | libc | 0.2.190 | MIT OR Apache-2.0 |
 | libm | 0.2.16 | MIT |
@@ -506,7 +506,7 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | p384 | 0.14.0 | Apache-2.0 OR MIT |
 | pem-rfc7468 | 1.0.0 | Apache-2.0 OR MIT |
 | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT |
-| pkcs1 | 0.8.0-rc.5 | Apache-2.0 OR MIT |
+| pkcs1 | 0.8.0 | Apache-2.0 OR MIT |
 | pkcs8 | 0.11.0 | Apache-2.0 OR MIT |
 | postcard | 1.1.3 | MIT OR Apache-2.0 |
 | powerfmt | 0.2.1 | MIT OR Apache-2.0 |
@@ -515,23 +515,23 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | protobuf | 3.7.2 | MIT |
 | protobuf-support | 3.7.2 | MIT |
-| psl | 2.1.243 | MIT/Apache-2.0 |
+| psl | 2.1.259 | MIT/Apache-2.0 |
 | psl-types | 2.0.11 | MIT/Apache-2.0 |
-| pulley-interpreter | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| pulley-macros | 48.0.8 | Apache-2.0 WITH LLVM-exception |
+| pulley-interpreter | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| pulley-macros | 48.0.10 | Apache-2.0 WITH LLVM-exception |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | radium | 0.7.0 | MIT |
 | rand_core | 0.10.1 | MIT OR Apache-2.0 |
 | rayon | 1.12.0 | MIT OR Apache-2.0 |
 | rayon-core | 1.13.0 | MIT OR Apache-2.0 |
 | regalloc2 | 0.15.2 | Apache-2.0 WITH LLVM-exception |
-| regex | 1.13.1 | MIT OR Apache-2.0 |
-| regex-automata | 0.4.18 | MIT OR Apache-2.0 |
-| regex-syntax | 0.8.11 | MIT OR Apache-2.0 |
+| regex | 1.13.2 | MIT OR Apache-2.0 |
+| regex-automata | 0.4.19 | MIT OR Apache-2.0 |
+| regex-syntax | 0.8.12 | MIT OR Apache-2.0 |
 | rfc6979 | 0.6.0 | Apache-2.0 OR MIT |
 | rowan | 0.17.0 | MIT OR Apache-2.0 |
-| roxmltree | 0.21.1 | MIT OR Apache-2.0 |
-| rsa | 0.10.0-rc.19 | MIT OR Apache-2.0 |
+| roxmltree | 0.21.2 | MIT OR Apache-2.0 |
+| rsa | 0.10.0 | MIT OR Apache-2.0 |
 | rustc-demangle | 0.1.28 | MIT/Apache-2.0 |
 | rustc-hash | 1.1.0 | Apache-2.0/MIT |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
@@ -559,7 +559,7 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | strum_macros | 0.28.0 | MIT |
 | subtle | 2.6.1 | BSD-3-Clause |
 | syn | 2.0.119 | MIT OR Apache-2.0 |
-| syn | 3.0.6 | MIT OR Apache-2.0 |
+| syn | 3.0.10 | MIT OR Apache-2.0 |
 | synstructure | 0.13.2 | MIT |
 | tap | 1.0.1 | MIT |
 | target-lexicon | 0.13.5 | Apache-2.0 WITH LLVM-exception |
@@ -573,39 +573,40 @@ YARA-X 1.23.0 statically links 241 Rust crates (dependencies of `yara-x-capi` fo
 | time-core | 0.1.9 | MIT OR Apache-2.0 |
 | time-macros | 0.2.32 | MIT OR Apache-2.0 |
 | tinyzip | 0.4.0 | MIT |
-| typed-path | 0.12.3 | MIT OR Apache-2.0 |
+| typed-path | 0.13.0 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
 | unicode-ident | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
-| unicode-width | 0.2.2 | MIT OR Apache-2.0 |
+| unicode-width | 0.2.3 | MIT OR Apache-2.0 |
 | unty | 0.0.4 | MIT OR Apache-2.0 |
-| uuid | 1.28.0 | Apache-2.0 OR MIT |
+| uuid | 1.29.3 | Apache-2.0 OR MIT |
 | virtue | 0.0.18 | MIT |
-| walrus | 0.27.2 | MIT/Apache-2.0 |
+| walrus | 0.28.0 | MIT/Apache-2.0 |
 | walrus-macro | 0.26.0 | MIT/Apache-2.0 |
 | wasm-encoder | 0.245.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | wasm-encoder | 0.254.2 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | wasmparser | 0.245.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | wasmparser | 0.254.2 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | wasmprinter | 0.254.2 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
-| wasmtime | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-environ | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-component-util | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-core | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-cranelift | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-fiber | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-jit-debug | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-jit-icache-coherence | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-unwinder | 48.0.8 | Apache-2.0 WITH LLVM-exception |
-| wasmtime-internal-versioned-export-macros | 48.0.8 | Apache-2.0 WITH LLVM-exception |
+| wasmtime | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-environ | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-component-util | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-core | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-cranelift | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-fiber | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-jit-debug | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-jit-icache-coherence | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-unwinder | 48.0.10 | Apache-2.0 WITH LLVM-exception |
+| wasmtime-internal-versioned-export-macros | 48.0.10 | Apache-2.0 WITH LLVM-exception |
 | wnaf | 0.14.1 | Apache-2.0 OR MIT |
 | wyz | 0.5.1 | MIT |
 | x509-parser | 0.18.1 | MIT OR Apache-2.0 |
-| yara-x | 1.23.0 | BSD-3-Clause |
-| yara-x-capi | 1.23.0 | BSD-3-Clause |
-| yara-x-macros | 1.23.0 | BSD-3-Clause |
-| yara-x-parser | 1.23.0 | BSD-3-Clause |
+| yara-x | 1.24.0 | BSD-3-Clause |
+| yara-x-capi | 1.24.0 | BSD-3-Clause |
+| yara-x-macros | 1.24.0 | BSD-3-Clause |
+| yara-x-parser | 1.24.0 | BSD-3-Clause |
 | zeroize | 1.9.0 | Apache-2.0 OR MIT |
-| zip | 9.0.5 | MIT |
+| zeroize_derive | 1.5.0 | Apache-2.0 OR MIT |
+| zip | 9.8.1 | MIT |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
 | zopfli | 0.8.3 | Apache-2.0 |
@@ -614,22 +615,22 @@ The following crates ship no license file; their SPDX license applies with the s
 
 - ascii_tree 0.1.1 (MIT), copyright: d.maetzke@bpressure.net
 - asn1-rs-impl 0.2.0 (MIT/Apache-2.0), copyright: Pierre Chifflier <chifflier@wzdftpd.net>
-- cranelift-assembler-x64 0.135.8 (Apache-2.0 WITH LLVM-exception), copyright: the crate authors
-- cranelift-bitset 0.135.8 (Apache-2.0 WITH LLVM-exception), copyright: The Cranelift Project Developers
-- pulley-interpreter 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Pulley Project Developers
-- pulley-macros 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: the crate authors
+- cranelift-assembler-x64 0.135.10 (Apache-2.0 WITH LLVM-exception), copyright: the crate authors
+- cranelift-bitset 0.135.10 (Apache-2.0 WITH LLVM-exception), copyright: The Cranelift Project Developers
+- pulley-interpreter 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Pulley Project Developers
+- pulley-macros 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: the crate authors
 - tinyzip 0.4.0 (MIT), copyright: the crate authors
 - wasm-encoder 0.245.1 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT), copyright: Nick Fitzgerald <fitzgen@gmail.com>
 - wasmparser 0.245.1 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT), copyright: Yury Delendik <ydelendik@mozilla.com>
-- wasmtime-internal-component-util 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
-- wasmtime-internal-core 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
-- wasmtime-internal-jit-debug 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
-- wasmtime-internal-jit-icache-coherence 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
-- wasmtime-internal-versioned-export-macros 48.0.8 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
+- wasmtime-internal-component-util 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
+- wasmtime-internal-core 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
+- wasmtime-internal-jit-debug 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
+- wasmtime-internal-jit-icache-coherence 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
+- wasmtime-internal-versioned-export-macros 48.0.10 (Apache-2.0 WITH LLVM-exception), copyright: The Wasmtime Project Developers
 
 ## Crate license text 1
 
-Applies to: addr2line 0.26.1, arbitrary 1.4.2, asn1-rs 0.7.2, asn1-rs-derive 0.6.0, base64 0.23.1, bitflags 2.13.2, bstr 1.13.1, bumpalo 3.20.3, cfg-if 1.0.5, countme 3.0.1, cpp_demangle 0.5.1, crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.23, der-parser 10.0.0, displaydoc 0.2.7, either 1.18.0, embedded-io 0.4.0, embedded-io 0.6.1, equivalent 1.0.2, errno 0.3.14, ff 0.14.0, flate2 1.1.10, fnv 1.0.7, gimli 0.32.3, gimli 0.33.0, group 0.14.0, hashbrown 0.14.5, hashbrown 0.16.1, hashbrown 0.17.1, heck 0.5.0, id-arena 2.3.0, indexmap 2.14.2, itertools 0.14.0, itertools 0.15.0, lazy_static 1.5.1, leb128 0.2.7, leb128fmt 0.1.0, log 0.4.34, num-bigint 0.4.8, num-derive 0.5.1, num-integer 0.1.47, num-traits 0.2.19, object 0.39.1, oid-registry 0.8.1, once_cell 1.21.4, postcard 1.1.3, psl-types 2.0.11, rayon 1.12.0, rayon-core 1.13.0, regex 1.13.1, regex-automata 0.4.18, regex-syntax 0.8.11, rowan 0.17.0, roxmltree 0.21.1, rsa 0.10.0-rc.19, rustc-demangle 0.1.28, rustc-hash 1.1.0, rusticata-macros 4.1.0, rustix 1.1.5, simd_cesu8 1.2.0, smallvec 1.16.2, stable_deref_trait 1.2.1, text-size 1.1.1, unicode-width 0.2.2, uuid 1.28.0, walrus 0.27.2, walrus-macro 0.26.0, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, x509-parser 0.18.1.
+Applies to: addr2line 0.26.1, arbitrary 1.4.2, asn1-rs 0.7.2, asn1-rs-derive 0.6.0, base64 0.23.1, bitflags 2.13.2, bstr 1.14.0, bumpalo 3.20.3, cfg-if 1.0.5, countme 3.0.1, cpp_demangle 0.5.1, crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.23, der-parser 10.0.0, displaydoc 0.2.7, either 1.18.0, embedded-io 0.4.0, embedded-io 0.6.1, equivalent 1.0.2, errno 0.3.14, ff 0.14.0, flate2 1.1.11, fnv 1.0.7, gimli 0.32.3, gimli 0.33.0, group 0.14.0, hashbrown 0.14.5, hashbrown 0.16.1, hashbrown 0.17.1, heck 0.5.0, id-arena 2.3.0, indexmap 2.14.2, itertools 0.14.0, itertools 0.15.0, lazy_static 1.5.1, leb128fmt 0.1.0, log 0.4.34, num-bigint 0.4.8, num-derive 0.5.1, num-integer 0.1.47, num-traits 0.2.19, object 0.39.1, oid-registry 0.8.1, once_cell 1.21.4, postcard 1.1.3, psl-types 2.0.11, rayon 1.12.0, rayon-core 1.13.0, regex 1.13.2, regex-automata 0.4.19, regex-syntax 0.8.12, rowan 0.17.0, roxmltree 0.21.2, rsa 0.10.0, rustc-demangle 0.1.28, rustc-hash 1.1.0, rusticata-macros 4.1.0, rustix 1.1.5, simd_cesu8 1.2.0, smallvec 1.16.2, stable_deref_trait 1.2.1, text-size 1.1.1, unicode-width 0.2.3, uuid 1.29.3, walrus 0.28.0, walrus-macro 0.26.0, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, x509-parser 0.18.1.
 
 ```text
 Apache License
@@ -837,7 +838,7 @@ limitations under the License.
 
 ## Crate license text 2
 
-Applies to: adler2 2.0.1, allocator-api2 0.2.21, anyhow 1.0.104, async-trait 0.1.92, countme 3.0.1, daachorse 5.1.0, displaydoc 0.2.7, group 0.14.0, inventory 0.3.25, itoa 1.0.18, lazy_static 1.5.1, leb128fmt 0.1.0, minimal-lexical 0.2.1, once_cell 1.21.4, pin-project-lite 0.2.17, proc-macro2 1.0.107, quote 1.0.47, rowan 0.17.0, rsa 0.10.0-rc.19, rustc-hash 1.1.0, rustc-hash 2.1.3, rustix 1.1.5, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_json 1.0.154, simd_cesu8 1.2.0, syn 2.0.119, syn 3.0.6, text-size 1.1.1, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, typed-path 0.12.3, unicode-ident 1.0.26, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, zmij 1.0.23.
+Applies to: adler2 2.0.1, allocator-api2 0.2.21, anyhow 1.0.104, async-trait 0.1.92, countme 3.0.1, daachorse 5.1.0, displaydoc 0.2.7, group 0.14.0, inventory 0.3.25, itoa 1.0.18, lazy_static 1.5.1, leb128fmt 0.1.0, minimal-lexical 0.2.1, once_cell 1.21.4, pin-project-lite 0.2.17, proc-macro2 1.0.107, quote 1.0.47, rowan 0.17.0, rsa 0.10.0, rustc-hash 1.1.0, rustc-hash 2.1.3, rustix 1.1.5, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_json 1.0.154, simd_cesu8 1.2.0, syn 2.0.119, syn 3.0.10, text-size 1.1.1, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, typed-path 0.13.0, unicode-ident 1.0.26, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, zmij 1.0.23.
 
 ```text
 Permission is hereby granted, free of charge, to any
@@ -867,7 +868,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## Crate license text 3
 
-Applies to: base16ct 1.0.0, base64ct 1.8.3, block-buffer 0.10.4, block-buffer 0.12.1, const-oid 0.10.2, cpubits 0.1.1, cpufeatures 0.2.17, cpufeatures 0.3.1, crypto-bigint 0.7.5, crypto-common 0.1.7, crypto-common 0.2.2, der 0.8.2, digest 0.10.7, digest 0.11.3, elliptic-curve 0.14.1, hmac 0.13.0, hybrid-array 0.4.15, md-5 0.11.0, md2 0.11.0, p256 0.14.0, p384 0.14.0, pem-rfc7468 1.0.0, pkcs1 0.8.0-rc.5, pkcs8 0.11.0, primefield 0.14.0, primeorder 0.14.0, sec1 0.8.1, sha1 0.11.0, sha2 0.10.9, sha2 0.11.1, signature 3.0.0, spki 0.8.1, wnaf 0.14.1.
+Applies to: base16ct 1.0.0, base64ct 1.8.3, block-buffer 0.10.4, block-buffer 0.12.1, const-oid 0.10.3, cpubits 0.1.1, cpufeatures 0.2.17, cpufeatures 0.3.1, crypto-bigint 0.7.11, crypto-common 0.1.7, crypto-common 0.2.2, der 0.8.2, digest 0.10.7, digest 0.11.3, elliptic-curve 0.14.1, hmac 0.13.0, hybrid-array 0.4.15, md-5 0.11.0, md2 0.11.0, p256 0.14.0, p384 0.14.0, pem-rfc7468 1.0.0, pkcs1 0.8.0, pkcs8 0.11.0, primefield 0.14.0, primeorder 0.14.0, sec1 0.8.1, sha1 0.11.0, sha2 0.10.9, sha2 0.11.1, signature 3.0.0, spki 0.8.1, wnaf 0.14.1.
 
 ```text
 Apache License
@@ -1075,7 +1076,7 @@ limitations under the License.
 
 ## Crate license text 4
 
-Applies to: allocator-api2 0.2.21, anyhow 1.0.104, async-trait 0.1.92, daachorse 5.1.0, inventory 0.3.25, itoa 1.0.18, libc 0.2.190, mach2 0.6.0, proc-macro2 1.0.107, quote 1.0.47, rustc-hash 2.1.3, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_json 1.0.154, syn 2.0.119, syn 3.0.6, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, typed-path 0.12.3, unicode-ident 1.0.26.
+Applies to: allocator-api2 0.2.21, anyhow 1.0.104, async-trait 0.1.92, constant_time_eq 0.6.1, daachorse 5.1.0, inventory 0.3.25, itoa 1.0.18, libc 0.2.190, mach2 0.6.0, proc-macro2 1.0.107, quote 1.0.47, rustc-hash 2.1.3, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_json 1.0.154, syn 2.0.119, syn 3.0.10, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, typed-path 0.13.0, unicode-ident 1.0.26.
 
 ```text
 Apache License
@@ -1258,7 +1259,7 @@ END OF TERMS AND CONDITIONS
 
 ## Crate license text 5
 
-Applies to: cranelift-bforest 0.135.8, cranelift-codegen 0.135.8, cranelift-codegen-shared 0.135.8, cranelift-control 0.135.8, cranelift-entity 0.135.8, cranelift-frontend 0.135.8, cranelift-native 0.135.8, regalloc2 0.15.2, rustix 1.1.5, target-lexicon 0.13.5, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, wasmtime 48.0.8, wasmtime-environ 48.0.8, wasmtime-internal-cranelift 48.0.8, wasmtime-internal-fiber 48.0.8, wasmtime-internal-unwinder 48.0.8.
+Applies to: cranelift-bforest 0.135.10, cranelift-codegen 0.135.10, cranelift-codegen-shared 0.135.10, cranelift-control 0.135.10, cranelift-entity 0.135.10, cranelift-frontend 0.135.10, cranelift-native 0.135.10, regalloc2 0.15.2, rustix 1.1.5, target-lexicon 0.13.5, wasm-encoder 0.254.2, wasmparser 0.254.2, wasmprinter 0.254.2, wasmtime 48.0.10, wasmtime-environ 48.0.10, wasmtime-internal-cranelift 48.0.10, wasmtime-internal-fiber 48.0.10, wasmtime-internal-unwinder 48.0.10.
 
 ```text
 Apache License
@@ -1483,7 +1484,7 @@ Software.
 
 ## Crate license text 6
 
-Applies to: bitflags 2.13.2, log 0.4.34, num-bigint 0.4.8, num-derive 0.5.1, num-integer 0.1.47, num-traits 0.2.19, regex 1.13.1, regex-automata 0.4.18, regex-syntax 0.8.11.
+Applies to: bitflags 2.13.2, log 0.4.34, num-bigint 0.4.8, num-derive 0.5.1, num-integer 0.1.47, num-traits 0.2.19, regex 1.13.2, regex-automata 0.4.19, regex-syntax 0.8.12.
 
 ```text
 Copyright (c) 2014 The Rust Project Developers
@@ -1757,222 +1758,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## Crate license text 9
 
-Applies to: miniz_oxide 0.9.1, num-conv 0.2.2, pin-project-lite 0.2.17, simdutf8 0.1.5, time 0.3.55, time-core 0.1.9, time-macros 0.2.32.
-
-```text
-Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-```
-
-## Crate license text 10
-
-Applies to: asn1-rs 0.7.2, asn1-rs-derive 0.6.0, der-parser 10.0.0, oid-registry 0.8.1, rusticata-macros 4.1.0, x509-parser 0.18.1.
-
-```text
-Copyright (c) 2017 Pierre Chifflier
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-```
-
-## Crate license text 11
-
-Applies to: cmov 0.5.4, crypto-primes 0.7.2, ctutils 0.4.3, intaglio 1.15.1, serdect 0.4.3, zeroize 1.9.0.
+Applies to: cmov 0.5.4, crypto-primes 0.7.2, ctutils 0.4.8, intaglio 1.15.1, serdect 0.4.3, zeroize 1.9.0, zeroize_derive 1.5.0.
 
 ```text
 Apache License
@@ -2178,12 +1964,195 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 12
+## Crate license text 10
 
-Applies to: cpp_demangle 0.5.1, gimli 0.32.3, gimli 0.33.0, heck 0.5.0, leb128 0.2.7, unicode-width 0.2.2.
+Applies to: miniz_oxide 0.9.1, num-conv 0.2.2, pin-project-lite 0.2.17, simdutf8 0.1.5, time 0.3.55, time-core 0.1.9, time-macros 0.2.32.
 
 ```text
-Copyright (c) 2015 The Rust Project Developers
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+```
+
+## Crate license text 11
+
+Applies to: asn1-rs 0.7.2, asn1-rs-derive 0.6.0, der-parser 10.0.0, oid-registry 0.8.1, rusticata-macros 4.1.0, x509-parser 0.18.1.
+
+```text
+Copyright (c) 2017 Pierre Chifflier
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -2210,9 +2179,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 13
+## Crate license text 12
 
-Applies to: anstyle 1.0.14, cobs 0.3.0, crc32fast 1.5.2, fallible-iterator 0.3.0, hex 0.4.3.
+Applies to: anstyle 1.0.14, cobs 0.3.0, crc32fast 1.5.5, fallible-iterator 0.3.0, hex 0.4.3.
 
 ```text
 Apache License
@@ -2418,9 +2387,41 @@ Apache License
    limitations under the License.
 ```
 
+## Crate license text 13
+
+Applies to: cpp_demangle 0.5.1, gimli 0.32.3, gimli 0.33.0, heck 0.5.0, unicode-width 0.2.3.
+
+```text
+Copyright (c) 2015 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ## Crate license text 14
 
-Applies to: const-oid 0.10.2, cpufeatures 0.3.1, der 0.8.2, pkcs8 0.11.0.
+Applies to: const-oid 0.10.3, cpufeatures 0.3.1, der 0.8.2, pkcs8 0.11.0.
 
 ```text
 Copyright (c) 2020-2026 The RustCrypto Project Developers
@@ -2452,6 +2453,38 @@ DEALINGS IN THE SOFTWARE.
 
 ## Crate license text 15
 
+Applies to: crypto-bigint 0.7.11, pkcs1 0.8.0, sec1 0.8.1, spki 0.8.1.
+
+```text
+Copyright (c) 2021-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+## Crate license text 16
+
 Applies to: dsa 0.7.0, ecdsa 0.17.0, rfc6979 0.6.0, signature 3.0.0.
 
 ```text
@@ -2482,9 +2515,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 16
+## Crate license text 17
 
-Applies to: yara-x 1.23.0, yara-x-capi 1.23.0, yara-x-macros 1.23.0, yara-x-parser 1.23.0.
+Applies to: yara-x 1.24.0, yara-x-capi 1.24.0, yara-x-macros 1.24.0, yara-x-parser 1.24.0.
 
 ```text
 Copyright (c) 2024. The YARA-X Authors. All Rights Reserved.
@@ -2515,7 +2548,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Crate license text 17
+## Crate license text 18
 
 Applies to: aho-corasick 1.1.5, memchr 2.8.3, termcolor 1.4.1.
 
@@ -2525,7 +2558,7 @@ This project is dual-licensed under the Unlicense and MIT licenses.
 You may use this code under the terms of either license.
 ```
 
-## Crate license text 18
+## Crate license text 19
 
 Applies to: aho-corasick 1.1.5, memchr 2.8.3, termcolor 1.4.1.
 
@@ -2553,7 +2586,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## Crate license text 19
+## Crate license text 20
 
 Applies to: aho-corasick 1.1.5, memchr 2.8.3, termcolor 1.4.1.
 
@@ -2584,7 +2617,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 ```
 
-## Crate license text 20
+## Crate license text 21
 
 Applies to: cfg-if 1.0.5, id-arena 2.3.0, rustc-demangle 0.1.28.
 
@@ -2616,7 +2649,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 21
+## Crate license text 22
 
 Applies to: crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.23.
 
@@ -2624,38 +2657,6 @@ Applies to: crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.2
 The MIT License (MIT)
 
 Copyright (c) 2019 The Crossbeam Project Developers
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-```
-
-## Crate license text 22
-
-Applies to: crypto-bigint 0.7.5, sec1 0.8.1, spki 0.8.1.
-
-```text
-Copyright (c) 2021-2026 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -3281,7 +3282,7 @@ SOFTWARE.
 
 ## Crate license text 31
 
-Applies to: annotate-snippets 0.12.17, anstyle 1.0.14.
+Applies to: annotate-snippets 0.12.18, anstyle 1.0.14.
 
 ```text
 Copyright (c) Individual contributors
@@ -3512,38 +3513,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Crate license text 39
 
-Applies to: pem-rfc7468 1.0.0, pkcs1 0.8.0-rc.5.
-
-```text
-Copyright (c) 2021-2025 The RustCrypto Project Developers
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-```
-
-## Crate license text 40
-
 Applies to: protobuf 3.7.2, protobuf-support 3.7.2.
 
 ```text
@@ -3568,7 +3537,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 41
+## Crate license text 40
 
 Applies to: rayon 1.12.0, rayon-core 1.13.0.
 
@@ -3600,9 +3569,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 42
+## Crate license text 41
 
-Applies to: walrus 0.27.2, walrus-macro 0.26.0.
+Applies to: walrus 0.28.0, walrus-macro 0.26.0.
 
 ```text
 Copyright (c) 2018 Nick Fitzgerald
@@ -3632,7 +3601,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 43
+## Crate license text 42
 
 Applies to: addr2line 0.26.1.
 
@@ -3664,7 +3633,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 44
+## Crate license text 43
 
 Applies to: adler2 2.0.1.
 
@@ -3683,7 +3652,7 @@ AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
 OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-## Crate license text 45
+## Crate license text 44
 
 Applies to: adler2 2.0.1.
 
@@ -3891,9 +3860,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## Crate license text 46
+## Crate license text 45
 
-Applies to: annotate-snippets 0.12.17.
+Applies to: annotate-snippets 0.12.18.
 
 ```text
 Apache License
@@ -4099,7 +4068,7 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 47
+## Crate license text 46
 
 Applies to: arbitrary 1.4.2.
 
@@ -4133,7 +4102,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 48
+## Crate license text 47
 
 Applies to: base16ct 1.0.0.
 
@@ -4166,7 +4135,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 49
+## Crate license text 48
 
 Applies to: base64 0.23.1.
 
@@ -4194,7 +4163,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## Crate license text 50
+## Crate license text 49
 
 Applies to: base64ct 1.8.3.
 
@@ -4227,7 +4196,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 51
+## Crate license text 50
 
 Applies to: block-buffer 0.10.4.
 
@@ -4259,7 +4228,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 52
+## Crate license text 51
 
 Applies to: block-buffer 0.12.1.
 
@@ -4291,9 +4260,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 53
+## Crate license text 52
 
-Applies to: bstr 1.13.1.
+Applies to: bstr 1.14.0.
 
 ```text
 This project is licensed under either of
@@ -4306,9 +4275,9 @@ This project is licensed under either of
 at your option.
 ```
 
-## Crate license text 54
+## Crate license text 53
 
-Applies to: bstr 1.13.1.
+Applies to: bstr 1.14.0.
 
 ```text
 The MIT License (MIT)
@@ -4334,7 +4303,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## Crate license text 55
+## Crate license text 54
 
 Applies to: bumpalo 3.20.3.
 
@@ -4366,7 +4335,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 56
+## Crate license text 55
 
 Applies to: cobs 0.3.0.
 
@@ -4392,7 +4361,156 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Crate license text 56
+
+Applies to: constant_time_eq 0.6.1.
+
+```text
+Creative Commons Legal Code
+
+CC0 1.0 Universal
+
+    CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
+    LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
+    ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
+    INFORMATION ON AN "AS-IS" BASIS. CREATIVE COMMONS MAKES NO WARRANTIES
+    REGARDING THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS
+    PROVIDED HEREUNDER, AND DISCLAIMS LIABILITY FOR DAMAGES RESULTING FROM
+    THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS PROVIDED
+    HEREUNDER.
+
+Statement of Purpose
+
+The laws of most jurisdictions throughout the world automatically confer
+exclusive Copyright and Related Rights (defined below) upon the creator
+and subsequent owner(s) (each and all, an "owner") of an original work of
+authorship and/or a database (each, a "Work").
+
+Certain owners wish to permanently relinquish those rights to a Work for
+the purpose of contributing to a commons of creative, cultural and
+scientific works ("Commons") that the public can reliably and without fear
+of later claims of infringement build upon, modify, incorporate in other
+works, reuse and redistribute as freely as possible in any form whatsoever
+and for any purposes, including without limitation commercial purposes.
+These owners may contribute to the Commons to promote the ideal of a free
+culture and the further production of creative, cultural and scientific
+works, or to gain reputation or greater distribution for their Work in
+part through the use and efforts of others.
+
+For these and/or other purposes and motivations, and without any
+expectation of additional consideration or compensation, the person
+associating CC0 with a Work (the "Affirmer"), to the extent that he or she
+is an owner of Copyright and Related Rights in the Work, voluntarily
+elects to apply CC0 to the Work and publicly distribute the Work under its
+terms, with knowledge of his or her Copyright and Related Rights in the
+Work and the meaning and intended legal effect of CC0 on those rights.
+
+1. Copyright and Related Rights. A Work made available under CC0 may be
+protected by copyright and related or neighboring rights ("Copyright and
+Related Rights"). Copyright and Related Rights include, but are not
+limited to, the following:
+
+  i. the right to reproduce, adapt, distribute, perform, display,
+     communicate, and translate a Work;
+ ii. moral rights retained by the original author(s) and/or performer(s);
+iii. publicity and privacy rights pertaining to a person's image or
+     likeness depicted in a Work;
+ iv. rights protecting against unfair competition in regards to a Work,
+     subject to the limitations in paragraph 4(a), below;
+  v. rights protecting the extraction, dissemination, use and reuse of data
+     in a Work;
+ vi. database rights (such as those arising under Directive 96/9/EC of the
+     European Parliament and of the Council of 11 March 1996 on the legal
+     protection of databases, and under any national implementation
+     thereof, including any amended or successor version of such
+     directive); and
+vii. other similar, equivalent or corresponding rights throughout the
+     world based on applicable law or treaty, and any national
+     implementations thereof.
+
+2. Waiver. To the greatest extent permitted by, but not in contravention
+of, applicable law, Affirmer hereby overtly, fully, permanently,
+irrevocably and unconditionally waives, abandons, and surrenders all of
+Affirmer's Copyright and Related Rights and associated claims and causes
+of action, whether now known or unknown (including existing as well as
+future claims and causes of action), in the Work (i) in all territories
+worldwide, (ii) for the maximum duration provided by applicable law or
+treaty (including future time extensions), (iii) in any current or future
+medium and for any number of copies, and (iv) for any purpose whatsoever,
+including without limitation commercial, advertising or promotional
+purposes (the "Waiver"). Affirmer makes the Waiver for the benefit of each
+member of the public at large and to the detriment of Affirmer's heirs and
+successors, fully intending that such Waiver shall not be subject to
+revocation, rescission, cancellation, termination, or any other legal or
+equitable action to disrupt the quiet enjoyment of the Work by the public
+as contemplated by Affirmer's express Statement of Purpose.
+
+3. Public License Fallback. Should any part of the Waiver for any reason
+be judged legally invalid or ineffective under applicable law, then the
+Waiver shall be preserved to the maximum extent permitted taking into
+account Affirmer's express Statement of Purpose. In addition, to the
+extent the Waiver is so judged Affirmer hereby grants to each affected
+person a royalty-free, non transferable, non sublicensable, non exclusive,
+irrevocable and unconditional license to exercise Affirmer's Copyright and
+Related Rights in the Work (i) in all territories worldwide, (ii) for the
+maximum duration provided by applicable law or treaty (including future
+time extensions), (iii) in any current or future medium and for any number
+of copies, and (iv) for any purpose whatsoever, including without
+limitation commercial, advertising or promotional purposes (the
+"License"). The License shall be deemed effective as of the date CC0 was
+applied by Affirmer to the Work. Should any part of the License for any
+reason be judged legally invalid or ineffective under applicable law, such
+partial invalidity or ineffectiveness shall not invalidate the remainder
+of the License, and in such case Affirmer hereby affirms that he or she
+will not (i) exercise any of his or her remaining Copyright and Related
+Rights in the Work or (ii) assert any associated claims and causes of
+action with respect to the Work, in either case contrary to Affirmer's
+express Statement of Purpose.
+
+4. Limitations and Disclaimers.
+
+ a. No trademark or patent rights held by Affirmer are waived, abandoned,
+    surrendered, licensed or otherwise affected by this document.
+ b. Affirmer offers the Work as-is and makes no representations or
+    warranties of any kind concerning the Work, express, implied,
+    statutory or otherwise, including without limitation warranties of
+    title, merchantability, fitness for a particular purpose, non
+    infringement, or the absence of latent or other defects, accuracy, or
+    the present or absence of errors, whether or not discoverable, all to
+    the greatest extent permissible under applicable law.
+ c. Affirmer disclaims responsibility for clearing rights of other persons
+    that may apply to the Work or any use thereof, including without
+    limitation any person's Copyright and Related Rights in the Work.
+    Further, Affirmer disclaims responsibility for obtaining any necessary
+    consents, permissions or other rights required for any use of the
+    Work.
+ d. Affirmer understands and acknowledges that Creative Commons is not a
+    party to this document and has no duty or obligation with respect to
+    this CC0 or use of the Work.
+```
+
 ## Crate license text 57
+
+Applies to: constant_time_eq 0.6.1.
+
+```text
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+## Crate license text 58
 
 Applies to: cpubits 0.1.1.
 
@@ -4424,7 +4542,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 58
+## Crate license text 59
 
 Applies to: cpufeatures 0.2.17.
 
@@ -4456,9 +4574,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 59
+## Crate license text 60
 
-Applies to: crc32fast 1.5.2.
+Applies to: crc32fast 1.5.5.
 
 ```text
 MIT License
@@ -4484,7 +4602,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 60
+## Crate license text 61
 
 Applies to: crypto-common 0.1.7.
 
@@ -4516,7 +4634,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 61
+## Crate license text 62
 
 Applies to: crypto-common 0.2.2.
 
@@ -4548,7 +4666,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 62
+## Crate license text 63
 
 Applies to: crypto-primes 0.7.2.
 
@@ -4562,9 +4680,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 63
+## Crate license text 64
 
-Applies to: ctutils 0.4.3.
+Applies to: ctutils 0.4.8.
 
 ```text
 Copyright (c) 2025-2026 The RustCrypto Project Developers
@@ -4594,7 +4712,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 64
+## Crate license text 65
 
 Applies to: data-encoding 2.11.1.
 
@@ -4623,7 +4741,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 65
+## Crate license text 66
 
 Applies to: deranged 0.5.8.
 
@@ -4831,7 +4949,7 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 66
+## Crate license text 67
 
 Applies to: deranged 0.5.8.
 
@@ -4857,7 +4975,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 67
+## Crate license text 68
 
 Applies to: digest 0.11.3.
 
@@ -4890,7 +5008,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 68
+## Crate license text 69
 
 Applies to: embedded-io 0.4.0.
 
@@ -4922,7 +5040,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 69
+## Crate license text 70
 
 Applies to: embedded-io 0.6.1.
 
@@ -4954,7 +5072,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 70
+## Crate license text 71
 
 Applies to: equivalent 1.0.2.
 
@@ -4986,7 +5104,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 71
+## Crate license text 72
 
 Applies to: errno 0.3.14.
 
@@ -5018,7 +5136,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 72
+## Crate license text 73
 
 Applies to: fallible-iterator 0.3.0.
 
@@ -5044,7 +5162,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 73
+## Crate license text 74
 
 Applies to: ff 0.14.0.
 
@@ -5072,9 +5190,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## Crate license text 74
+## Crate license text 75
 
-Applies to: flate2 1.1.10.
+Applies to: flate2 1.1.11.
 
 ```text
 Copyright (c) 2014-2026 Alex Crichton
@@ -5104,7 +5222,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 75
+## Crate license text 76
 
 Applies to: fnv 1.0.7.
 
@@ -5136,7 +5254,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 76
+## Crate license text 77
 
 Applies to: foldhash 0.2.0.
 
@@ -5162,7 +5280,7 @@ the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 ```
 
-## Crate license text 77
+## Crate license text 78
 
 Applies to: funty 2.0.0.
 
@@ -5190,7 +5308,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 78
+## Crate license text 79
 
 Applies to: generic-array 0.14.7.
 
@@ -5218,7 +5336,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 79
+## Crate license text 80
 
 Applies to: getrandom 0.4.3.
 
@@ -5426,7 +5544,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## Crate license text 80
+## Crate license text 81
 
 Applies to: getrandom 0.4.3.
 
@@ -5459,7 +5577,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 81
+## Crate license text 82
 
 Applies to: hex 0.4.3.
 
@@ -5486,7 +5604,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 82
+## Crate license text 83
 
 Applies to: indexmap 2.14.2.
 
@@ -5518,7 +5636,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 83
+## Crate license text 84
 
 Applies to: intaglio 1.15.1.
 
@@ -5546,7 +5664,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 84
+## Crate license text 85
 
 Applies to: ipnet 2.12.2.
 
@@ -5754,7 +5872,7 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 85
+## Crate license text 86
 
 Applies to: ipnet 2.12.2.
 
@@ -5768,7 +5886,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 86
+## Crate license text 87
 
 Applies to: libc 0.2.190.
 
@@ -5800,7 +5918,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 87
+## Crate license text 88
 
 Applies to: libm 0.2.16.
 
@@ -6065,7 +6183,7 @@ have been licensed under extremely permissive terms.
 Copyright notices are retained in src/* files where relevant.
 ```
 
-## Crate license text 88
+## Crate license text 89
 
 Applies to: mach2 0.6.0.
 
@@ -6095,7 +6213,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Crate license text 89
+## Crate license text 90
 
 Applies to: mach2 0.6.0.
 
@@ -6127,7 +6245,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 90
+## Crate license text 91
 
 Applies to: md2 0.11.0.
 
@@ -6160,7 +6278,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 91
+## Crate license text 92
 
 Applies to: memmap2 0.9.11.
 
@@ -6368,7 +6486,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## Crate license text 92
+## Crate license text 93
 
 Applies to: memmap2 0.9.11.
 
@@ -6401,7 +6519,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 93
+## Crate license text 94
 
 Applies to: memoffset 0.9.1.
 
@@ -6427,7 +6545,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 94
+## Crate license text 95
 
 Applies to: minimal-lexical 0.2.1.
 
@@ -6635,7 +6753,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## Crate license text 95
+## Crate license text 96
 
 Applies to: minimal-lexical 0.2.1.
 
@@ -6679,38 +6797,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Crate license text 96
-
-Applies to: miniz_oxide 0.9.1.
-
-```text
-MIT License
-
-Copyright 2013-2014 RAD Game Tools and Valve Software
-Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
-Copyright (c) 2017 Frommi
-Copyright (c) 2017-2024 oyvindln
-
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ## Crate license text 97
 
 Applies to: miniz_oxide 0.9.1.
@@ -6722,6 +6808,7 @@ Copyright 2013-2014 RAD Game Tools and Valve Software
 Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
 Copyright (c) 2017 Frommi
 Copyright (c) 2017-2024 oyvindln
+
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -6747,6 +6834,37 @@ SOFTWARE.
 Applies to: miniz_oxide 0.9.1.
 
 ```text
+MIT License
+
+Copyright 2013-2014 RAD Game Tools and Valve Software
+Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
+Copyright (c) 2017 Frommi
+Copyright (c) 2017-2024 oyvindln
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Crate license text 99
+
+Applies to: miniz_oxide 0.9.1.
+
+```text
 Copyright 2013-2014 RAD Game Tools and Valve Software
 Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
 Copyright (c) 2020 Frommi
@@ -6763,7 +6881,7 @@ Permission is granted to anyone to use this software for any purpose, including 
 3. This notice may not be removed or altered from any source distribution.
 ```
 
-## Crate license text 99
+## Crate license text 100
 
 Applies to: nix 0.31.3.
 
@@ -6791,7 +6909,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## Crate license text 100
+## Crate license text 101
 
 Applies to: num-conv 0.2.2.
 
@@ -6817,7 +6935,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 101
+## Crate license text 102
 
 Applies to: object 0.39.1.
 
@@ -6849,7 +6967,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 102
+## Crate license text 103
 
 Applies to: p384 0.14.0.
 
@@ -6881,7 +6999,39 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 103
+## Crate license text 104
+
+Applies to: pem-rfc7468 1.0.0.
+
+```text
+Copyright (c) 2021-2025 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+## Crate license text 105
 
 Applies to: postcard 1.1.3.
 
@@ -6913,7 +7063,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 104
+## Crate license text 106
 
 Applies to: powerfmt 0.2.1.
 
@@ -7121,7 +7271,7 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 105
+## Crate license text 107
 
 Applies to: powerfmt 0.2.1.
 
@@ -7147,7 +7297,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 106
+## Crate license text 108
 
 Applies to: primefield 0.14.0.
 
@@ -7179,7 +7329,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 107
+## Crate license text 109
 
 Applies to: primeorder 0.14.0.
 
@@ -7211,9 +7361,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 108
+## Crate license text 110
 
-Applies to: psl 2.1.243.
+Applies to: psl 2.1.259.
 
 ```text
 MIT License
@@ -7239,7 +7389,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 109
+## Crate license text 111
 
 Applies to: psl-types 2.0.11.
 
@@ -7267,7 +7417,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 110
+## Crate license text 112
 
 Applies to: radium 0.7.0.
 
@@ -7295,7 +7445,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 111
+## Crate license text 113
 
 Applies to: rand_core 0.10.1.
 
@@ -7489,7 +7639,7 @@ APPENDIX: How to apply the Apache License to your work.
    identification within third-party archives.
 ```
 
-## Crate license text 112
+## Crate license text 114
 
 Applies to: rand_core 0.10.1.
 
@@ -7521,9 +7671,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 113
+## Crate license text 115
 
-Applies to: roxmltree 0.21.1.
+Applies to: roxmltree 0.21.2.
 
 ```text
 The MIT License (MIT)
@@ -7549,7 +7699,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 114
+## Crate license text 116
 
 Applies to: serdect 0.4.3.
 
@@ -7577,7 +7727,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 115
+## Crate license text 117
 
 Applies to: sha2 0.10.9.
 
@@ -7611,7 +7761,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 116
+## Crate license text 118
 
 Applies to: simd-adler32 0.3.10.
 
@@ -7639,7 +7789,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 117
+## Crate license text 119
 
 Applies to: slab 0.4.12.
 
@@ -7671,7 +7821,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 118
+## Crate license text 120
 
 Applies to: smallvec 1.16.2.
 
@@ -7703,7 +7853,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 119
+## Crate license text 121
 
 Applies to: stable_deref_trait 1.2.1.
 
@@ -7735,7 +7885,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 120
+## Crate license text 122
 
 Applies to: strsim 0.11.1.
 
@@ -7765,7 +7915,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 121
+## Crate license text 123
 
 Applies to: strum_macros 0.28.0.
 
@@ -7793,7 +7943,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 122
+## Crate license text 124
 
 Applies to: subtle 2.6.1.
 
@@ -7829,7 +7979,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Crate license text 123
+## Crate license text 125
 
 Applies to: synstructure 0.13.2.
 
@@ -7843,7 +7993,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 124
+## Crate license text 126
 
 Applies to: tap 1.0.1.
 
@@ -7871,7 +8021,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 125
+## Crate license text 127
 
 Applies to: typenum 1.20.1.
 
@@ -7879,7 +8029,7 @@ Applies to: typenum 1.20.1.
 MIT OR Apache-2.0
 ```
 
-## Crate license text 126
+## Crate license text 128
 
 Applies to: typenum 1.20.1.
 
@@ -8087,7 +8237,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## Crate license text 127
+## Crate license text 129
 
 Applies to: typenum 1.20.1.
 
@@ -8115,7 +8265,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 128
+## Crate license text 130
 
 Applies to: unicode-ident 1.0.26.
 
@@ -8161,7 +8311,7 @@ dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 ```
 
-## Crate license text 129
+## Crate license text 131
 
 Applies to: unty 0.0.4.
 
@@ -8369,7 +8519,7 @@ Apache License
    limitations under the License.
 ```
 
-## Crate license text 130
+## Crate license text 132
 
 Applies to: unty 0.0.4.
 
@@ -8397,9 +8547,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 131
+## Crate license text 133
 
-Applies to: uuid 1.28.0.
+Applies to: uuid 1.29.3.
 
 ```text
 Copyright (c) 2014 The Rust Project Developers
@@ -8430,7 +8580,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 132
+## Crate license text 134
 
 Applies to: virtue 0.0.18.
 
@@ -8458,7 +8608,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 133
+## Crate license text 135
 
 Applies to: wnaf 0.14.1.
 
@@ -8491,7 +8641,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 134
+## Crate license text 136
 
 Applies to: zeroize 1.9.0.
 
@@ -8523,9 +8673,41 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-## Crate license text 135
+## Crate license text 137
 
-Applies to: zip 9.0.5.
+Applies to: zeroize_derive 1.5.0.
+
+```text
+Copyright (c) 2019-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+## Crate license text 138
+
+Applies to: zip 9.8.1.
 
 ```text
 The MIT License (MIT)
@@ -8551,7 +8733,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Crate license text 136
+## Crate license text 139
 
 Applies to: zlib-rs 0.6.8.
 
@@ -8577,7 +8759,7 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 ```
 
-## Crate license text 137
+## Crate license text 140
 
 Applies to: zopfli 0.8.3.
 
